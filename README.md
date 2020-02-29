@@ -68,6 +68,10 @@ There is `vDAI` faux ERC-20 token.
 
 * Token balance shows your accrued interest balance
 
+# Frontend
+
+[Frontend is a different repo](https://github.com/RachBLondon/ethlondon-dapp).
+
 # Internals
 
 [Based on Drizzle box](https://www.trufflesuite.com/boxes/drizzle).
