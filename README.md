@@ -149,3 +149,11 @@ token.mint 100: started
 token.mint 100: done, gas used 50436, gas price 20 Gwei
 ```
 
+## Addresses
+
+**Kovan**
+
+* DAI: https://kovan.etherscan.io/address/0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD
+* aDAI: https://kovan.etherscan.io/address/0x58AD4cB396411B691A9AAb6F74545b2C5217FE6a
+* ViralBank: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#code
+* Patient 0: 0xd66E40b0c30595bEc72153B502aC1E0c4785991B
