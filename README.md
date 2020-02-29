@@ -80,6 +80,12 @@ Install Truffle.
 npm install -g truffle
 ```
 
+Install Ganache for having a local dev Ethereum network.
+
+```bash
+npm install -g ganache ganache-cli
+```
+
 Compile contracts
 
 ```bash
@@ -87,6 +93,12 @@ truffle compile
 ```
 
 This will pull Solidity compiled 0.5 from DockerHub and compile the smart contracts using Dockerized compiler.
+
+Start dev env in one terminal
+
+```bash
+truffle develop
+```
 
 Then install and start the React app.
 

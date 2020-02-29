@@ -6,9 +6,8 @@ const options = {
     block: false,
     customProvider: new Web3("ws://localhost:8545"),
   },
-  contracts: [ViralBank],
+  contracts: [],
   events: {
-    SimpleStorage: ["StorageSet"],
   },
 };
 
