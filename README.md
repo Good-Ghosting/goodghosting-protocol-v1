@@ -132,6 +132,8 @@ network:  kovan
 ViralBank.new: started
 ViralBank.new: done, gas used 0x2713e2, gas price 20 Gwei
 bank address 0x9Eb6a33451643A564049f6D65b077E3308717b54
-$ npx truffle run --network kovan etherscan ViralBank@0x7830FFf0d7F19fDf9d6dead485af4ad1B205464f
-
+$ npx truffle run --network kovan etherscan ViralBank@0x9Eb6a33451643A564049f6D65b077E3308717b54
+Verifying ViralBank@0x9Eb6a33451643A564049f6D65b077E3308717b54
+Pass - Verified: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#contracts
+Successfully verified 1 contract(s).
 ```
