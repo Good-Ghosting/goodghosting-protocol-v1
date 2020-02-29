@@ -5,6 +5,15 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Play the save game
 contract ViralBank {
 
+    // A short cut to figure out what this contract is doing
+    // See getState()
+    enum GameState {
+        Starting,  // All players must do the first buy in
+        Playing,   // Monthly buy ins going
+        Cleaning,  // Need to manually call clean up for every player
+        PayingOut  // Dividends are ready to be claimed
+    }
+
     // Token that patients use to buy in the game - DAI
     IERC20 public inboundCurrency;
 
@@ -49,15 +58,18 @@ contract ViralBank {
     // how many interest shares each player has
     mapping(address => uint) public allocations;
     uint public totalAllocations = 0;
-    uint public aliveAllocations = 0;
+
 
     //
     // Final score calculations
     //
 
-    // This player has been dropped out from the prize pool if they did not finish
+    // Have we executed clean up for this player
     mapping(address => bool) public cleanedUp;
     uint public cleanedUpPlayerCount;
+
+    // How much shares for the prize pool was left after eliminating all the dead
+    uint public aliveAllocations = 0;
 
     constructor(IERC20 _inboundCurrency, IERC20 _interestCurrency) public {
         inboundCurrency = _inboundCurrency;
@@ -67,7 +79,7 @@ contract ViralBank {
     // A new player joins the game
     function startGame(address referral) public {
 
-        require(!isIncubationPeriodOver(), "Cannot come in after the pets have left the lab");
+        require(!isIncubationPeriodOver(), "Cannot come in after the pets have escaped the lab");
         require(areWeHavingFun(), "Game has ended");
 
         if(playerCount == 0) {
@@ -217,6 +229,19 @@ contract ViralBank {
     // Have we checked all the players if they made it to the finish line
     function isCleanUpComplete() public view returns(bool) {
         return cleanedUpPlayerCount == playerCount;
+    }
+
+    // Determine in which state the game is currently,
+    function getState() public view returns(GameState) {
+        if(!isIncubationPeriodOver()) {
+            return GameState.Starting;
+        } else if(areWeHavingFun()) {
+            return GameState.Playing;
+        } else if(!isCleanUpComplete()) {
+            return GameState.Cleaning;
+        } else {
+            return GameState.PayingOut;
+        }
     }
 
 }
