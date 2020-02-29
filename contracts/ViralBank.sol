@@ -173,11 +173,12 @@ contract ViralBank is IERC20 {
 
     // Swap DAI to interest bearing aDAI token
     // How to convert DAI to ADAI
-    // 1. User needs to make approve() against Aave lending pool
+    // Note separation between lending pole CORE (approval target) and lending poo linstance
+    // 1. User needs to make approve() against Aave lending pool CORE
     // 2. This smart contract moves funds to lending pool
     function _convertDAItoADAI(address whose, uint amount) internal {
 
-        ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPoolCore());
+        ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
 
         require(daiToken.allowance(whose, address(this)) >= amount, "You need to have allowance to do transfer DAI on the smart contract");
 
