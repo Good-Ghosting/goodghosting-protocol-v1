@@ -2,7 +2,12 @@ pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-// Play the save game
+/**
+ * Play the save game.
+ *
+ * No safe math was though to shortcut the hacking time.
+ *
+ */
 contract ViralBank is IERC20 {
 
     // A short cut to figure out what this contract is doing
@@ -24,10 +29,10 @@ contract ViralBank is IERC20 {
     }
 
     // Token that patients use to buy in the game - DAI
-    IERC20 public inboundCurrency;
+    IERC20 public daiToken;
 
     // Pointer to aDAI
-    IERC20 public interestCurrency;
+    IERC20 public adaiToken;
 
     // What is the monthly payment and buy in
     // Now 9.90 DAI
@@ -50,7 +55,7 @@ contract ViralBank is IERC20 {
     // Book keeping
     address public patientZero;
     mapping(address => uint) public balances;
-    uint public raisedMoney;
+    uint public totalDeposits;
 
     // Track if the player has been keeping up with the game
     mapping(address => uint) public lastActivityAt;
@@ -79,9 +84,12 @@ contract ViralBank is IERC20 {
     // How much shares for the prize pool was left after eliminating all the dead
     uint public aliveAllocations = 0;
 
+    // Withdrawal and interest handling
+    uint totalWithdrawals = 0;
+
     constructor(IERC20 _inboundCurrency, IERC20 _interestCurrency) public {
-        inboundCurrency = _inboundCurrency;
-        interestCurrency = _interestCurrency;
+        daiToken = _inboundCurrency;
+        adaiToken = _interestCurrency;
     }
 
     // A new player joins the game
@@ -139,13 +147,13 @@ contract ViralBank is IERC20 {
 
     // Transaction sender updates his playing stats and money gets banked
     function _buyIn() internal {
-        inboundCurrency.transferFrom(msg.sender, address(this), ticketSize);
+        daiToken.transferFrom(msg.sender, address(this), ticketSize);
         _swapToInterestBearing(ticketSize);
 
         lastActivityAt[msg.sender] = now;
         lastRound[msg.sender] = getCurrentRoundNumber();
         balances[msg.sender] += ticketSize;
-        raisedMoney += ticketSize;
+        totalDeposits += ticketSize;
     }
 
     // Remove allocations for players who failed
@@ -272,6 +280,17 @@ contract ViralBank is IERC20 {
         return PlayerState.Playing;
     }
 
+    // How much interest the game has collected
+    function getTotalAccruedInterest() public view returns(uint) {
+        return adaiToken.balanceOf(address(this)) - totalDeposits - totalWithdrawals;
+    }
+
+    // How much one player owns from the pot
+    // (Does not account for dead players)
+    function getPlayerShareOfAccruedInterest(address addr) public view returns(uint) {
+        return getTotalAccruedInterest() * totalAllocations / allocations[addr];
+    }
+
     //
     // ERC-20 dummy interface to show how much allocation each person has
     //
@@ -281,11 +300,11 @@ contract ViralBank is IERC20 {
     uint8 public decimals = 0;
 
     function totalSupply() external view returns (uint256) {
-        return totalAllocations;
+        return getTotalAccruedInterest();
     }
 
     function balanceOf(address account) external view returns (uint256) {
-        return allocations[account];
+        return getTotalAccruedInterest() * allocations[account] / totalAllocations;
     }
 
     function transfer(address, uint256) external returns (bool) {
