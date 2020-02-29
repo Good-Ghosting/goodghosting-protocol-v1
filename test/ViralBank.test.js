@@ -2,7 +2,7 @@ const IERC20 = artifacts.require("IERC20");
 const ERC20Mintable = artifacts.require("ERC20Mintable");
 const ViralBank = artifacts.require("ViralBank");
 const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddressesProviderMock");
-const { time, expectRevert } = require("@openzeppelin/test-helpers");
+//const { time, expectRevert } = require("@openzeppelin/test-helpers");
 const { web3tx, wad4human, toWad } = require("@decentral.ee/web3-test-helpers");
 
 contract("ViralBank", accounts => {
