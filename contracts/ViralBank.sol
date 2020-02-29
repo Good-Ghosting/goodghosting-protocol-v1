@@ -3,10 +3,10 @@ pragma solidity ^0.5.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Play the save game
-contract ViralBank {
+contract ViralBank is IERC20 {
 
     // A short cut to figure out what this contract is doing
-    // See getState()
+    // See getGmaeState()
     enum GameState {
         Starting,  // All players must do the first buy in with startGame()
         Playing,   // Monthly buy ins going with buyInMonthly()
@@ -15,6 +15,7 @@ contract ViralBank {
     }
 
     // How one address is faring
+    // See getPlayerState()
     enum PlayerState {
         NotPlaying, // Did not get in during incubation
         Playing,    // Has kept up with the payments
@@ -269,5 +270,37 @@ contract ViralBank {
         }
 
         return PlayerState.Playing;
+    }
+
+    //
+    // ERC-20 dummy interface to show how much allocation each person has
+    //
+
+    string public name = "Viral Aave";
+    string public symbol = "vDAI";
+    uint8 public decimals = 0;
+
+    function totalSupply() external view returns (uint256) {
+        return totalAllocations;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return allocations[account];
+    }
+
+    function transfer(address, uint256) external returns (bool) {
+        return false;
+    }
+
+    function allowance(address, address) external view returns (uint256) {
+        return 0;
+    }
+
+    function approve(address, uint256) external returns (bool) {
+        return false;
+    }
+
+    function transferFrom(address, address, uint256) external returns (bool) {
+        return false;
     }
 }
