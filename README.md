@@ -13,6 +13,19 @@ The game makes saving viral.
 
 * Each friend of a friend gives you 1% of their interest
 
+# How does it work
+
+* Any deposited DAI is converted to [interest earning aDAI on Aave Protocol](https://developers.aave.com/#atokens)
+
+* All interested is hold by the viral bank smart contract
+
+* Interested is distributed to the players who make it at the end of the game
+
+* You get extra interest bonus for friend referrals who you brought to the game
+
+* Any players who drop out in the middle of game lose their interest and it is
+  distributed to the players who make it to the end
+
 # Smart contract usage
 
 ## Starting the game as a player
