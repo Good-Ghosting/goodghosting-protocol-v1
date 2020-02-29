@@ -1,6 +1,9 @@
-# Viral Save Gamex
+# Viral Saving Game
 
-Earn more interest by inviting friends
+Try to save DAI 9.90 every week for one year.
+Earn more interest by inviting friends.
+If you drop out in the middle you lose your interest
+and it is distributed to everyone who make it to the end.
 
 # Internals
 
