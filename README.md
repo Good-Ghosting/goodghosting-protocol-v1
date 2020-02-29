@@ -71,3 +71,16 @@ There is `vDAI` faux ERC-20 token.
 # Internals
 
 [Based on Drizzle box](https://www.trufflesuite.com/boxes/drizzle).
+
+# Developing
+
+Install Truffle.
+
+Compile contracts
+
+```bash
+truffle compile
+```
+
+This will pull Solidity compiled 0.5 from DockerHub and compile the smart contracts using Dockerized compiler.
+
