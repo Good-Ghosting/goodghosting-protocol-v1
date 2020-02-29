@@ -14,6 +14,14 @@ contract ViralBank {
         PayingOut  // Dividends are ready to be claimed with todo()
     }
 
+    // How one address is faring
+    enum PlayerState {
+        NotPlaying, // Did not get in during incubation
+        Playing,    // Has kept up with the payments
+        DroppedOut, // Missed a payment
+        Finished    // Made up to the finishing line
+    }
+
     // Token that patients use to buy in the game - DAI
     IERC20 public inboundCurrency;
 
@@ -34,9 +42,9 @@ contract ViralBank {
     uint public startedAt = now;
 
     // How long we want to play
-    uint public constant ROUND_LENGTH = 30 days;
+    uint public constant ROUND_LENGTH = 7 days;
     uint public constant INCUBATION_PERIOD = ROUND_LENGTH; // Can't differ - simplified math
-    uint public constant GAME_LENGTH = 12 * 30 days;
+    uint public constant GAME_LENGTH = 52 * 7 days;
 
     // Book keeping
     address public patientZero;
@@ -58,7 +66,6 @@ contract ViralBank {
     // how many interest shares each player has
     mapping(address => uint) public allocations;
     uint public totalAllocations = 0;
-
 
     //
     // Final score calculations
@@ -88,7 +95,7 @@ contract ViralBank {
             patientZero = msg.sender;
         } else {
             require(referral != address(0), "All players must have a referral");
-            require(isValidPlayer(referral), "Dead players cannot refer");
+            require(isPlayerInGame(referral), "Dead players cannot refer");
 
             // Referring player gets 10% interested earned by this player
             allocations[referral] += 10;
@@ -122,7 +129,8 @@ contract ViralBank {
     // Need to hit this every month or you are out of the game
     function buyInMonthly() public {
         require(areWeHavingFun(), "Game has ended");
-        require(isValidPlayer(msg.sender), "You are not infected. Stay away from the game.");
+        require(isPlayerAddress(msg.sender), "You are not a player");
+        require(isPlayerInGame(msg.sender), "You have dropped off.");
         require(lastRound[msg.sender] == getCurrentRoundNumber() - 1, "You need to be on the previous round to buy in the next one");
 
         _buyIn();
@@ -189,7 +197,7 @@ contract ViralBank {
     }
 
     /** The player has started the game and has not dropped out */
-    function isValidPlayer(address addr) public view returns(bool) {
+    function isPlayerInGame(address addr) public view returns(bool) {
         if(getCurrentRoundNumber() == 0) {
             return balances[addr] > 0;
         } else {
@@ -233,7 +241,7 @@ contract ViralBank {
     }
 
     // Determine in which state the game is currently,
-    function getState() public view returns(GameState) {
+    function getGameState() public view returns(GameState) {
         if(!isIncubationPeriodOver()) {
             return GameState.Starting;
         } else if(areWeHavingFun()) {
@@ -243,5 +251,23 @@ contract ViralBank {
         } else {
             return GameState.PayingOut;
         }
+    }
+
+    // Figure out what is the state of a single player
+    function getPlayerState(address addr) public view returns(PlayerState) {
+
+        if(!isPlayerAddress(addr)) {
+            return PlayerState.NotPlaying;
+        }
+
+        if(!hasPlayerFinishedGame(addr)) {
+            return PlayerState.Finished;
+        }
+
+        if(!isPlayerInGame(addr)) {
+            return PlayerState.DroppedOut;
+        }
+
+        return PlayerState.Playing;
     }
 }
