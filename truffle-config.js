@@ -1,13 +1,45 @@
 const path = require("path");
+const HDWalletProvider = require("@truffle/hdwallet-provider");
+
+require("dotenv").config();
 
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // to customize your Truffle configuration!
   contracts_build_directory: path.join(__dirname, "app/src/contracts"),
   networks: {
-    develop: {
-      port: 8545
-    }
+
+      kovan: {
+          provider: () => new HDWalletProvider(
+              process.env.KOVAN_MNEMONIC,
+              process.env.KOVAN_PROVIDER_URL,
+              0, //address_index
+              10, // num_addresses
+              true // shareNonce
+          ),
+          network_id: 42, // Kovan's id
+          //gas: 7017622, //
+          //confirmations: 2, // # of confs to wait between deployments. (default: 0)
+          timeoutBlocks: 50, // # of blocks before a deployment times out  (minimum/default: 50)
+          skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
+      },
+
+      mainnet: {
+          provider: () => new HDWalletProvider(
+              process.env.MAINNET_MNEMONIC,
+              process.env.MAINNET_PROVIDER_URL,
+              0, //address_index
+              10, // num_addresses
+              true // shareNonce
+          ),
+          network_id: 1, // mainnet's id
+          //gas: 7017622, //
+          gasPrice: +process.env.MAINNET_GAS_PRICE || 1000*1000*1000, // default 1 gwei
+          //confirmations: 2, // # of confs to wait between deployments. (default: 0)
+          timeoutBlocks: 50, // # of blocks before a deployment times out  (minimum/default: 50)
+          skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
+      },
+
   },
 
   compilers: {
