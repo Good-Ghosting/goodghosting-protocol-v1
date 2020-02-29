@@ -24,13 +24,13 @@ contract ViralBank {
     // Now 9.90 DAI
     uint public ticketSize = 9.90 * 10**18;
 
-    // How many players
+    // How many players started the journey
     uint public playerCount = 0;
 
-    // How many people made it
+    // How many people made it - after clean up
     uint public finishedPlayerCount = 0;
 
-    // When the game startd
+    // When the game started
     uint public startedAt = now;
 
     // How long we want to play
@@ -89,6 +89,10 @@ contract ViralBank {
         } else {
             require(referral != address(0), "All players must have a referral");
             require(isValidPlayer(referral), "Dead players cannot refer");
+
+            // Referring player gets 10% interested earned by this player
+            allocations[referral] += 10;
+            totalAllocations += 10;
         }
 
         require(lastRound[msg.sender] == 0, "Need to start at round zero");
@@ -104,18 +108,15 @@ contract ViralBank {
 
         // This player gets full interest for themselves
         allocations[msg.sender] += 100;
-
-        // Referring player gets 10% interested earned by this player
-        allocations[referral] += 10;
+        totalAllocations += 100;
 
         // Second level multi marketing pyramid
         address secondLevel = referrals[referral];
         if(secondLevel != address(0)) {
             // Second level referrers give you 1% of their interest
             allocations[secondLevel] += 1;
+            totalAllocations += 1;
         }
-
-        totalAllocations += 100 + 10 + 1;
     }
 
     // Need to hit this every month or you are out of the game
