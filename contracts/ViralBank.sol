@@ -155,7 +155,11 @@ contract ViralBank is IERC20 {
         require(areWeHavingFun(), "Game has ended");
         require(isPlayerAddress(msg.sender), "You are not a player");
         require(isPlayerInGame(msg.sender), "You have dropped off.");
-        require(lastRound[msg.sender] == getCurrentRoundNumber() - 1, "You need to be on the previous round to buy in the next one");
+
+        // Check that the user has completed all the previous rounds
+        if(getCurrentRoundNumber() != 0) {
+            require(lastRound[msg.sender] == getCurrentRoundNumber() - 1, "You need to be on the previous round to buy in the next one");
+        }
 
         _buyIn();
     }
