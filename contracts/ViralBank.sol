@@ -8,10 +8,10 @@ contract ViralBank {
     // A short cut to figure out what this contract is doing
     // See getState()
     enum GameState {
-        Starting,  // All players must do the first buy in
-        Playing,   // Monthly buy ins going
-        Cleaning,  // Need to manually call clean up for every player
-        PayingOut  // Dividends are ready to be claimed
+        Starting,  // All players must do the first buy in with startGame()
+        Playing,   // Monthly buy ins going with buyInMonthly()
+        Cleaning,  // Need to manually call clean up for every player checkForDead()
+        PayingOut  // Dividends are ready to be claimed with todo()
     }
 
     // Token that patients use to buy in the game - DAI
