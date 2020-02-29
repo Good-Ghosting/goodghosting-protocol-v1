@@ -174,8 +174,9 @@ contract ViralBank is IERC20 {
     // Swap DAI to interest bearing aDAI token
     // How to convert DAI to ADAI
     // Note separation between lending pole CORE (approval target) and lending poo linstance
-    // 1. User needs to make approve() against Aave lending pool CORE
-    // 2. This smart contract moves funds to lending pool
+    // 1. User needs to make approve() against this smart contractt
+    // 2. This smart contract has approves Aave lending pool CORE to tranferFrom() DAI from this cotract to core
+    // 3. We call deposit() which will trigger transferFrom(), move DAI from this contract and generate aDAI on this contract
     function _convertDAItoADAI(address whose, uint amount) internal {
 
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
