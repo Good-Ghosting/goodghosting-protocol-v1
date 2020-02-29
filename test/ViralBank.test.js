@@ -109,8 +109,8 @@ contract("ViralBank", accounts => {
         await web3tx(bank.buyInToRound, "bank.buyInToRound by patient1")({
             from: patient1
         });
-        assert.equal(wad4human(await token.balanceOf.call(patient1)), "990.10000");
-        assert.equal(wad4human(await bank.balances.call(patient1)), "9.90000");
+        assert.equal(wad4human(await token.balanceOf.call(patient1)), "980.20000");
+        assert.equal(wad4human(await bank.balances.call(patient1)), "19.80000");
     });
 
 });
