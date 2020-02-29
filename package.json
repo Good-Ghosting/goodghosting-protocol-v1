@@ -1,26 +1,29 @@
 {
-  "name": "drizzle-box",
-  "version": "1.0.0",
-  "description": "",
-  "main": "truffle-config.js",
-  "directories": {
-    "test": "test"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/truffle-box/drizzle-box.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/truffle-box/drizzle-box/issues"
-  },
-  "homepage": "https://github.com/truffle-box/drizzle-box#readme",
-  "dependencies": {
-    "@openzeppelin/contracts": "^2.5.0"
-  }
+    "name": "drizzle-box",
+    "version": "1.0.0",
+    "description": "",
+    "main": "truffle-config.js",
+    "scripts": {
+        "test": "run-s test:*",
+        "test:contracts": "truffle test test/contracts.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/truffle-box/drizzle-box.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/truffle-box/drizzle-box/issues"
+    },
+    "homepage": "https://github.com/truffle-box/drizzle-box#readme",
+    "dependencies": {
+        "@openzeppelin/contracts": "^2.5.0"
+    },
+    "devDependencies": {
+        "@decentral.ee/web3-test-helpers": "^0.2.4",
+        "@openzeppelin/test-helpers": "^0.5.4",
+        "truffle": "^5.1.15"
+    }
 }

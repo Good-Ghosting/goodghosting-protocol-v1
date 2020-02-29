@@ -1,0 +1,1 @@
+require("./ViralBank.test.js");

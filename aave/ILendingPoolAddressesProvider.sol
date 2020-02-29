@@ -42,7 +42,3 @@ contract ILendingPoolAddressesProvider {
     function setLendingRateOracle(address _lendingRateOracle) public;
 
 }
-
-contract ILendingPool {
-    function deposit(address _reserve, uint256 _amount, uint16 _referralCode) public;
-}
