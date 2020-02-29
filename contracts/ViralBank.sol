@@ -102,7 +102,7 @@ contract ViralBank {
         // TODO: Emit a sorted event?
         referrerCount[referral] += 1;
 
-        // This player gets full interest
+        // This player gets full interest for themselves
         allocations[msg.sender] += 100;
 
         // Referring player gets 10% interested earned by this player
@@ -111,6 +111,7 @@ contract ViralBank {
         // Second level multi marketing pyramid
         address secondLevel = referrals[referral];
         if(secondLevel != address(0)) {
+            // Second level referrers give you 1% of their interest
             allocations[secondLevel] += 1;
         }
 
@@ -165,8 +166,7 @@ contract ViralBank {
 
     // Swap the deposited DAI to aDAI
     function _swapToInterestBearing(uint amount) internal {
-
-
+        // TODO: Insert Aave
     }
 
     // Check for the game master
@@ -243,5 +243,4 @@ contract ViralBank {
             return GameState.PayingOut;
         }
     }
-
 }
