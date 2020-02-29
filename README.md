@@ -5,13 +5,19 @@ Earn more interest by inviting friends.
 If you drop out in the middle you lose your interest
 and it is distributed to everyone who make it to the end.
 
-# Internals
+## Referral system
 
-[Based on Drizzle box](https://www.trufflesuite.com/boxes/drizzle).
+The game makes saving viral.
 
-# Usage
+* Each friend you refer gives you 10% of their interest
+
+* Each friend of a friend gives you 1% of their interest
+
+# Smart contract usage
 
 ## Starting the game as a player
+
+You need to have a referral from somebody to get in the game on the first round.
 
 User needs to do the following to start the game
 
@@ -24,6 +30,8 @@ User needs to do the following to start the game
 * Do a transaction to `startGame()`
 
 ## Playing the game
+
+One week is one round.
 
 Every week the user has to
 
@@ -47,3 +55,6 @@ There is `vDAI` faux ERC-20 token.
 
 * Token balance shows your accrued interest balance
 
+# Internals
+
+[Based on Drizzle box](https://www.trufflesuite.com/boxes/drizzle).
