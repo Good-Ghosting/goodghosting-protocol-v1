@@ -26,7 +26,9 @@
         "@openzeppelin/test-helpers": "^0.5.4",
         "@truffle/hdwallet-provider": "^1.0.32",
         "dotenv": "^8.2.0",
+        "eslint": "^6.8.0",
         "npm-run-all": "^4.1.5",
-        "truffle": "^5.1.15"
+        "truffle": "^5.1.15",
+        "truffle-plugin-verify": "^0.3.9"
     }
 }
