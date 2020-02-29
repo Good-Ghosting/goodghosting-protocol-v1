@@ -57,7 +57,7 @@ contract ViralBank is IERC20 {
     uint public constant GAME_LENGTH = 52 * 7 days;
 
     // Aave pays us kick back for DAI -> aDAI conversion
-    // https://developers.aave.com/#lendingpool
+    // https://developers.aave.com/#referral-program
     uint16 public constant AAVE_REFERRAL_CODE = 0;
 
     // Book keeping
@@ -150,7 +150,7 @@ contract ViralBank is IERC20 {
     }
 
     // Need to hit this every month or you are out of the game
-    function buyInMonthly() public {
+    function buyInToRound() public {
         require(areWeHavingFun(), "Game has ended");
         require(isPlayerAddress(msg.sender), "You are not a player");
         require(isPlayerInGame(msg.sender), "You have dropped off.");

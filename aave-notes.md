@@ -11,3 +11,6 @@
 - There is no NPM packages for Aave contracts similar to OpenZeppelin
 
 - Hard to mock up lending pool et. al for the truffle test environment
+
+- How to use Aave on different testnets
+

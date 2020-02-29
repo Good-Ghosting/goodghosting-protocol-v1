@@ -76,6 +76,10 @@ There is `vDAI` faux ERC-20 token.
 
 Install Truffle.
 
+```bash
+npm install -g truffle
+```
+
 Compile contracts
 
 ```bash
@@ -84,3 +88,9 @@ truffle compile
 
 This will pull Solidity compiled 0.5 from DockerHub and compile the smart contracts using Dockerized compiler.
 
+Then install and start the React app.
+
+```bash
+cd app
+npm start
+```
