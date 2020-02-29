@@ -1,6 +1,7 @@
 pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./ILendingPoolAddressesProvider.sol";
 
 /**
  * Play the save game.
@@ -34,6 +35,9 @@ contract ViralBank is IERC20 {
     // Pointer to aDAI
     IERC20 public adaiToken;
 
+    // Which Aave instance we use to swap DAI to interest bearing aDAI
+    ILendingPoolAddressesProvider public lendingPoolAddressProvider;
+
     // What is the monthly payment and buy in
     // Now 9.90 DAI
     uint public ticketSize = 9.90 * 10**18;
@@ -51,6 +55,10 @@ contract ViralBank is IERC20 {
     uint public constant ROUND_LENGTH = 7 days;
     uint public constant INCUBATION_PERIOD = ROUND_LENGTH; // Can't differ - simplified math
     uint public constant GAME_LENGTH = 52 * 7 days;
+
+    // Aave pays us kick back for DAI -> aDAI conversion
+    // https://developers.aave.com/#lendingpool
+    uint16 public constant AAVE_REFERRAL_CODE = 0;
 
     // Book keeping
     address public patientZero;
@@ -87,9 +95,15 @@ contract ViralBank is IERC20 {
     // Withdrawal and interest handling
     uint totalWithdrawals = 0;
 
-    constructor(IERC20 _inboundCurrency, IERC20 _interestCurrency) public {
+    constructor(IERC20 _inboundCurrency, IERC20 _interestCurrency, ILendingPoolAddressesProvider _lendingPoolAddressProvider) public {
         daiToken = _inboundCurrency;
         adaiToken = _interestCurrency;
+        lendingPoolAddressProvider = _lendingPoolAddressProvider;
+
+        // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
+        uint MAX_ALLOWANCE = 2**256 - 1;
+        address core = lendingPoolAddressProvider.getLendingPoolCore();
+        daiToken.approve(core, MAX_ALLOWANCE);
     }
 
     // A new player joins the game
@@ -147,13 +161,35 @@ contract ViralBank is IERC20 {
 
     // Transaction sender updates his playing stats and money gets banked
     function _buyIn() internal {
-        daiToken.transferFrom(msg.sender, address(this), ticketSize);
-        _swapToInterestBearing(ticketSize);
+
+        _convertDAItoADAI(msg.sender, ticketSize);
 
         lastActivityAt[msg.sender] = now;
         lastRound[msg.sender] = getCurrentRoundNumber();
         balances[msg.sender] += ticketSize;
         totalDeposits += ticketSize;
+    }
+
+
+    // Swap DAI to interest bearing aDAI token
+    // How to convert DAI to ADAI
+    // 1. User needs to make approve() against Aave lending pool
+    // 2. This smart contract moves funds to lending pool
+    function _convertDAItoADAI(address whose, uint amount) internal {
+
+        ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPoolCore());
+
+        require(daiToken.allowance(whose, address(this)) >= amount, "You need to have allowance to do transfer DAI on the smart contract");
+
+        // Move DAI from user wallet to this contract
+        require(daiToken.transferFrom(whose, address(this), amount) == true, "Transfer failed");
+
+        // https://developers.aave.com/#lendingpool
+        // https://github.com/aave/aave-protocol/blob/master/test/atoken-transfer.spec.ts#L39
+
+        // Move DAI form this contract to lending pool
+        // See approve() in the constructor
+        lendingPool.deposit(address(daiToken), amount, AAVE_REFERRAL_CODE);
     }
 
     // Remove allocations for players who failed
@@ -180,11 +216,6 @@ contract ViralBank is IERC20 {
 
         cleanedUpPlayerCount++;
         cleanedUp[addr] = true;
-    }
-
-    // Swap the deposited DAI to aDAI
-    function _swapToInterestBearing(uint amount) internal {
-        // TODO: Insert Aave
     }
 
     // Check for the game master
@@ -297,7 +328,7 @@ contract ViralBank is IERC20 {
 
     string public name = "Viral Aave";
     string public symbol = "vDAI";
-    uint8 public decimals = 0;
+    uint8 public decimals = 18;
 
     function totalSupply() external view returns (uint256) {
         return getTotalAccruedInterest();
