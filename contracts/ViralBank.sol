@@ -32,6 +32,7 @@ contract ViralBank {
 
     // Track if the player has been keeping up with the game
     mapping(address => uint) public lastActivityAt;
+    mapping(address => uint) public lastRound;
 
     constructor(IERC20 _inboundCurrency) public {
         inboundCurrency = _inboundCurrency;
@@ -49,10 +50,31 @@ contract ViralBank {
             require(isValidPlayer(referral), "Dead players cannot refer");
         }
 
-        inboundCurrency.transferFrom(msg.sender, address(this), ticketSize);
+        require(lastRound[msg.sender] == 0, "Need to start at round zero");
+        _buyIn();
         playerCount++;
-        raisedMoney += ticketSize;
+    }
+
+    // Need to hit this every month or you are out of the game
+    function buyInMonthly() public {
+        require(isValidPlayer(msg.sender), "You are not infected. Stay away from the game.");
+        require(lastRound[msg.sender] == getCurrentRoundNumber() - 1, "You cannot participate this round");
+
+        _buyIn();
+    }
+
+    // Transaction sender updates his playing stats and money gets banked
+    function _buyIn() internal {
+        inboundCurrency.transferFrom(msg.sender, address(this), ticketSize);
+
         lastActivityAt[msg.sender] = now;
+        lastRound[msg.sender] = getCurrentRoundNumber();
+        balances[msg.sender] += ticketSize;
+        raisedMoney += ticketSize;
+    }
+
+    function _swapToInterestBearing(uint amount) internal {
+
     }
 
     // Cannot come in after incubation perios is over
@@ -66,7 +88,8 @@ contract ViralBank {
     }
 
     // Zero for the incubation, 12 is when the game ends
-    function getRoundNumber() public returns(uint) {
+    function getCurrentRoundNumber() public view returns(uint) {
+        return (now - startedAt) / ROUND_LENGTH;
     }
 
     // When the next round of deposits needs to get in,
