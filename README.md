@@ -137,3 +137,15 @@ Verifying ViralBank@0x9Eb6a33451643A564049f6D65b077E3308717b54
 Pass - Verified: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#contracts
 Successfully verified 1 contract(s).
 ```
+
+## Mint test tokens
+
+```
+master $ npx truffle --network kovan exec scripts/mint-tokens.js
+Using network 'kovan'.
+
+network:  kovan
+token.mint 100: started
+token.mint 100: done, gas used 50436, gas price 20 Gwei
+```
+

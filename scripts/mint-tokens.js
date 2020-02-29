@@ -1,4 +1,4 @@
-const { web3tx } = require("@decentral.ee/web3-test-helpers");
+const { web3tx, toWad } = require("@decentral.ee/web3-test-helpers");
 const configs = require("./configs");
 
 module.exports = async function (callback) {
@@ -7,14 +7,11 @@ module.exports = async function (callback) {
         const network = await web3.eth.net.getNetworkType();
 
         console.log("network: ", network);
-        const ViralBank = artifacts.require("ViralBank");
+        const SimpleMintable = artifacts.require("SimpleMintable");
         const config = configs[network];
 
-        const bank = await web3tx(ViralBank.new, "ViralBank.new")(
-            config.token.address,
-            config.aToken.address,
-            config.pap.address);
-        console.log("bank address", bank.address);
+        const token = await SimpleMintable.at(config.token.address);
+        await web3tx(token.mint, "token.mint 10000")(toWad(10000));
 
         callback();
     } catch (err) {
