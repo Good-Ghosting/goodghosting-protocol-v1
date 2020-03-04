@@ -8,6 +8,8 @@ import { ILendingPool } from "../../aave/ILendingPool.sol";
 contract LendingPoolAddressesProviderMock
     is ILendingPoolAddressesProvider, ILendingPool, ERC20 {
 
+    address public underlyingAssetAddress;
+
     /// ILendingPoolAddressesProvider interface
     function getLendingPool() public view returns (address) {
         return address(this);
@@ -94,5 +96,16 @@ contract LendingPoolAddressesProviderMock
         IERC20 reserve = IERC20(_reserve);
         reserve.transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
+    }
+
+    function redeem(uint256 _amount) public {
+        _burn(msg.sender, _amount);
+        IERC20(underlyingAssetAddress).transfer(msg.sender, _amount);
+    }
+
+    //Helpers
+    //We need to bootstrap the underlyingAssetAddress to use the redeem function
+    function setUnderlyingAssetAddress(address _addr) public {
+        underlyingAssetAddress = _addr;
     }
 }
