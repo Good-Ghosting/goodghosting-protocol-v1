@@ -76,6 +76,7 @@ contract ViralBank is IERC20 {
 
     // player who bought in -> his/her referral
     mapping(address => address) public referrals;
+    mapping(address => address) public reverseReferrals;
     mapping(address => uint) public referrerCount;
 
     // how many interest shares each player has
@@ -124,6 +125,7 @@ contract ViralBank is IERC20 {
             // Referring player gets 10% interested earned by this player
             allocations[referral] += 10;
             totalAllocations += 10;
+
         }
 
         require(lastRound[msg.sender] == 0, "Need to start at round zero");
@@ -137,17 +139,20 @@ contract ViralBank is IERC20 {
         // TODO: Emit a sorted event?
         referrerCount[referral] += 1;
 
-        // This player gets full interest for themselves
-        allocations[msg.sender] += 100;
-        totalAllocations += 100;
 
         // Second level multi marketing pyramid
         address secondLevel = referrals[referral];
         if(secondLevel != address(0)) {
+            allocations[msg.sender] += 89;
             // Second level referrers give you 1% of their interest
             allocations[secondLevel] += 1;
             totalAllocations += 1;
+        } else {
+            // This player gets 90% of interest for themselves, the other 10% go to referral
+            allocations[msg.sender] += 90;
         }
+
+        totalAllocations += 100;
     }
 
     // Need to hit this every month or you are out of the game
@@ -173,6 +178,43 @@ contract ViralBank is IERC20 {
         lastRound[msg.sender] = getCurrentRoundNumber();
         balances[msg.sender] += ticketSize;
         totalDeposits += ticketSize;
+
+        allocations[msg.sender] = 0;
+    }
+
+    //User is leaving the game. Clean user state and redeem DAI
+    function dropout() external {
+        require(areWeHavingFun(), 'Game is not running');
+        require(isPlayerAddress(msg.sender), 'Not a player');
+
+        uint _balance = balances[msg.sender];
+
+        balances[msg.sender] = 0;
+        totalWithdrawals += _balance;
+        aliveAllocations -= allocations[msg.sender];
+        address _secondLevel = referrals[msg.sender];
+        if(_secondLevel != address(0)) {
+            //If we have a secondLevel the allocation is 89%
+            allocations[msg.sender] -= 89;
+            // Second level referrers lost -1% of their interest
+            allocations[_secondLevel] -= 1;
+            totalAllocations -= 1;
+            delete referrals[msg.sender];
+        } else {
+            allocations[msg.sender] -= 90;
+        }
+
+
+        allocations[reverseReferrals[msg.sender]] -= 10;
+        delete reverseReferrals[msg.sender];
+        totalAllocations -= 100;
+
+
+        cleanedUp[msg.sender] = true;
+        _convertADAItoDAI(msg.sender, _balance);
+    }
+
+    function _withdraw() internal {
     }
 
 
@@ -197,6 +239,20 @@ contract ViralBank is IERC20 {
         // Move DAI form this contract to lending pool
         // See approve() in the constructor
         lendingPool.deposit(address(daiToken), amount, AAVE_REFERRAL_CODE);
+    }
+
+    // Swap ADAI back to DAI
+    // ADAI is burn and the whose DAI balance is incressed
+    // Note: validations should be in place before call this method.
+    function _convertADAItoDAI(address whose, uint amount) internal {
+
+        ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
+        //External call
+        //Burn tokens and collect DAI
+        lendingPool.redeem(amount);
+        //External call
+        //Send tokens to user account
+        daiToken.transfer(whose, amount);
     }
 
     // Remove allocations for players who failed
