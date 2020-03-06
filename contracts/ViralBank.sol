@@ -199,7 +199,6 @@ contract ViralBank is IERC20 {
             allocations[msg.sender] -= 100;
         }
 
-
         allocations[reverseReferrals[msg.sender]] -= 10;
         delete reverseReferrals[msg.sender];
         totalAllocations -= 100;
@@ -211,14 +210,13 @@ contract ViralBank is IERC20 {
     //Collect the balance plus interest if ended the game
     function _withdraw() internal {
         require(areWeHavingFun(), 'Game is running');
-        //TODO: Review this
         require(isCleanUpComplete(), 'Cleanup is not complete');
 
         uint256 _amount = balances[msg.sender] + getPlayerShareOfAccruedInterest(msg.sender);
         balances[msg.sender] = 0;
         allocations[msg.sender] = 0;
-
         totalWithdrawals -= _amount;
+
         _convertADAItoDAI(msg.sender, _amount);
     }
 
@@ -252,9 +250,11 @@ contract ViralBank is IERC20 {
     function _convertADAItoDAI(address whose, uint amount) internal {
 
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
+
         //External call
         //Burn tokens and collect DAI
         lendingPool.redeem(amount);
+
         //External call
         //Send tokens to user account
         daiToken.transfer(whose, amount);

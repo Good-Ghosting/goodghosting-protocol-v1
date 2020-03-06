@@ -4,6 +4,9 @@ const ViralBank = artifacts.require("ViralBank");
 const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddressesProviderMock");
 //const { time, expectRevert } = require("@openzeppelin/test-helpers");
 const { web3tx, wad4human, toWad } = require("@decentral.ee/web3-test-helpers");
+const traveler = require('ganache-time-traveler');
+//Aprox. one year in seconds
+const ONE_YEAR = 3600 * 24 * 365;
 
 contract("ViralBank", accounts => {
     const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
@@ -53,6 +56,9 @@ contract("ViralBank", accounts => {
             from: admin
         });
         aToken = await IERC20.at(await pap.getLendingPool.call());
+
+        //Bootstraping underlaying token
+        await pap.setUnderlyingAssetAddress(token.address);
 
         bank = await web3tx(ViralBank.new, "ViralBank.new")(
             token.address,
@@ -112,4 +118,11 @@ contract("ViralBank", accounts => {
         assert.equal(wad4human(await bank.balances.call(patient1)), "19.80000");
     });
 
+    it('Is game ending on time', async () => {
+        let gameStateStart = await bank.areWeHavingFun.call();
+        await traveler.advanceTime(ONE_YEAR);
+        await traveler.advanceBlock();
+        let gameStateEnd = await bank.areWeHavingFun.call();
+        assert.notEqual(gameStateStart, gameStateEnd, "After one year the game is still running");
+    });
 });
