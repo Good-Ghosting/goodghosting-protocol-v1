@@ -178,35 +178,6 @@ contract ViralBank is IERC20 {
         allocations[msg.sender] = 0;
     }
 
-    //User is leaving the game. Clean user state and redeem DAI
-    function dropout() external {
-        require(areWeHavingFun(), 'Game is not running');
-        require(isPlayerAddress(msg.sender), 'Not a player');
-
-        uint _balance = balances[msg.sender];
-
-        balances[msg.sender] = 0;
-        totalWithdrawals += _balance;
-        aliveAllocations -= allocations[msg.sender];
-        address _secondLevel = referrals[msg.sender];
-        if(_secondLevel != address(0)) {
-            allocations[msg.sender] -= 100;
-            // Second level referrers lost -1% of their interest
-            allocations[_secondLevel] -= 1;
-            totalAllocations -= 1;
-            delete referrals[msg.sender];
-        } else {
-            allocations[msg.sender] -= 100;
-        }
-
-        allocations[reverseReferrals[msg.sender]] -= 10;
-        delete reverseReferrals[msg.sender];
-        totalAllocations -= 100;
-
-        cleanedUp[msg.sender] = true;
-        _convertADAItoDAI(msg.sender, _balance);
-    }
-
     //Collect the balance plus interest if ended the game
     function _withdraw() internal {
         require(areWeHavingFun(), 'Game is running');
