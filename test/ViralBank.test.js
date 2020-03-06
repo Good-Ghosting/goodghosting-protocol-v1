@@ -116,6 +116,9 @@ contract("ViralBank", accounts => {
         });
         assert.equal(wad4human(await token.balanceOf.call(patient1)), "980.20000");
         assert.equal(wad4human(await bank.balances.call(patient1)), "19.80000");
+
+        let isPatientZero = await bank.isPatientZero.call(patient0);
+        assert.isOk(isPatientZero, 'not registering the correct patient0');
     });
 
     it('Is game ending on time', async () => {
