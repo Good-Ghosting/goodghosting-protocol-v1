@@ -7,6 +7,7 @@ const { web3tx, wad4human, toWad } = require("@decentral.ee/web3-test-helpers");
 const traveler = require('ganache-time-traveler');
 //Aprox. one year in seconds
 const ONE_YEAR = 3600 * 24 * 365;
+const INCUBATION_PERIOD = 3600 * 24 * 7;
 
 contract("ViralBank", accounts => {
     const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
@@ -121,7 +122,17 @@ contract("ViralBank", accounts => {
         assert.isOk(isPatientZero, 'not registering the correct patient0');
     });
 
-    it('Is game ending on time', async () => {
+    it('Is game working on time', async () => {
+
+        let isIncubationPeriodOver = await bank.isIncubationPeriodOver.call();
+        assert.isOk(!isIncubationPeriodOver, 'should start in incubation phase');
+
+        await traveler.advanceTime(INCUBATION_PERIOD + 1);
+        await traveler.advanceBlock();
+
+        isIncubationPeriodOver = await bank.isIncubationPeriodOver.call();
+        assert.isOk(isIncubationPeriodOver, 'should end after one week');
+
         let gameStateStart = await bank.areWeHavingFun.call();
         await traveler.advanceTime(ONE_YEAR);
         await traveler.advanceBlock();
