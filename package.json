@@ -7,6 +7,11 @@
         "test": "run-s test:*",
         "test:contracts": "truffle test test/contracts.js"
     },
+
+   "scripts": {
+    "test": "test",
+    "coverage": "./node_modules/.bin/solidity-coverage"
+   },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/truffle-box/drizzle-box.git"

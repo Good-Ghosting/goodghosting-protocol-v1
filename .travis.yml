@@ -12,4 +12,4 @@ install:
   - npm install -g coveralls
   - npm install
 script:
-  - npm run coverage && cat coverage/lcov.info | coveralls
+  - truffle run coverage && cat coverage/lcov.info | coveralls
