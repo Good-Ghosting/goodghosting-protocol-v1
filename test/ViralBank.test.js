@@ -156,12 +156,16 @@ contract("ViralBank", accounts => {
             }
         );
 
+
         await web3tx(token.approve, "token.approve banker liquidity")(
             pap.address,
             MAX_UINT256, {
                 from: banker
             }
         );
+
+        //Fake interest
+        await pap.addLiquidity(token.address, bank.address, banker, toWad(100));
 
         let iniDaiBalance = await token.balanceOf.call(patient0);
         let iniAdaiBlance = await bank.balances.call(patient0);
@@ -191,6 +195,7 @@ contract("ViralBank", accounts => {
         assert.equal(wad4human(iniDaiBalance.sub(daiBalance)), "524.70000");
         assert.isOk(adaiBlance > iniAdaiBlance, 'not swaping DAI to ADAI');
 
+        assert.equal(wad4human(await bank.getTotalAccruedInterest.call()), "100.00000");
     });
 
 /*
@@ -198,9 +203,6 @@ contract("ViralBank", accounts => {
  *
  * */
     it("should not let non player play", async () => {
-
-        //console.log(patient0);
-        assert.isOk(true);
 
         let emitError = false;
         try {
