@@ -163,6 +163,9 @@ contract("ViralBank", accounts => {
             }
         );
 
+        let iniDaiBalance = await token.balanceOf.call(patient0);
+        let iniAdaiBlance = await bank.balances.call(patient0);
+
         await web3tx(bank.startGame, "bank.startGame by patient0")(ZERO_ADDRESS, {
             from: patient0
         });
@@ -181,6 +184,13 @@ contract("ViralBank", accounts => {
 
         let isWinner = await bank.hasPlayerFinishedGame.call(patient0);
         assert.isOk(isWinner, "cannot decide a winner");
+
+        let daiBalance = await token.balanceOf.call(patient0);
+        let adaiBlance = await bank.balances.call(patient0);
+
+        assert.equal(wad4human(iniDaiBalance.sub(daiBalance)), "524.70000");
+        assert.isOk(adaiBlance > iniAdaiBlance, 'not swaping DAI to ADAI');
+
     });
 
 /*
