@@ -76,7 +76,6 @@ contract ViralBank is IERC20 {
 
     // player who bought in -> his/her referral
     mapping(address => address) public referrals;
-    mapping(address => address) public reverseReferrals;
     mapping(address => uint) public referrerCount;
 
     // how many interest shares each player has
@@ -108,7 +107,7 @@ contract ViralBank is IERC20 {
         daiToken.approve(core, MAX_ALLOWANCE);
     }
 
-// A new player joins the game
+    // A new player joins the game
     function startGame(address referral) public {
 
         require(!isIncubationPeriodOver(), "Cannot come in after the pets have escaped the lab");
@@ -174,13 +173,12 @@ contract ViralBank is IERC20 {
         lastRound[msg.sender] = getCurrentRoundNumber() + 1;
         balances[msg.sender] += ticketSize;
         totalDeposits += ticketSize;
-
-        allocations[msg.sender] = 0;
     }
 
     //Collect the balance plus interest if ended the game
     function withdraw() public {
-        require(!areWeHavingFun() && isCleanUpComplete(), 'Game is running');
+        require(!areWeHavingFun(), 'Game is running');
+        require(isCleanUpComplete(), 'Complete the cleanUp');
         require(hasPlayerFinishedGame(msg.sender), 'You are not a winner');
 
         uint256 _amount = balances[msg.sender] + getPlayerShareOfAccruedInterest(msg.sender);
@@ -235,7 +233,6 @@ contract ViralBank is IERC20 {
     // Must be manually called for every player
     // https://www.youtube.com/watch?v=GU0d8kpybVg
     function checkForDead(address addr) public {
-
         require(!areWeHavingFun(), "Game still goes on");
         require(isPlayerAddress(addr), "Was not a player");
         require(cleanedUp[addr] == false, "Player has already been cleaned up");

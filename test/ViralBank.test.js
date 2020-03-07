@@ -129,6 +129,7 @@ contract("ViralBank", accounts => {
         assert.isOk(isPatientZero, 'not registering the correct patient0');
     });
 
+
     it('Is game working on time', async () => {
 
         let isIncubationPeriodOver = await bank.isIncubationPeriodOver.call();
@@ -174,17 +175,35 @@ contract("ViralBank", accounts => {
             from: patient0
         });
 
+        await traveler.advanceTime(INCUBATION_PERIOD + 1);
+        await traveler.advanceBlock();
+
         //making player 1 the winner
-        for(i = 1; i<= 52; i++) {
+        for(i = 1; i<= 51; i++) {
+            //console.log("user position ", (await bank.lastRound(patient0)).toNumber());
 
             await web3tx(bank.buyInToRound, "bank.buyInToRound by patient0")({
                 from: patient0
             });
 
-            await traveler.advanceTime(INCUBATION_PERIOD);
+            await traveler.advanceTime(INCUBATION_PERIOD + 1);
             await traveler.advanceBlock();
 
         }
+
+
+        await traveler.advanceTime(INCUBATION_PERIOD * 2);
+        await traveler.advanceBlock();
+
+        await bank.checkForDead.call(patient0);
+
+        let userRound = await bank.lastRound(patient0);
+        let systemRound = await bank.getLastRoundNumber();
+
+        console.log('User: ', userRound.toNumber());
+        console.log('System: ', systemRound.toNumber());
+
+        console.log(await bank.cleanedUpPlayerCount.call());
 
         let isWinner = await bank.hasPlayerFinishedGame.call(patient0);
         assert.isOk(isWinner, "cannot decide a winner");
@@ -192,16 +211,26 @@ contract("ViralBank", accounts => {
         let daiBalance = await token.balanceOf.call(patient0);
         let adaiBlance = await bank.balances.call(patient0);
 
-        assert.equal(wad4human(iniDaiBalance.sub(daiBalance)), "524.70000");
+        assert.equal(wad4human(iniDaiBalance.sub(daiBalance)), "514.80000");
         assert.isOk(adaiBlance > iniAdaiBlance, 'not swaping DAI to ADAI');
 
         assert.equal(wad4human(await bank.getTotalAccruedInterest.call()), "100.00000");
+
+        await bank.checkForDead(patient0);
+
+        await web3tx(bank.withdraw, "bank.wihtdraw by patient0")({
+            from: patient0
+        });
+
+        assert.isOk(iniDaiBalance < await token.balanceOf(patient0), 'Winner is not getting interest');
+
     });
 
 /*
  *  Negative Tests and Reverts
  *
  * */
+
     it("should not let non player play", async () => {
 
         let emitError = false;
