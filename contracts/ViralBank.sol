@@ -159,7 +159,7 @@ contract ViralBank is IERC20 {
 
         // Check that the user has completed all the previous rounds
         if(getCurrentRoundNumber() != 0) {
-            require(lastRound[msg.sender] == getCurrentRoundNumber() - 1, "You need to be on the previous round to buy in the next one");
+            require(lastRound[msg.sender] == getCurrentRoundNumber(), "You need to be on the previous round to buy in the next one");
         }
 
         _buyIn();
@@ -171,7 +171,7 @@ contract ViralBank is IERC20 {
         _convertDAItoADAI(msg.sender, ticketSize);
 
         lastActivityAt[msg.sender] = now;
-        lastRound[msg.sender] = getCurrentRoundNumber();
+        lastRound[msg.sender] = getCurrentRoundNumber() + 1;
         balances[msg.sender] += ticketSize;
         totalDeposits += ticketSize;
 

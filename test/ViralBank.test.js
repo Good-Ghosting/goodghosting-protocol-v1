@@ -8,6 +8,7 @@ const traveler = require('ganache-time-traveler');
 //Aprox. one year in seconds
 const ONE_YEAR = 3600 * 24 * 365;
 const INCUBATION_PERIOD = 3600 * 24 * 7;
+const DEPOSIT_ROUND = 3600 * 24 * 3;
 
 contract("ViralBank", accounts => {
     const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
@@ -20,6 +21,7 @@ contract("ViralBank", accounts => {
     const patient3 = accounts[4];
     const patient4 = accounts[5];
     const banker = accounts[6];
+    const not_player = accounts[7];
     let token;
     let aToken;
     let bank;
@@ -165,12 +167,8 @@ contract("ViralBank", accounts => {
             from: patient0
         });
 
-
-        //lets adds liquidity to pool so we can pay interest
-        await pap.addLiquidity(token.address, banker, toWad(1000));
-
         //making player 1 the winner
-        for(i = 0; i<= 51; i++) {
+        for(i = 1; i<= 52; i++) {
 
             await web3tx(bank.buyInToRound, "bank.buyInToRound by patient0")({
                 from: patient0
@@ -181,8 +179,32 @@ contract("ViralBank", accounts => {
 
         }
 
-        assert.isOk(bank.hasPlayerFinishedGame.call(patient0.address), 'cannot decide a winner');
+        let isWinner = await bank.hasPlayerFinishedGame.call(patient0);
+        assert.isOk(isWinner, "cannot decide a winner");
+    });
 
+/*
+ *  Negative Tests and Reverts
+ *
+ * */
+    it("should not let non player play", async () => {
 
+        //console.log(patient0);
+        assert.isOk(true);
+
+        let emitError = false;
+        try {
+            await web3tx(bank.buyInToRound, "bank.buyInToRound by not a player")({
+                from: not_player
+            });
+        } catch(err) {
+            emitError = true;
+            console.log(err.reason);
+            assert.strictEqual(err.reason, 'You are not a player');
+        }
+
+        if(!emitError) {
+            throw ('error not emitted');
+        }
     });
 });
