@@ -3,3 +3,4 @@ build
 app/src/contracts
 .DS_Store
 /.env
+coverage/
