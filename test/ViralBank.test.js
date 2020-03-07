@@ -19,6 +19,7 @@ contract("ViralBank", accounts => {
     const patient2 = accounts[3];
     const patient3 = accounts[4];
     const patient4 = accounts[5];
+    const banker = accounts[6];
     let token;
     let aToken;
     let bank;
@@ -31,6 +32,7 @@ contract("ViralBank", accounts => {
         console.log("patient2 is", patient2);
         console.log("patient3 is", patient3);
         console.log("patient4 is", patient4);
+        console.log("banker is", banker);
     });
 
     beforeEach(async () => {
@@ -50,6 +52,9 @@ contract("ViralBank", accounts => {
             from: admin
         });
         await web3tx(token.mint, "token.mint 1000 -> patient4")(patient4, toWad(1000), {
+            from: admin
+        });
+        await web3tx(token.mint, "token.mint 1000 -> banker")(banker, toWad(1000), {
             from: admin
         });
 
@@ -138,5 +143,46 @@ contract("ViralBank", accounts => {
         await traveler.advanceBlock();
         let gameStateEnd = await bank.areWeHavingFun.call();
         assert.notEqual(gameStateStart, gameStateEnd, "After one year the game is still running");
+    });
+
+    it('should decide a winner', async () => {
+
+        await web3tx(token.approve, "token.approve bank to infect patient1")(
+            bank.address,
+            MAX_UINT256, {
+                from: patient0
+            }
+        );
+
+        await web3tx(token.approve, "token.approve banker liquidity")(
+            pap.address,
+            MAX_UINT256, {
+                from: banker
+            }
+        );
+
+        await web3tx(bank.startGame, "bank.startGame by patient0")(ZERO_ADDRESS, {
+            from: patient0
+        });
+
+
+        //lets adds liquidity to pool so we can pay interest
+        await pap.addLiquidity(token.address, banker, toWad(1000));
+
+        //making player 1 the winner
+        for(i = 0; i<= 51; i++) {
+
+            await web3tx(bank.buyInToRound, "bank.buyInToRound by patient0")({
+                from: patient0
+            });
+
+            await traveler.advanceTime(INCUBATION_PERIOD);
+            await traveler.advanceBlock();
+
+        }
+
+        assert.isOk(bank.hasPlayerFinishedGame.call(patient0.address), 'cannot decide a winner');
+
+
     });
 });

@@ -179,9 +179,9 @@ contract ViralBank is IERC20 {
     }
 
     //Collect the balance plus interest if ended the game
-    function _withdraw() internal {
-        require(areWeHavingFun(), 'Game is running');
-        require(isCleanUpComplete(), 'Cleanup is not complete');
+    function withdraw() public {
+        require(!areWeHavingFun() && isCleanUpComplete(), 'Game is running');
+        require(hasPlayerFinishedGame(msg.sender), 'You are not a winner');
 
         uint256 _amount = balances[msg.sender] + getPlayerShareOfAccruedInterest(msg.sender);
         balances[msg.sender] = 0;
@@ -190,7 +190,6 @@ contract ViralBank is IERC20 {
 
         _convertADAItoDAI(msg.sender, _amount);
     }
-
 
     // Swap DAI to interest bearing aDAI token
     // How to convert DAI to ADAI
@@ -255,6 +254,12 @@ contract ViralBank is IERC20 {
 
         cleanedUpPlayerCount++;
         cleanedUp[addr] = true;
+
+        //If someone is liquidating other player, that player wins more 10 base points
+        if(isPlayerAddress(msg.sender) && msg.sender != addr) {
+            allocations[msg.sender] += 10;
+            totalAllocations += 10;
+        }
     }
 
     // Check for the game master

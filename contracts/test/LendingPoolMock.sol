@@ -108,4 +108,10 @@ contract LendingPoolAddressesProviderMock
     function setUnderlyingAssetAddress(address _addr) public {
         underlyingAssetAddress = _addr;
     }
+
+    //We need to bootstrap the pool with liquidity to pay interest
+    function addLiquidity(address _reserve, address _addr, uint256 _amount) public {
+        IERC20 reserve = IERC20(_reserve);
+        reserve.transferFrom(_addr, address(this), _amount);
+    }
 }
