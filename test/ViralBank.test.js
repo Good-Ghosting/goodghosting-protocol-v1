@@ -188,7 +188,6 @@ contract("ViralBank", accounts => {
 
             await traveler.advanceTime(INCUBATION_PERIOD + 1);
             await traveler.advanceBlock();
-
         }
 
 
@@ -199,11 +198,6 @@ contract("ViralBank", accounts => {
 
         let userRound = await bank.lastRound(patient0);
         let systemRound = await bank.getLastRoundNumber();
-
-        console.log('User: ', userRound.toNumber());
-        console.log('System: ', systemRound.toNumber());
-
-        console.log(await bank.cleanedUpPlayerCount.call());
 
         let isWinner = await bank.hasPlayerFinishedGame.call(patient0);
         assert.isOk(isWinner, "cannot decide a winner");
@@ -226,26 +220,4 @@ contract("ViralBank", accounts => {
 
     });
 
-/*
- *  Negative Tests and Reverts
- *
- * */
-
-    it("should not let non player play", async () => {
-
-        let emitError = false;
-        try {
-            await web3tx(bank.buyInToRound, "bank.buyInToRound by not a player")({
-                from: not_player
-            });
-        } catch(err) {
-            emitError = true;
-            console.log(err.reason);
-            assert.strictEqual(err.reason, 'You are not a player');
-        }
-
-        if(!emitError) {
-            throw ('error not emitted');
-        }
-    });
 });
