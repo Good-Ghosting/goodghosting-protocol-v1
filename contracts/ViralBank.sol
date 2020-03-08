@@ -111,7 +111,6 @@ contract ViralBank is IERC20 {
     function startGame(address referral) public {
 
         require(!isIncubationPeriodOver(), "Cannot come in after the pets have escaped the lab");
-        require(areWeHavingFun(), "Game has ended");
 
         if(playerCount == 0) {
             // Patient zero

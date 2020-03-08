@@ -126,4 +126,5 @@ contract("ViralBank", accounts => {
             throw ('error not emitted');
         }
     });
+
 });
