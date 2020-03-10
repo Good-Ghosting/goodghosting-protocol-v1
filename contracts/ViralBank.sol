@@ -111,7 +111,6 @@ contract ViralBank is IERC20 {
     function startGame(address referral) public {
 
         require(!isIncubationPeriodOver(), "Cannot come in after the pets have escaped the lab");
-        require(areWeHavingFun(), "Game has ended");
 
         if(playerCount == 0) {
             // Patient zero
@@ -158,7 +157,7 @@ contract ViralBank is IERC20 {
 
         // Check that the user has completed all the previous rounds
         if(getCurrentRoundNumber() != 0) {
-            require(lastRound[msg.sender] == getCurrentRoundNumber() - 1, "You need to be on the previous round to buy in the next one");
+            require(lastRound[msg.sender] == getCurrentRoundNumber(), "You need to be on the previous round to buy in the next one");
         }
 
         _buyIn();
@@ -170,11 +169,24 @@ contract ViralBank is IERC20 {
         _convertDAItoADAI(msg.sender, ticketSize);
 
         lastActivityAt[msg.sender] = now;
-        lastRound[msg.sender] = getCurrentRoundNumber();
+        lastRound[msg.sender] = getCurrentRoundNumber() + 1;
         balances[msg.sender] += ticketSize;
         totalDeposits += ticketSize;
     }
 
+    //Collect the balance plus interest if ended the game
+    function withdraw() public {
+        require(!areWeHavingFun(), 'Game is running');
+        require(isCleanUpComplete(), 'Complete the cleanUp');
+        require(hasPlayerFinishedGame(msg.sender), 'You are not a winner');
+
+        uint256 _amount = balances[msg.sender] + getPlayerShareOfAccruedInterest(msg.sender);
+        balances[msg.sender] = 0;
+        allocations[msg.sender] = 0;
+        totalWithdrawals -= _amount;
+
+        _convertADAItoDAI(msg.sender, _amount);
+    }
 
     // Swap DAI to interest bearing aDAI token
     // How to convert DAI to ADAI
@@ -199,12 +211,27 @@ contract ViralBank is IERC20 {
         lendingPool.deposit(address(daiToken), amount, AAVE_REFERRAL_CODE);
     }
 
+    // Swap ADAI back to DAI
+    // ADAI is burn and the whose DAI balance is incressed
+    // Note: validations should be in place before call this method.
+    function _convertADAItoDAI(address whose, uint amount) internal {
+
+        ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
+
+        //External call
+        //Burn tokens and collect DAI
+        lendingPool.redeem(amount);
+
+        //External call
+        //Send tokens to user account
+        daiToken.transfer(whose, amount);
+    }
+
     // Remove allocations for players who failed
     // A state clean up when before the final dividend.
     // Must be manually called for every player
     // https://www.youtube.com/watch?v=GU0d8kpybVg
     function checkForDead(address addr) public {
-
         require(!areWeHavingFun(), "Game still goes on");
         require(isPlayerAddress(addr), "Was not a player");
         require(cleanedUp[addr] == false, "Player has already been cleaned up");
@@ -223,6 +250,12 @@ contract ViralBank is IERC20 {
 
         cleanedUpPlayerCount++;
         cleanedUp[addr] = true;
+
+        //If someone is liquidating other player, that player wins more 10 base points
+        if(isPlayerAddress(msg.sender) && msg.sender != addr) {
+            allocations[msg.sender] += 10;
+            totalAllocations += 10;
+        }
     }
 
     // Check for the game master

@@ -4,6 +4,11 @@ const ViralBank = artifacts.require("ViralBank");
 const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddressesProviderMock");
 //const { time, expectRevert } = require("@openzeppelin/test-helpers");
 const { web3tx, wad4human, toWad } = require("@decentral.ee/web3-test-helpers");
+const traveler = require('ganache-time-traveler');
+//Aprox. one year in seconds
+const ONE_YEAR = 3600 * 24 * 365;
+const INCUBATION_PERIOD = 3600 * 24 * 7;
+const DEPOSIT_ROUND = 3600 * 24 * 3;
 
 contract("ViralBank", accounts => {
     const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
@@ -15,6 +20,8 @@ contract("ViralBank", accounts => {
     const patient2 = accounts[3];
     const patient3 = accounts[4];
     const patient4 = accounts[5];
+    const banker = accounts[6];
+    const not_player = accounts[7];
     let token;
     let aToken;
     let bank;
@@ -27,6 +34,7 @@ contract("ViralBank", accounts => {
         console.log("patient2 is", patient2);
         console.log("patient3 is", patient3);
         console.log("patient4 is", patient4);
+        console.log("banker is", banker);
     });
 
     beforeEach(async () => {
@@ -48,11 +56,17 @@ contract("ViralBank", accounts => {
         await web3tx(token.mint, "token.mint 1000 -> patient4")(patient4, toWad(1000), {
             from: admin
         });
+        await web3tx(token.mint, "token.mint 1000 -> banker")(banker, toWad(1000), {
+            from: admin
+        });
 
         pap = await web3tx(LendingPoolAddressesProviderMock.new, "LendingPoolAddressesProviderMock.new")({
             from: admin
         });
         aToken = await IERC20.at(await pap.getLendingPool.call());
+
+        //Bootstraping underlaying token
+        await pap.setUnderlyingAssetAddress(token.address);
 
         bank = await web3tx(ViralBank.new, "ViralBank.new")(
             token.address,
@@ -110,6 +124,100 @@ contract("ViralBank", accounts => {
         });
         assert.equal(wad4human(await token.balanceOf.call(patient1)), "980.20000");
         assert.equal(wad4human(await bank.balances.call(patient1)), "19.80000");
+
+        let isPatientZero = await bank.isPatientZero.call(patient0);
+        assert.isOk(isPatientZero, 'not registering the correct patient0');
+    });
+
+
+    it('Is game working on time', async () => {
+
+        let isIncubationPeriodOver = await bank.isIncubationPeriodOver.call();
+        assert.isOk(!isIncubationPeriodOver, 'should start in incubation phase');
+
+        await traveler.advanceTime(INCUBATION_PERIOD + 1);
+        await traveler.advanceBlock();
+
+        isIncubationPeriodOver = await bank.isIncubationPeriodOver.call();
+        assert.isOk(isIncubationPeriodOver, 'should end after one week');
+
+        let gameStateStart = await bank.areWeHavingFun.call();
+        await traveler.advanceTime(ONE_YEAR);
+        await traveler.advanceBlock();
+        let gameStateEnd = await bank.areWeHavingFun.call();
+        assert.notEqual(gameStateStart, gameStateEnd, "After one year the game is still running");
+    });
+
+    it('should decide a winner', async () => {
+
+        await web3tx(token.approve, "token.approve bank to infect patient1")(
+            bank.address,
+            MAX_UINT256, {
+                from: patient0
+            }
+        );
+
+
+        await web3tx(token.approve, "token.approve banker liquidity")(
+            pap.address,
+            MAX_UINT256, {
+                from: banker
+            }
+        );
+
+        //Fake interest
+        await pap.addLiquidity(token.address, bank.address, banker, toWad(100));
+
+        let iniDaiBalance = await token.balanceOf.call(patient0);
+        let iniAdaiBlance = await bank.balances.call(patient0);
+
+        await web3tx(bank.startGame, "bank.startGame by patient0")(ZERO_ADDRESS, {
+            from: patient0
+        });
+
+        await traveler.advanceTime(INCUBATION_PERIOD + 1);
+        await traveler.advanceBlock();
+
+        //making player 1 the winner
+        for(i = 1; i<= 51; i++) {
+            //console.log("user position ", (await bank.lastRound(patient0)).toNumber());
+
+            await web3tx(bank.buyInToRound, "bank.buyInToRound by patient0")({
+                from: patient0
+            });
+
+            await traveler.advanceTime(INCUBATION_PERIOD + 1);
+            await traveler.advanceBlock();
+        }
+
+
+        await traveler.advanceTime(INCUBATION_PERIOD * 2);
+        await traveler.advanceBlock();
+
+        await bank.checkForDead.call(patient0);
+
+        let userRound = await bank.lastRound(patient0);
+        let systemRound = await bank.getLastRoundNumber();
+
+        let isWinner = await bank.hasPlayerFinishedGame.call(patient0);
+        assert.isOk(isWinner, "cannot decide a winner");
+
+        let daiBalance = await token.balanceOf.call(patient0);
+        let adaiBlance = await bank.balances.call(patient0);
+
+        assert.equal(wad4human(iniDaiBalance.sub(daiBalance)), "514.80000");
+        assert.isOk(adaiBlance > iniAdaiBlance, 'not swaping DAI to ADAI');
+
+        assert.equal(wad4human(await bank.getTotalAccruedInterest.call()), "100.00000");
+
+        await bank.checkForDead(patient0);
+
+        await web3tx(bank.withdraw, "bank.wihtdraw by patient0")({
+            from: patient0
+        });
+
+        assert.isOk(iniDaiBalance < await token.balanceOf(patient0), 'Winner is not getting interest');
+
     });
 
 });
