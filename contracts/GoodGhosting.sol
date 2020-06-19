@@ -25,9 +25,9 @@ contract GoodGhosting {
 
     uint public mostRecentSegmentTimeStamp;
     uint public mostRecentSegmentPaid;
-    uint public lastSegment;
     uint public moneyPot;
     uint public segmentPayment;
+    uint public lastSegment;
     event SendMessage(address reciever, string message);
 
 
@@ -42,6 +42,7 @@ contract GoodGhosting {
         lastSegment = 16;
         moneyPot = 0;
         segmentPayment = 10;
+    
 
         // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
         // uint MAX_ALLOWANCE = 2**256 - 1;
@@ -60,16 +61,26 @@ contract GoodGhosting {
 
     function transferDaiToContract() internal {
         daiToken.transferFrom(msg.sender, thisContract, segmentPayment);
+        //🚨TODO hand this so it only happens if tranferFrom did happen
+        mostRecentSegmentPaid = mostRecentSegmentPaid + 1;
+        mostRecentSegmentTimeStamp = mostRecentSegmentTimeStamp + 1 weeks;
     }
 
+    // consider replacing timestamp with block number
     function checkSegment( uint timeSince) public {
-        if (now >= (timeSince + 1 weeks)) {
-          transferDaiToContract();
-          emit SendMessage(msg.sender, "payment made");
-          return;
+        if(lastSegment == mostRecentSegmentPaid){
+            emit SendMessage(msg.sender, "game finished");
+            return;
+        } else if (now > (timeSince + 2 weeks)){
+            emit SendMessage(msg.sender, "out of game, not possible to deposit");
+            return;
+        } else if (now >= (timeSince + 1 weeks) && now <= (timeSince + 2 weeks)) {
+            transferDaiToContract();
+            emit SendMessage(msg.sender, "payment made");
+            return;
         } else {
-          emit SendMessage(msg.sender, "too early to pay");
-          return;
+            emit SendMessage(msg.sender, "too early to pay");
+        return;
         }
     }
 
@@ -78,4 +89,12 @@ contract GoodGhosting {
         checkSegment(mostRecentSegmentTimeStamp);
     }
 
+
+    function getLastSegment() public view returns (uint){
+        return lastSegment;
+    }
+
+    function getMostRecentSegmentPaid() public view returns (uint){
+        return mostRecentSegmentPaid;
+    }
 }

@@ -11,6 +11,7 @@ const truffleAssert = require('truffle-assertions');
 
 contract("GoodGhosting", accounts =>{
     const admin = accounts[0];
+    const numberOfSegments = 16;
     let token;
     let aToken;
     let bank;
@@ -39,19 +40,17 @@ contract("GoodGhosting", accounts =>{
             {
                 from: admin
             });
-
-        console.log("bank ", bank.methods.daiToken);
     });
 
     it("should store dai address in contract", async()=>{
-        // const metaCoinInstance = await MetaCoin.deployed();
         const result = await bank.getDaiTokenAddress();
-        assert(result === token.address);
+        assert(result === token.address, "dai address not stored in contract");
     });
 
+ 
     it("contract starts holding 0 Dai", async()=>{
         const contractsDaiBalance = await token.balanceOf(bank.address);
-        assert(contractsDaiBalance.toNumber() === 0);
+        assert(contractsDaiBalance.toNumber() === 0), "contract is holding dai when deployed";
     });
 
     it("users can deposite dai after one time segment has passed", async()=>{
@@ -71,13 +70,14 @@ contract("GoodGhosting", accounts =>{
         );
 
         const contractsDaiBalance = await token.balanceOf(bank.address);
-        assert(contractsDaiBalance.toNumber()==10);
+        assert(contractsDaiBalance.toNumber()==10, "contract did not recieve dai");
+    
         truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
             return  ev.message === "payment made" && ev.reciever === player1;
-        });
+        }, "did not emit payment made message");
         truffleAssert.eventNotEmitted(result, "SendMessage", (ev)=>{
             return  ev.message === "too early to pay" && ev.reciever === player1;
-        });
+        }, "did not emit to early to pay messgae");
     });
 
     it("users can not deposit straight away", async()=>{
@@ -88,29 +88,103 @@ contract("GoodGhosting", accounts =>{
             }
         );
 
-        const result  = await web3tx(bank.makeDeposit, "token.approve to send tokens to contract")(
+        const result = await web3tx(bank.makeDeposit, "token.approve to send tokens to contract")(
             {
                 from: player1
             }
         );
 
         const contractsDaiBalance = await token.balanceOf(bank.address);
-        assert(contractsDaiBalance.toNumber()==0);
+        assert(contractsDaiBalance.toNumber()==0, "users were able to deposit dai ahead of time");
 
         truffleAssert.eventNotEmitted(result, "SendMessage", (ev)=>{
             return  ev.message === "payment made" && ev.reciever === player1;
-        });
+        },"emitted false payment made message");
         truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
             return  ev.message === "too early to pay" && ev.reciever === player1;
-        }); 
+        }, " did not emit too early to pay message"); 
     });
-    
 
+
+    const weekInSeconds = 604800;
+    // for MVP I have hard coded the game length to be 16 weeks
+    it("users can pay up to game deadline and then no more", async()=>{
+        for(var i = i; i<= numberOfSegments + 1; i++){
+            await timeMachine.advanceTime(weekInSeconds);
+            await web3tx(token.approve, "token.approve to send tokens to contract")(
+                bank.address,
+                MAX_UINT256, {
+                    from: player1
+                }
+            );
+    
+            const result = await web3tx(bank.makeDeposit, "token.approve to send tokens to contract")(
+                {
+                    from: player1
+                }
+            );
+
+            const contractsDaiBalance = await token.balanceOf(bank.address);
+            if(i === numberOfSegments + 1 ){
+                assert(contractsDaiBalance.toNumber() == (10 * numberOfSegments), `balance of ${contractsDaiBalance.toNumber()} expected : ${(10 * numberOfSegments) } numberof segments ${numberOfSegments}`);
+                
+                truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
+                    return  ev.message === "game finished" && ev.reciever === player1;
+                }, "did not emit game finished message");
+                
+                truffleAssert.eventNotEmitted(result, "SendMessage", (ev)=>{
+                    return  ev.message === "too early to pay" && ev.reciever === player1;
+                }, "emitted false to early to pay message");
+                
+                truffleAssert.eventNotEmitted(result, "SendMessage", (ev)=>{
+                    return  ev.message === "payment made" && ev.reciever === player1;
+                }, "emitted false payment made message");
+                return;
+            }
+            
+            const expectedBalance = 10 * (i + 1);
+            const mostRecentSegmentPaid = await bank.getMostRecentSegmentPaid();
+
+            assert(contractsDaiBalance.toNumber()=== expectedBalance, `incorrect balance of ${contractsDaiBalance.toNumber()} in smart contract on iteration ${i}, expected ${expectedBalance}, most recent segment paid ${mostRecentSegmentPaid}`);
+            
+            truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
+                return  ev.message === "payment made" && ev.reciever === player1;
+            }, "payment made message not sent" );
+
+            truffleAssert.eventNotEmitted(result, "SendMessage", (ev)=>{
+                return  ev.message === "too early to pay" && ev.reciever === player1;
+            }, "emitted false to early to pay message");
+        }
+
+    });
+
+    xit('users can not play if they missed paying in to the previous segment', async()=>{
+        await timeMachine.advanceTime(weekInSeconds);
+        await web3tx(token.approve, "token.approve to send tokens to contract")(
+            bank.address,
+            MAX_UINT256, {
+                from: player1
+            }
+        );
+
+        const result = await web3tx(bank.makeDeposit, "token.approve to send tokens to contract")(
+            {
+                from: player1
+            }
+        );
+
+        const contractsDaiBalance = await token.balanceOf(bank.address);
+        assert(contractsDaiBalance.toNumber()==0, "users able to pay despite being out of the game");
+
+        truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
+            return  ev.message === "out of game, not possible to deposit" && ev.reciever === player1;
+        });
+    });
+
+    
+    // TODO refactor this test to check from public var and remove
     it("should this contract address", async()=>{
-        // const metaCoinInstance = await MetaCoin.deployed();
         const result = await bank.getThisContractAddress();
-        console.log("test", result);
-        console.log("address", result);
         assert(result === bank.address);
     });
 
