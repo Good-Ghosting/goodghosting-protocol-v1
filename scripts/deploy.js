@@ -7,10 +7,10 @@ module.exports = async function (callback) {
         const network = await web3.eth.net.getNetworkType();
 
         console.log("network: ", network);
-        const ViralBank = artifacts.require("ViralBank");
+        const GoodGhosting = artifacts.require("GoodGhosting");
         const config = configs[network];
 
-        const bank = await web3tx(ViralBank.new, "ViralBank.new")(
+        const bank = await web3tx(GoodGhosting.new, "GoodGhosting.new")(
             config.token.address,
             config.aToken.address,
             config.pap.address);

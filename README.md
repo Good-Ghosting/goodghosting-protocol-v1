@@ -41,7 +41,7 @@ User needs to do the following to start the game
 
 * Have referring player address
 
-* `approve()` the `ViralBank` contract for `DAI` token transfers
+* `approve()` the `GoodGhosting` contract for `DAI` token transfers
 
 * Do a transaction to `startGame()`
 
@@ -67,7 +67,7 @@ Every week the user has to
 
 There is `vDAI` faux ERC-20 token.
 
-* Add `ViralBank` address as a token in your wallet
+* Add `GoodGhosting` address as a token in your wallet
 
 * Token balance shows your accrued interest balance
 
@@ -136,11 +136,11 @@ $ npx truffle --network kovan exec scripts/deploy.js
 Using network 'kovan'.
 
 network:  kovan
-ViralBank.new: started
-ViralBank.new: done, gas used 0x2713e2, gas price 20 Gwei
+GoodGhosting.new: started
+GoodGhosting.new: done, gas used 0x2713e2, gas price 20 Gwei
 bank address 0x9Eb6a33451643A564049f6D65b077E3308717b54
-$ npx truffle run --network kovan etherscan ViralBank@0x9Eb6a33451643A564049f6D65b077E3308717b54
-Verifying ViralBank@0x9Eb6a33451643A564049f6D65b077E3308717b54
+$ npx truffle run --network kovan etherscan GoodGhosting@0x9Eb6a33451643A564049f6D65b077E3308717b54
+Verifying GoodGhosting@0x9Eb6a33451643A564049f6D65b077E3308717b54
 Pass - Verified: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#contracts
 Successfully verified 1 contract(s).
 ```
@@ -162,5 +162,5 @@ token.mint 100: done, gas used 50436, gas price 20 Gwei
 
 * DAI: https://kovan.etherscan.io/address/0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD
 * aDAI: https://kovan.etherscan.io/address/0x58AD4cB396411B691A9AAb6F74545b2C5217FE6a
-* ViralBank: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#code
+* GoodGhosting: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#code
 * Patient 0: 0xd66E40b0c30595bEc72153B502aC1E0c4785991B
