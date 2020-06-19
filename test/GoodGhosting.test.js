@@ -110,7 +110,7 @@ contract("GoodGhosting", accounts =>{
     // for MVP I have hard coded the game length to be 16 weeks
     it("users can pay up to game deadline and then no more", async()=>{
         for(var i = i; i<= numberOfSegments + 1; i++){
-            await timeMachine.advanceTime(weekInSeconds);
+            await timeMachine.advanceTime(weekInSeconds * 3);
             await web3tx(token.approve, "token.approve to send tokens to contract")(
                 bank.address,
                 MAX_UINT256, {
@@ -158,8 +158,10 @@ contract("GoodGhosting", accounts =>{
 
     });
 
-    xit('users can not play if they missed paying in to the previous segment', async()=>{
-        await timeMachine.advanceTime(weekInSeconds);
+    it('users can not play if they missed paying in to the previous segment', async()=>{
+        let contractsDaiBalance = await token.balanceOf(bank.address);
+        const overTwoWeeks = (weekInSeconds * 2) + 1;
+        await timeMachine.advanceTime(overTwoWeeks);
         await web3tx(token.approve, "token.approve to send tokens to contract")(
             bank.address,
             MAX_UINT256, {
@@ -173,8 +175,8 @@ contract("GoodGhosting", accounts =>{
             }
         );
 
-        const contractsDaiBalance = await token.balanceOf(bank.address);
-        assert(contractsDaiBalance.toNumber()==0, "users able to pay despite being out of the game");
+        contractsDaiBalance = await token.balanceOf(bank.address);
+        assert(contractsDaiBalance.toNumber()==0, `users able to pay despite being out of the game. Contract balance ${contractsDaiBalance}`);
 
         truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
             return  ev.message === "out of game, not possible to deposit" && ev.reciever === player1;

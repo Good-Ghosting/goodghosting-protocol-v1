@@ -78,6 +78,7 @@ contract GoodGhosting {
             transferDaiToContract();
             emit SendMessage(msg.sender, "payment made");
             return;
+
         } else {
             emit SendMessage(msg.sender, "too early to pay");
         return;
