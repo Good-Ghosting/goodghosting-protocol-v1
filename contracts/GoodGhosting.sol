@@ -45,9 +45,9 @@ contract GoodGhosting {
     
 
         // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
-        // uint MAX_ALLOWANCE = 2**256 - 1;
-        // address core = lendingPoolAddressProvider.getLendingPoolCore();
-        // daiToken.approve(core, MAX_ALLOWANCE);
+        uint MAX_ALLOWANCE = 2**256 - 1;
+        address core = lendingPoolAddressProvider.getLendingPoolCore();
+        daiToken.approve(core, MAX_ALLOWANCE);
     }
 
     function getDaiTokenAddress() public view returns (address ){
@@ -59,15 +59,27 @@ contract GoodGhosting {
     }
 
 
-    function transferDaiToContract() internal {
-        daiToken.transferFrom(msg.sender, thisContract, segmentPayment);
+
+    function _transferDaiToContract() internal {
+        ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
+
+        // daiToken.transferFrom(msg.sender, thisContract, segmentPayment);
+        require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
+        // require(daiToken.balanceOf(address(this)) >= segmentPayment, "good ghosting smart contract needs to hold enough Dai to transfer to aDai");
+        // // transfer dai to aDai and redirect stream
+        // _convertDAItoADAI(segmentPayment);
+        require(daiToken.transferFrom(msg.sender, thisContract, segmentPayment) == true, "Transfer failed");
+        lendingPool.deposit(address(daiToken), segmentPayment, 0);
+
+
         //🚨TODO hand this so it only happens if tranferFrom did happen
         mostRecentSegmentPaid = mostRecentSegmentPaid + 1;
         mostRecentSegmentTimeStamp = mostRecentSegmentTimeStamp + 1 weeks;
     }
 
+    
     // consider replacing timestamp with block number
-    function checkSegment( uint timeSince) public {
+    function checkSegment(uint timeSince) public {
         if(lastSegment == mostRecentSegmentPaid){
             emit SendMessage(msg.sender, "game finished");
             return;
@@ -75,10 +87,9 @@ contract GoodGhosting {
             emit SendMessage(msg.sender, "out of game, not possible to deposit");
             return;
         } else if (now >= (timeSince + 1 weeks) && now <= (timeSince + 2 weeks)) {
-            transferDaiToContract();
+            _transferDaiToContract();
             emit SendMessage(msg.sender, "payment made");
             return;
-
         } else {
             emit SendMessage(msg.sender, "too early to pay");
         return;

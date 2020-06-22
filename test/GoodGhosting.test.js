@@ -5,7 +5,7 @@ const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddresses
 const { web3tx, wad4human, toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require('ganache-time-traveler');
 const truffleAssert = require('truffle-assertions');
-
+const BigNumber = require("bignumber.js");
 
 
 
@@ -18,6 +18,7 @@ contract("GoodGhosting", accounts =>{
     let pap;
     let player1 = accounts[1];
     let MAX_UINT256;
+    // let aDai;
 
     beforeEach( async ()=>{
         global.web3 = web3;
@@ -29,6 +30,10 @@ contract("GoodGhosting", accounts =>{
         await web3tx(token.mint, "token.mint 1000 -> player1")(player1, toWad(1000), {
             from: admin
         });
+
+        // aDai = await web3tx(ERC20Mintable.new, "ERC20Mintable for aDAI")({
+        //     from : admin
+        // });
         
         pap = await web3tx(LendingPoolAddressesProviderMock.new, "LendingPoolAddressesProviderMock.new")({from: admin});
         aToken = await IERC20.at(await pap.getLendingPool.call());
@@ -47,10 +52,24 @@ contract("GoodGhosting", accounts =>{
         assert(result === token.address, "dai address not stored in contract");
     });
 
+    it("dai and adai are two seperate addresses", async()=>{
+        const daiAdd = token.address;
+        const aDaiAdd = pap.address;
+        console.log(`DAI ${daiAdd} and ADAI ${aDaiAdd} the same address `)
+        assert(daiAdd != aDaiAdd, `DAI ${daiAdd} and ADAI ${aDaiAdd} the same address `)
+
+    });
+
  
-    it("contract starts holding 0 Dai", async()=>{
+    it("contract starts holding 0 Dai and 0", async()=>{
         const contractsDaiBalance = await token.balanceOf(bank.address);
-        assert(contractsDaiBalance.toNumber() === 0), "contract is holding dai when deployed";
+        const contractsADaiBalance = await pap.balanceOf(bank.address);
+        assert(contractsDaiBalance.toNumber() === 0 && contractsDaiBalance.toNumber() === 0, `at game start, smart contract holds: ${contractsDaiBalance.toNumber()} DAI, ${contractsADaiBalance.toNumber()} ADAI` );
+    });
+
+    it("user starts holding more than 10 Dai", async()=>{
+        const usersDaiBalance = await token.balanceOf(player1);
+        assert(new BigNumber(usersDaiBalance) > 10, `User has 10 or less dai at start, balance: ${usersDaiBalance}`);
     });
 
     it("users can deposite dai after one time segment has passed", async()=>{
@@ -70,7 +89,8 @@ contract("GoodGhosting", accounts =>{
         );
 
         const contractsDaiBalance = await token.balanceOf(bank.address);
-        assert(contractsDaiBalance.toNumber()==10, "contract did not recieve dai");
+        const contractsADaiBalance = await pap.balanceOf(bank.address);
+        assert(contractsDaiBalance.toNumber()==0 && contractsADaiBalance.toNumber() === 10, `contract did not recieve dai - DAI ${contractsDaiBalance} ADAI ${contractsADaiBalance}`);
     
         truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
             return  ev.message === "payment made" && ev.reciever === player1;
@@ -182,6 +202,9 @@ contract("GoodGhosting", accounts =>{
             return  ev.message === "out of game, not possible to deposit" && ev.reciever === player1;
         });
     });
+
+
+
 
     
     // TODO refactor this test to check from public var and remove
