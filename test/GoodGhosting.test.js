@@ -127,6 +127,23 @@ contract("GoodGhosting", accounts =>{
 
 
     const weekInSeconds = 604800;
+
+    it("users can join the game in the first week", async ()=>{
+        const result = await web3tx(bank.joinGame, "join the game")({from: player1});
+        truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
+            return  ev.message === "game joined" && ev.reciever === player1;
+        }, "player was not able to join in the first segment");
+
+    });
+
+    it("users cannot join after the first segment", async()=>{
+        await timeMachine.advanceTime(weekInSeconds + 1);
+        truffleAssert.reverts(
+            bank.joinGame({ from: player1 }),
+            "game has already started"
+        );
+
+    });
     // for MVP I have hard coded the game length to be 16 weeks
     it("users can pay up to game deadline and then no more", async()=>{
         for(var i = i; i<= numberOfSegments + 1; i++){

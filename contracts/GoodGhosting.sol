@@ -28,6 +28,14 @@ contract GoodGhosting {
     uint public moneyPot;
     uint public segmentPayment;
     uint public lastSegment;
+    uint public firstSegmentStart;
+    struct Player {
+        address addr;
+        uint mostRecentSegmentPaid;
+        uint amountPaid;
+    }
+    mapping(address => Player) players;
+
     event SendMessage(address reciever, string message);
 
 
@@ -38,6 +46,7 @@ contract GoodGhosting {
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
         thisContract = address(this);
         mostRecentSegmentTimeStamp = block.timestamp;
+        firstSegmentStart = block.timestamp;
         mostRecentSegmentPaid = 0;
         lastSegment = 16;
         moneyPot = 0;
@@ -94,6 +103,17 @@ contract GoodGhosting {
             emit SendMessage(msg.sender, "too early to pay");
         return;
         }
+    }
+
+    function joinGame () public {
+        require(now <= firstSegmentStart + 1 weeks, "game has already started");
+        Player memory newPlayer = Player({
+            addr : msg.sender,
+            mostRecentSegmentPaid : 0,
+            amountPaid : 0
+        });
+        players[msg.sender] = newPlayer;
+        emit SendMessage(msg.sender, "game joined");
     }
 
 
