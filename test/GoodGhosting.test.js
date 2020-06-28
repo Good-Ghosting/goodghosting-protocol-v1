@@ -11,13 +11,15 @@ const BigNumber = require("bignumber.js");
 
 contract("GoodGhosting", accounts =>{
     const admin = accounts[0];
-    const numberOfSegments = 16;
+    const lastSegment = 16;
     let token;
     let aToken;
     let bank;
     let pap;
     let player1 = accounts[1];
+    let player2 = accounts[2];
     let MAX_UINT256;
+    const weekInSecs = 604800;
     // let aDai;
 
     beforeEach( async ()=>{
@@ -26,15 +28,13 @@ contract("GoodGhosting", accounts =>{
         token = await web3tx(ERC20Mintable.new, "ERC20Mintable.new")({
             from: admin
         });
-        // using mint functioh (from isMintable to send tokens to player1)
+
+        // creates dai for player1 to hold
         await web3tx(token.mint, "token.mint 1000 -> player1")(player1, toWad(1000), {
             from: admin
         });
 
-        // aDai = await web3tx(ERC20Mintable.new, "ERC20Mintable for aDAI")({
-        //     from : admin
-        // });
-        
+        // deploys lending pool provide mocl
         pap = await web3tx(LendingPoolAddressesProviderMock.new, "LendingPoolAddressesProviderMock.new")({from: admin});
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
@@ -72,9 +72,39 @@ contract("GoodGhosting", accounts =>{
         assert(new BigNumber(usersDaiBalance) > 10, `User has 10 or less dai at start, balance: ${usersDaiBalance}`);
     });
 
+    // 🚨 TODO refactor to clean up
+    it("can calculate current segment", async()=>{
+        let currentSegment = new BigNumber(await bank.getCurrentSegment.call()).toNumber();
+        let timeElapsed = new BigNumber(await bank.timeElapsed()).toNumber();
+        let currentTime = new BigNumber(await bank.currentTime()).toNumber();
+        assert(currentSegment === 0, `incorrectly calculating current segment: expected 0, actual ${currentSegment}`);
+
+     
+        // console.log("Half a week", halfAWeek);
+        await timeMachine.advanceTimeAndBlock((weekInSecs));
+        currentSegment = new BigNumber(await bank.getCurrentSegment.call()).toNumber();
+        await timeMachine.advanceBlock();
+        timeElapsed = new BigNumber(await bank.timeElapsed()).toNumber();
+        currentTime = new BigNumber(await bank.currentTime()).toNumber();
+
+        assert(currentSegment === 1, `incorrectly calculating current segment: expected 1, actual ${currentSegment}`);
+        
+        await timeMachine.advanceTimeAndBlock(weekInSecs + 345);
+        currentSegment = new BigNumber(await bank.getCurrentSegment.call()).toNumber();
+        await timeMachine.advanceBlock();
+        const timeElapsed3 = await bank.timeElapsed();
+        const currentTime3 = await bank.currentTime();
+        assert(currentSegment === 2, `incorrectly calculating current segment: expected 1, actual ${currentSegment}`);
+        await timeMachine.advanceTimeAndBlock(weekInSecs * 100);
+        currentSegment = new BigNumber(await bank.getCurrentSegment.call()).toNumber();
+        assert(currentSegment === 102, `incorrectly calculating current segment: expected 101, actual ${currentSegment}`);
+
+    });
+
     it("users can deposite dai after one time segment has passed", async()=>{
-        const weekInSeconds = 604800;
-        await timeMachine.advanceTime(weekInSeconds);
+        await web3tx(bank.joinGame, "join game")({from : player1});
+ 
+        await timeMachine.advanceTimeAndBlock(weekInSecs);
         await web3tx(token.approve, "token.approve to send tokens to contract")(
             bank.address,
             MAX_UINT256, {
@@ -101,6 +131,7 @@ contract("GoodGhosting", accounts =>{
     });
 
     it("users can not deposit straight away", async()=>{
+        await web3tx(bank.joinGame, "join game")({from : player1});
         await web3tx(token.approve, "token.approve to send tokens to contract")(
             bank.address,
             MAX_UINT256, {
@@ -126,7 +157,6 @@ contract("GoodGhosting", accounts =>{
     });
 
 
-    const weekInSeconds = 604800;
 
     it("users can join the game in the first week", async ()=>{
         const result = await web3tx(bank.joinGame, "join the game")({from: player1});
@@ -137,17 +167,35 @@ contract("GoodGhosting", accounts =>{
     });
 
     it("users cannot join after the first segment", async()=>{
-        await timeMachine.advanceTime(weekInSeconds + 1);
+        await timeMachine.advanceTime(weekInSecs + 1);
         truffleAssert.reverts(
             bank.joinGame({ from: player1 }),
             "game has already started"
         );
-
     });
+
+   it("registered players can call deposit", async()=>{
+        await web3tx(bank.joinGame, "join game")({from : player1});
+        const result = web3tx(bank.makeDeposit, "make a deposit")({from : player1});
+        assert(result, "registered player could not make deposit");
+    });
+
+    it("unregistered players can not call deposit", async()=>{
+        truffleAssert.reverts(
+            bank.makeDeposit({ from: player2 }),
+            "not registered"
+        );
+    });
+
     // for MVP I have hard coded the game length to be 16 weeks
-    it("users can pay up to game deadline and then no more", async()=>{
-        for(var i = i; i<= numberOfSegments + 1; i++){
-            await timeMachine.advanceTime(weekInSeconds * 3);
+    //🐞test passing when should fail - please fix
+    xit("users can pay up to game deadline and then no more", async()=>{
+
+        // first register to play the game
+        await web3tx(bank.joinGame, "join game")({from : player1});
+
+        for(var i = 1; i<= lastSegment + 1; i++){
+            await timeMachine.advanceTime(weekInSecs +1);
             await web3tx(token.approve, "token.approve to send tokens to contract")(
                 bank.address,
                 MAX_UINT256, {
@@ -162,8 +210,10 @@ contract("GoodGhosting", accounts =>{
             );
 
             const contractsDaiBalance = await token.balanceOf(bank.address);
-            if(i === numberOfSegments + 1 ){
-                assert(contractsDaiBalance.toNumber() == (10 * numberOfSegments), `balance of ${contractsDaiBalance.toNumber()} expected : ${(10 * numberOfSegments) } numberof segments ${numberOfSegments}`);
+
+            // once the game is over
+            if(i === lastSegment + 1 ){
+                assert(contractsDaiBalance.toNumber() == (10 * lastSegment), `balance of ${contractsDaiBalance.toNumber()} expected : ${(10 * lastSegment) } numberof segments ${lastSegment}`);
                 
                 truffleAssert.eventEmitted(result, "SendMessage", (ev)=>{
                     return  ev.message === "game finished" && ev.reciever === player1;
@@ -179,7 +229,7 @@ contract("GoodGhosting", accounts =>{
                 return;
             }
             
-            const expectedBalance = 10 * (i + 1);
+            const expectedBalance = 10 * i;
             const mostRecentSegmentPaid = await bank.getMostRecentSegmentPaid();
 
             assert(contractsDaiBalance.toNumber()=== expectedBalance, `incorrect balance of ${contractsDaiBalance.toNumber()} in smart contract on iteration ${i}, expected ${expectedBalance}, most recent segment paid ${mostRecentSegmentPaid}`);
@@ -196,8 +246,9 @@ contract("GoodGhosting", accounts =>{
     });
 
     it('users can not play if they missed paying in to the previous segment', async()=>{
+        await web3tx(bank.joinGame, "join game")({from : player1});
         let contractsDaiBalance = await token.balanceOf(bank.address);
-        const overTwoWeeks = (weekInSeconds * 2) + 1;
+        const overTwoWeeks = (weekInSecs * 2) + 1;
         await timeMachine.advanceTime(overTwoWeeks);
         await web3tx(token.approve, "token.approve to send tokens to contract")(
             bank.address,
@@ -219,9 +270,6 @@ contract("GoodGhosting", accounts =>{
             return  ev.message === "out of game, not possible to deposit" && ev.reciever === player1;
         });
     });
-
-
-
 
     
     // TODO refactor this test to check from public var and remove

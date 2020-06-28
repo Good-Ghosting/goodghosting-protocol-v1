@@ -36,6 +36,14 @@ contract GoodGhosting {
     }
     mapping(address => Player) players;
 
+
+    uint public lastSegmentNum;
+    uint public startSegementTime;
+    uint public currentSegment;
+    uint public weekInSecs;
+    uint public timeElapsed;
+    uint public currentTime; //🚨 delete when not needed
+
     event SendMessage(address reciever, string message);
 
 
@@ -51,6 +59,13 @@ contract GoodGhosting {
         lastSegment = 16;
         moneyPot = 0;
         segmentPayment = 10;
+      
+
+
+        lastSegmentNum = 16;
+        startSegementTime = now;
+        currentSegment = 0;
+        weekInSecs = 604800;
     
 
         // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
@@ -86,6 +101,13 @@ contract GoodGhosting {
         mostRecentSegmentTimeStamp = mostRecentSegmentTimeStamp + 1 weeks;
     }
 
+    //getCurrentSegment
+    // 🚨make internal
+    function getCurrentSegment() public  returns (uint){
+
+       return ((block.timestamp - firstSegmentStart)/ weekInSecs);
+    }
+
     
     // consider replacing timestamp with block number
     function checkSegment(uint timeSince) public {
@@ -118,6 +140,8 @@ contract GoodGhosting {
 
 
     function makeDeposit() public {
+        // only registered players can deposit
+        require(players[msg.sender].addr == msg.sender, "not registered");
         checkSegment(mostRecentSegmentTimeStamp);
     }
 
