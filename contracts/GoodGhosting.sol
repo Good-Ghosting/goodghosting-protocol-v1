@@ -23,7 +23,6 @@ contract GoodGhosting {
     ILendingPoolAddressesProvider public lendingPoolAddressProvider;
 
 
-    uint public mostRecentSegmentTimeStamp;
     uint public mostRecentSegmentPaid;
     uint public moneyPot;
     uint public segmentPayment;
@@ -34,14 +33,13 @@ contract GoodGhosting {
         uint mostRecentSegmentPaid;
         uint amountPaid;
     }
-    mapping(address => Player) players;
+    mapping(address => Player)public players;
 
 
     uint public lastSegmentNum;
     uint public startSegementTime;
     uint public weekInSecs;
     uint public timeElapsed;
-    uint public currentTime; //🚨 delete when not needed
     address public admin;
 
     event SendMessage(address reciever, string message);
@@ -53,8 +51,7 @@ contract GoodGhosting {
         adaiToken = _interestCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
         thisContract = address(this);
-        mostRecentSegmentTimeStamp = block.timestamp;
-        firstSegmentStart = block.timestamp;
+        firstSegmentStart = block.timestamp; // 🚨duplicate
         mostRecentSegmentPaid = 0;
         lastSegment = 16;
         moneyPot = 0;
@@ -63,7 +60,7 @@ contract GoodGhosting {
 
 
         lastSegmentNum = 16;
-        startSegementTime = now;
+        startSegementTime = now; // 🚨duplicate
         weekInSecs = 604800;
         admin = msg.sender;
     
@@ -87,8 +84,9 @@ contract GoodGhosting {
 
 
         //🚨TODO hand this so it only happens if tranferFrom did happen
-        mostRecentSegmentPaid = mostRecentSegmentPaid + 1;
-        mostRecentSegmentTimeStamp = mostRecentSegmentTimeStamp + 1 weeks;
+        // TODO refactor to struct
+        // update the most recent segment paid for the player
+        players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid + 1;
 
         emit SendMessage(msg.sender, 'payment made');
     }

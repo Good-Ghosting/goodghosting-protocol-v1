@@ -144,11 +144,14 @@ contract("GoodGhosting", (accounts) => {
 
         const contractsDaiBalance = await token.balanceOf(bank.address);
         const contractsADaiBalance = await pap.balanceOf(bank.address);
+        const player = await bank.players(player1);
+        
         assert(
             contractsDaiBalance.toNumber() == 0 &&
                 contractsADaiBalance.toNumber() === 10,
             `contract did not recieve dai - DAI ${contractsDaiBalance} ADAI ${contractsADaiBalance}`
         );
+        assert(player.mostRecentSegmentPaid.toNumber() === 1, `did not increment most recent segement played, expected 1, actual ${player.mostRecentSegmentPaid}`);
 
         truffleAssert.eventEmitted(
             result,
