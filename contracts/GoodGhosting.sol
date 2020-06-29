@@ -80,12 +80,12 @@ contract GoodGhosting {
 
         require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
         require(daiToken.transferFrom(msg.sender, thisContract, segmentPayment) == true, "Transfer failed");
+        
+        // lendPool.deposit does not currently return a value, 
+        // so it is not possible use a require statement to check.
+        // if it doesn't revert, we assume it's successful
         lendingPool.deposit(address(daiToken), segmentPayment, 0);
 
-
-        //🚨TODO hand this so it only happens if tranferFrom did happen
-        // TODO refactor to struct
-        // update the most recent segment paid for the player
         players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid + 1;
         players[msg.sender].amountPaid = players[msg.sender].amountPaid + segmentPayment;
         emit SendMessage(msg.sender, 'payment made');

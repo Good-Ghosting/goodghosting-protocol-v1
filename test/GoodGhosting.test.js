@@ -92,35 +92,20 @@ contract("GoodGhosting", (accounts) => {
             currentSegment === 0,
             `incorrectly calculating current segment: expected 0, actual ${currentSegment}`
         );
-
-        // console.log("Half a week", halfAWeek);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-        currentSegment = new BigNumber(
-            await bank.testGetCurrentSegment.call()
-        ).toNumber();
-        await timeMachine.advanceBlock();
-        assert(
-            currentSegment === 1,
-            `incorrectly calculating current segment: expected 1, actual ${currentSegment}`
-        );
-
-        await timeMachine.advanceTimeAndBlock(weekInSecs + 345);
-        currentSegment = new BigNumber(
-            await bank.testGetCurrentSegment.call()
-        ).toNumber();
-        await timeMachine.advanceBlock();
-        assert(
-            currentSegment === 2,
-            `incorrectly calculating current segment: expected 1, actual ${currentSegment}`
-        );
-        await timeMachine.advanceTimeAndBlock(weekInSecs * 100);
-        currentSegment = new BigNumber(
-            await bank.testGetCurrentSegment.call()
-        ).toNumber();
-        assert(
-            currentSegment === 102,
-            `incorrectly calculating current segment: expected 101, actual ${currentSegment}`
-        );
+        
+        async function fastForward(amount){
+            await timeMachine.advanceTimeAndBlock(weekInSecs * amount);
+            currentSegment = new BigNumber(
+                await bank.testGetCurrentSegment.call()
+            ).toNumber();
+            await timeMachine.advanceBlock();
+            assert(
+                currentSegment === amount,
+                `incorrectly calculating current segment: expected ${amount}, actual ${currentSegment}`
+            );
+        }
+        const arr = new Array(100).fill(0);
+        arr.map((i)=>(fastForward(i)));
     });
 
     it("users can deposite adai after one time segment has passed", async () => {
@@ -249,8 +234,6 @@ contract("GoodGhosting", (accounts) => {
                 from: player1,
             }
         );
-
-
         truffleAssert.reverts(
             bank.makeDeposit({ from: player2 }),
             "previous segment was not paid - out of game"
