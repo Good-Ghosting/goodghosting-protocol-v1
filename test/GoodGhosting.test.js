@@ -19,6 +19,7 @@ contract("GoodGhosting", (accounts) => {
     let player2 = accounts[2];
     let MAX_UINT256;
     const weekInSecs = 604800;
+    const numberOfSegments = 16;
 
     beforeEach(async () => {
         global.web3 = web3;
@@ -83,29 +84,24 @@ contract("GoodGhosting", (accounts) => {
         );
     });
 
-    // 🚨 TODO refactor to clean up
-    it("can calculate current segment", async () => {
-        let currentSegment = new BigNumber(
-            await bank.testGetCurrentSegment.call()
+    // abstract function to test contract activity over time
+    async function fastForward(amount, testingFunc, assertFunc){
+        await timeMachine.advanceTimeAndBlock(weekInSecs * amount);
+        const result = new BigNumber(
+            await bank[testingFunc].call()
         ).toNumber();
+        await timeMachine.advanceBlock();
         assert(
-            currentSegment === 0,
-            `incorrectly calculating current segment: expected 0, actual ${currentSegment}`
+            assertFunc(amount, result),
+            `expectd ${amount}, actual ${result}`
         );
-        
-        async function fastForward(amount){
-            await timeMachine.advanceTimeAndBlock(weekInSecs * amount);
-            currentSegment = new BigNumber(
-                await bank.testGetCurrentSegment.call()
-            ).toNumber();
-            await timeMachine.advanceBlock();
-            assert(
-                currentSegment === amount,
-                `incorrectly calculating current segment: expected ${amount}, actual ${currentSegment}`
-            );
-        }
-        const arr = new Array(100).fill(0);
-        arr.map((i)=>(fastForward(i)));
+    }
+
+    it("can calculate current segment", async () => {
+        // check testGetCurrentSegemt function returns expected values
+        // for each segment iteration in the game
+        const arr = new Array(numberOfSegments).fill(0);
+        arr.map((i)=>(fastForward(i, "testGetCurrentSegment", (amount, result)=>(amount === result))));    
     });
 
     it("users can deposite adai after one time segment has passed", async () => {
