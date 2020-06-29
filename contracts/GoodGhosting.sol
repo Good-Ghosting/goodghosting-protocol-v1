@@ -87,7 +87,7 @@ contract GoodGhosting {
         // TODO refactor to struct
         // update the most recent segment paid for the player
         players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid + 1;
-
+        players[msg.sender].amountPaid = players[msg.sender].amountPaid + segmentPayment;
         emit SendMessage(msg.sender, 'payment made');
     }
 

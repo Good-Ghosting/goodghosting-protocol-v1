@@ -152,7 +152,7 @@ contract("GoodGhosting", (accounts) => {
             `contract did not recieve dai - DAI ${contractsDaiBalance} ADAI ${contractsADaiBalance}`
         );
         assert(player.mostRecentSegmentPaid.toNumber() === 1, `did not increment most recent segement played, expected 1, actual ${player.mostRecentSegmentPaid}`);
-
+        assert(player.amountPaid.toNumber()=== 10, `did not increment amount paid. Expected 10, actual ${player.amountPaid.toNumber()}`)
         truffleAssert.eventEmitted(
             result,
             "SendMessage",
