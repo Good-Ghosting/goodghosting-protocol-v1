@@ -39,10 +39,10 @@ contract GoodGhosting {
 
     uint public lastSegmentNum;
     uint public startSegementTime;
-    uint public currentSegment;
     uint public weekInSecs;
     uint public timeElapsed;
     uint public currentTime; //🚨 delete when not needed
+    address public admin;
 
     event SendMessage(address reciever, string message);
 
@@ -64,8 +64,8 @@ contract GoodGhosting {
 
         lastSegmentNum = 16;
         startSegementTime = now;
-        currentSegment = 0;
         weekInSecs = 604800;
+        admin = msg.sender;
     
 
         // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
@@ -74,24 +74,14 @@ contract GoodGhosting {
         daiToken.approve(core, MAX_ALLOWANCE);
     }
 
-    function getDaiTokenAddress() public view returns (address ){
-        return address(daiToken);
-    }
-
-    function getThisContractAddress() public view returns(address){
-        return address(this);
-    }
-
-
 
     function _transferDaiToContract() internal {
+
+        //users pay dai in to smart contract which the approves
+        // Dai to aDai using the lending pool
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
 
-        // daiToken.transferFrom(msg.sender, thisContract, segmentPayment);
         require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
-        // require(daiToken.balanceOf(address(this)) >= segmentPayment, "good ghosting smart contract needs to hold enough Dai to transfer to aDai");
-        // // transfer dai to aDai and redirect stream
-        // _convertDAItoADAI(segmentPayment);
         require(daiToken.transferFrom(msg.sender, thisContract, segmentPayment) == true, "Transfer failed");
         lendingPool.deposit(address(daiToken), segmentPayment, 0);
 
@@ -99,33 +89,24 @@ contract GoodGhosting {
         //🚨TODO hand this so it only happens if tranferFrom did happen
         mostRecentSegmentPaid = mostRecentSegmentPaid + 1;
         mostRecentSegmentTimeStamp = mostRecentSegmentTimeStamp + 1 weeks;
+
+        emit SendMessage(msg.sender, 'payment made');
     }
 
-    //getCurrentSegment
-    // 🚨make internal
-    function getCurrentSegment() public  returns (uint){
 
+    // only for use in test env to check internal function
+    function testGetCurrentSegment() public returns (uint) {
+        require(msg.sender == admin, "not admin");
+        return _getCurrentSegment();
+    }
+
+    function _getCurrentSegment() internal  returns (uint){
+        // Note solidity does not return floating point numbers
+        // this will always return a whole number
        return ((block.timestamp - firstSegmentStart)/ weekInSecs);
     }
 
-    
-    // consider replacing timestamp with block number
-    function checkSegment(uint timeSince) public {
-        if(lastSegment == mostRecentSegmentPaid){
-            emit SendMessage(msg.sender, "game finished");
-            return;
-        } else if (now > (timeSince + 2 weeks)){
-            emit SendMessage(msg.sender, "out of game, not possible to deposit");
-            return;
-        } else if (now >= (timeSince + 1 weeks) && now <= (timeSince + 2 weeks)) {
-            _transferDaiToContract();
-            emit SendMessage(msg.sender, "payment made");
-            return;
-        } else {
-            emit SendMessage(msg.sender, "too early to pay");
-        return;
-        }
-    }
+
 
     function joinGame () public {
         require(now <= firstSegmentStart + 1 weeks, "game has already started");
@@ -142,15 +123,19 @@ contract GoodGhosting {
     function makeDeposit() public {
         // only registered players can deposit
         require(players[msg.sender].addr == msg.sender, "not registered");
-        checkSegment(mostRecentSegmentTimeStamp);
+        
+        uint currentSegment = _getCurrentSegment();
+        // should not be stagging segment
+        require(currentSegment != 0, "too early to pay");
+
+        //check if current segment is currently unpaid
+        require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "current segment already paid");
+
+        //check player has made payments up to the previous segment
+        require(players[msg.sender].mostRecentSegmentPaid == (currentSegment -1), "previous segment was not paid - out of game");
+
+        //💰allow deposit to happen
+        _transferDaiToContract();
     }
 
-
-    function getLastSegment() public view returns (uint){
-        return lastSegment;
-    }
-
-    function getMostRecentSegmentPaid() public view returns (uint){
-        return mostRecentSegmentPaid;
-    }
 }
