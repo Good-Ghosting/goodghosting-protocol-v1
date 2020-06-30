@@ -57,6 +57,16 @@ contract("GoodGhosting", (accounts) => {
         );
     });
 
+    async function approveDaiToContract(fromAddr){
+        await web3tx(token.approve, "token.approve to send tokens to contract")(
+            bank.address,
+            MAX_UINT256,
+            {
+                from: fromAddr,
+            }
+        );
+    }
+
     it("dai and adai are two seperate addresses", async () => {
         const daiAdd = token.address;
         const aDaiAdd = pap.address;
@@ -84,37 +94,73 @@ contract("GoodGhosting", (accounts) => {
         );
     });
 
-    // abstract function to test contract activity over time
-    async function fastForward(amount, testingFunc, assertFunc){
-        await timeMachine.advanceTimeAndBlock(weekInSecs * amount);
-        const result = new BigNumber(
-            await bank[testingFunc].call()
-        ).toNumber();
-        await timeMachine.advanceBlock();
-        assert(
-            assertFunc(amount, result),
-            `expectd ${amount}, actual ${result}`
-        );
-    }
 
     it("can calculate current segment", async () => {
+        async function fastForward(amount, testingFunc, assertFunc){
+            await timeMachine.advanceTimeAndBlock(weekInSecs * amount);
+            const result = new BigNumber(
+                await bank[testingFunc].call()
+            ).toNumber();
+            await timeMachine.advanceBlock();
+            assert(
+                assertFunc(amount, result),
+                `expectd ${amount}, actual ${result}`
+            );
+        }
         // check testGetCurrentSegemt function returns expected values
         // for each segment iteration in the game
-        const arr = new Array(numberOfSegments).fill(0);
-        arr.map((i)=>(fastForward(i, "testGetCurrentSegment", (amount, result)=>(amount === result))));    
+        const gameLength = new Array(numberOfSegments).fill(0);
+        gameLength.map((i)=>(fastForward(i, "testGetCurrentSegment", (amount, result)=>(amount === result))));    
+    });
+
+    it("allows users to depsoit to the end of the game, then no more", async ()=>{
+        const gameLength = new Array(numberOfSegments).fill(0); 
+        await web3tx(bank.joinGame, "join game")({ from: player1 });
+
+        async function fastForward(amount){
+            approveDaiToContract(player1);
+            if(amount ===0){
+                // users cannot make deposit on the first round
+                truffleAssert.reverts(
+                    bank.makeDeposit({ from: player1 }),
+                    "too early to pay"
+                );
+                return;
+            }
+
+            await timeMachine.advanceTimeAndBlock(weekInSecs * amount);
+            const result = await web3tx(
+                bank.makeDeposit,
+                "token.approve to send tokens to contract"
+            )({
+                from: player1,
+            });
+            truffleAssert.eventEmitted(
+                result,
+                "SendMessage",
+                (ev) => {
+                    return ev.message === "payment made" && ev.reciever === player1;
+                },
+                "did not emit payment made message"
+            );
+        }
+        // checking users can deposit for each segment in the game
+        gameLength.map((i)=>(fastForward(i))); 
+
+        // once the game has finished users should not be able to deposit
+        // await timeMachine.advanceTimeAndBlock(weekInSecs);
+
+        
+        
+
+
     });
 
     it("users can deposite adai after one time segment has passed", async () => {
         await web3tx(bank.joinGame, "join game")({ from: player1 });
 
         await timeMachine.advanceTimeAndBlock(weekInSecs + 1);
-        await web3tx(token.approve, "token.approve to send tokens to contract")(
-            bank.address,
-            MAX_UINT256,
-            {
-                from: player1,
-            }
-        );
+        approveDaiToContract(player1);
 
         const result = await web3tx(
             bank.makeDeposit,
@@ -156,13 +202,7 @@ contract("GoodGhosting", (accounts) => {
 
     it("users can not deposit straight away", async () => {
         await web3tx(bank.joinGame, "join game")({ from: player1 });
-        await web3tx(token.approve, "token.approve to send tokens to contract")(
-            bank.address,
-            MAX_UINT256,
-            {
-                from: player1,
-            }
-        );
+        approveDaiToContract(player1);
         
         truffleAssert.reverts(
             bank.makeDeposit({ from: player1 }),
@@ -197,13 +237,7 @@ contract("GoodGhosting", (accounts) => {
     it("registered players can call deposit after first segment is finnished", async () => {
         await web3tx(bank.joinGame, "join game")({ from: player1 });
         await timeMachine.advanceTime(weekInSecs);
-        await web3tx(token.approve, "token.approve to send tokens to contract")(
-            bank.address,
-            MAX_UINT256,
-            {
-                from: player1,
-            }
-        );
+        approveDaiToContract(player1);
         const result = web3tx(
             bank.makeDeposit,
             "make a deposit"
@@ -212,6 +246,8 @@ contract("GoodGhosting", (accounts) => {
     });
 
     it("unregistered players can not call deposit", async () => {
+        approveDaiToContract(player2);
+
         truffleAssert.reverts(
             bank.makeDeposit({ from: player2 }),
             "not registered"
@@ -223,13 +259,7 @@ contract("GoodGhosting", (accounts) => {
         let contractsDaiBalance = await token.balanceOf(bank.address);
         const overTwoWeeks = weekInSecs * 2 + 1;
         await timeMachine.advanceTime(overTwoWeeks);
-        await web3tx(token.approve, "token.approve to send tokens to contract")(
-            bank.address,
-            MAX_UINT256,
-            {
-                from: player1,
-            }
-        );
+        approveDaiToContract(player1);
         truffleAssert.reverts(
             bank.makeDeposit({ from: player2 }),
             "previous segment was not paid - out of game"
