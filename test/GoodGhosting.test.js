@@ -57,7 +57,7 @@ contract("GoodGhosting", (accounts) => {
         );
     });
 
-    async function approveDaiToContract(fromAddr){
+    async function approveDaiToContract(fromAddr) {
         await web3tx(token.approve, "token.approve to send tokens to contract")(
             bank.address,
             MAX_UINT256,
@@ -94,66 +94,39 @@ contract("GoodGhosting", (accounts) => {
         );
     });
 
+    it.only("can calculate current segment", async () => {
+      
 
-    it("can calculate current segment", async () => {
-        async function fastForward(amount, testingFunc, assertFunc){
-            await timeMachine.advanceTimeAndBlock(weekInSecs * amount);
-            const result = new BigNumber(
-                await bank[testingFunc].call()
-            ).toNumber();
-            await timeMachine.advanceBlock();
-            assert(
-                assertFunc(amount, result),
-                `expectd ${amount}, actual ${result}`
-            );
-        }
-        // check testGetCurrentSegemt function returns expected values
-        // for each segment iteration in the game
-        const gameLength = new Array(numberOfSegments).fill(0);
-        gameLength.map((i)=>(fastForward(i, "testGetCurrentSegment", (amount, result)=>(amount === result))));    
-    });
-
-    it("allows users to depsoit to the end of the game, then no more", async ()=>{
-        const gameLength = new Array(numberOfSegments).fill(0); 
-        await web3tx(bank.joinGame, "join game")({ from: player1 });
-
-        async function fastForward(amount){
-            approveDaiToContract(player1);
-            if(amount ===0){
-                // users cannot make deposit on the first round
-                truffleAssert.reverts(
-                    bank.makeDeposit({ from: player1 }),
-                    "too early to pay"
-                );
-                return;
-            }
-
-            await timeMachine.advanceTimeAndBlock(weekInSecs * amount);
-            const result = await web3tx(
-                bank.makeDeposit,
-                "token.approve to send tokens to contract"
-            )({
-                from: player1,
-            });
-            truffleAssert.eventEmitted(
-                result,
-                "SendMessage",
-                (ev) => {
-                    return ev.message === "payment made" && ev.reciever === player1;
-                },
-                "did not emit payment made message"
-            );
-        }
-        // checking users can deposit for each segment in the game
-        gameLength.map((i)=>(fastForward(i))); 
-
-        // once the game has finished users should not be able to deposit
-        // await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        
-        
+        // 🚨 refactor to function - unsure why this is not working
+        let result = await bank.testGetCurrentSegment.call({from : admin});
+        console.log("💛", result);
+        assert(result.toNumber() === 0, ` expected ${0}  actual ${result.toNumber()}`);
+        await timeMachine.advanceTimeAndBlock(weekInSecs);
 
 
+        result = await bank.testGetCurrentSegment.call({from : admin});
+        console.log("💛", result);
+        assert(result.toNumber() === 1, `expected ${1}  actual ${result.toNumber()}`);
+        await timeMachine.advanceTimeAndBlock(weekInSecs);
+
+
+        result = await bank.testGetCurrentSegment.call({from : admin});
+        assert(result.toNumber() === 2, `expected ${2}  actual ${result.toNumber()}`);
+        console.log("💛", result);
+        await timeMachine.advanceTimeAndBlock(weekInSecs);
+
+
+
+        result = await bank.testGetCurrentSegment.call({from : admin})
+        assert(result.toNumber() === 3, `expected ${3}  actual ${result.toNumber()}`);
+        console.log("💛", result);
+        await timeMachine.advanceTimeAndBlock(weekInSecs);
+
+
+        result = await bank.testGetCurrentSegment.call({from : admin});
+        console.log("💛", result);
+        assert(result.toNumber() === 4, `expected ${4}  actual ${result.toNumber()}`);
+        await timeMachine.advanceTimeAndBlock(weekInSecs);
     });
 
     it("users can deposite adai after one time segment has passed", async () => {
@@ -172,14 +145,20 @@ contract("GoodGhosting", (accounts) => {
         const contractsDaiBalance = await token.balanceOf(bank.address);
         const contractsADaiBalance = await pap.balanceOf(bank.address);
         const player = await bank.players(player1);
-        
+
         assert(
             contractsDaiBalance.toNumber() == 0 &&
                 contractsADaiBalance.toNumber() === 10,
             `contract did not recieve dai - DAI ${contractsDaiBalance} ADAI ${contractsADaiBalance}`
         );
-        assert(player.mostRecentSegmentPaid.toNumber() === 1, `did not increment most recent segement played, expected 1, actual ${player.mostRecentSegmentPaid}`);
-        assert(player.amountPaid.toNumber()=== 10, `did not increment amount paid. Expected 10, actual ${player.amountPaid.toNumber()}`)
+        assert(
+            player.mostRecentSegmentPaid.toNumber() === 1,
+            `did not increment most recent segement played, expected 1, actual ${player.mostRecentSegmentPaid}`
+        );
+        assert(
+            player.amountPaid.toNumber() === 10,
+            `did not increment amount paid. Expected 10, actual ${player.amountPaid.toNumber()}`
+        );
         truffleAssert.eventEmitted(
             result,
             "SendMessage",
@@ -203,12 +182,11 @@ contract("GoodGhosting", (accounts) => {
     it("users can not deposit straight away", async () => {
         await web3tx(bank.joinGame, "join game")({ from: player1 });
         approveDaiToContract(player1);
-        
+
         truffleAssert.reverts(
             bank.makeDeposit({ from: player1 }),
             "too early to pay"
         );
-    
     });
 
     it("users can join the game in the first week", async () => {

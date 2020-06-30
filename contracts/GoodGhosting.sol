@@ -36,7 +36,6 @@ contract GoodGhosting {
     mapping(address => Player)public players;
 
 
-    uint public lastSegmentNum;
     uint public startSegementTime;
     uint public weekInSecs;
     uint public timeElapsed;
@@ -59,7 +58,6 @@ contract GoodGhosting {
       
 
 
-        lastSegmentNum = 16;
         startSegementTime = now; // 🚨duplicate
         weekInSecs = 604800;
         admin = msg.sender;
@@ -124,13 +122,17 @@ contract GoodGhosting {
         
         uint currentSegment = _getCurrentSegment();
         // should not be stagging segment
-        require(currentSegment != 0, "too early to pay");
+        require(currentSegment > 0, "too early to pay");
+
+        require(currentSegment < lastSegment, "game over");
 
         //check if current segment is currently unpaid
         require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "current segment already paid");
 
         //check player has made payments up to the previous segment
-        require(players[msg.sender].mostRecentSegmentPaid == (currentSegment -1), "previous segment was not paid - out of game");
+        require(players[msg.sender].mostRecentSegmentPaid == (currentSegment - 1),
+           "previous segment was not paid - out of game"
+        );
 
         //💰allow deposit to happen
         _transferDaiToContract();
