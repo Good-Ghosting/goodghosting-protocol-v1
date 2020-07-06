@@ -17,13 +17,13 @@ contract("GoodGhosting", (accounts) => {
     let pap;
     let player1 = accounts[1];
     let player2 = accounts[2];
-    let MAX_UINT256;
     const weekInSecs = 604800;
     const numberOfSegments = 16;
+    const daiDecimals = 10 ** 18;
+    const segmentPayment = new BigNumber(10 * daiDecimals).toFixed();
 
     beforeEach(async () => {
         global.web3 = web3;
-        MAX_UINT256 = 10;
         token = await web3tx(
             ERC20Mintable.new,
             "ERC20Mintable.new"
@@ -62,7 +62,7 @@ contract("GoodGhosting", (accounts) => {
     async function approveDaiToContract(fromAddr) {
         await web3tx(token.approve, "token.approve to send tokens to contract")(
             bank.address,
-            MAX_UINT256,
+            segmentPayment,
             {
                 from: fromAddr,
             }
@@ -88,12 +88,12 @@ contract("GoodGhosting", (accounts) => {
         );
     });
 
-    it("user starts holding more than 10 Dai", async () => {
+    it("user starts holding more than 100 Dai", async () => {
         const usersDaiBalance = await token.balanceOf(player1);
     
         assert(
-            new BigNumber(usersDaiBalance) > 10,
-            `User has 10 or less dai at start, balance: ${usersDaiBalance}`
+            new BigNumber(usersDaiBalance)/daiDecimals >= 100 ,
+            `User has 100 or less dai at start, balance: ${usersDaiBalance}`
         );
     });
 
@@ -133,14 +133,14 @@ contract("GoodGhosting", (accounts) => {
             from: player1,
         });
 
-        const contractsDaiBalance = await token.balanceOf(bank.address);
-        const contractsADaiBalance = await pap.balanceOf(bank.address);
+        const contractsDaiBalance = new BigNumber(await token.balanceOf(bank.address));
+        const contractsADaiBalance = new BigNumber(await pap.balanceOf(bank.address));
         const player = await bank.players(player1);
 
         assert(
-            contractsDaiBalance.toNumber() == 0 &&
-                contractsADaiBalance.toNumber() === 10,
-            `contract did not recieve dai - DAI ${contractsDaiBalance} ADAI ${contractsADaiBalance}`
+            contractsDaiBalance.toFixed() === 0 &&
+                (contractsADaiBalance.toFixed()/ daiDecimals) === 10,
+            `contract did not recieve dai - DAI ${contractsDaiBalance.toFixed()} ADAI ${contractsADaiBalance.toFixed()/ daiDecimals}`
         );
         assert(
             player.mostRecentSegmentPaid.toNumber() === 1,
@@ -154,7 +154,7 @@ contract("GoodGhosting", (accounts) => {
             result,
             "SendMessage",
             (ev) => {
-                return ev.message === "payment made" && ev.reciever === player1;
+                return ev.message === "payment made" && ev.receiver === player1;
             },
             "did not emit payment made message"
         );
@@ -163,7 +163,7 @@ contract("GoodGhosting", (accounts) => {
             "SendMessage",
             (ev) => {
                 return (
-                    ev.message === "too early to pay" && ev.reciever === player1
+                    ev.message === "too early to pay" && ev.receiver === player1
                 );
             },
             "did not emit to early to pay messgae"
@@ -189,10 +189,11 @@ contract("GoodGhosting", (accounts) => {
             result,
             "SendMessage",
             (ev) => {
-                return ev.message === "game joined" && ev.reciever === player1;
+                return ev.message === "game joined" && ev.receiver === player1;
             },
             "player was not able to join in the first segment"
         );
+   
     });
 
     it("users cannot join after the first segment", async () => {
@@ -246,7 +247,7 @@ contract("GoodGhosting", (accounts) => {
             result,
             "SendMessage",
             (ev) => {
-                return ev.message === "payout process starting" && ev.reciever === player1;
+                return ev.message === "payout process starting" && ev.receiver === player1;
             },
             "makeDeposit did not start payout process after segments finshed"
         );
@@ -284,7 +285,7 @@ contract("GoodGhosting", (accounts) => {
             result,
             "SendMessage",
             (ev) => {
-                return ev.message === "payout process starting" && ev.reciever === player1;
+                return ev.message === "payout process starting" && ev.receiver === player1;
             },
             "makeDeposit did not start payout process after segments finshed"
         );

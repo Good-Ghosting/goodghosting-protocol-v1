@@ -41,8 +41,8 @@ contract GoodGhosting {
     uint public timeElapsed;
     address public admin;
 
-    event SendMessage(address reciever, string message);
-
+    event SendMessage(address receiver, string message);
+    event SendUint(address receiver, uint numMessage);
 
 
     constructor(IERC20 _inboundCurrency, IERC20 _interestCurrency, ILendingPoolAddressesProvider _lendingPoolAddressProvider) public {
@@ -54,7 +54,7 @@ contract GoodGhosting {
         mostRecentSegmentPaid = 0;
         lastSegment = 16;
         moneyPot = 0;
-        segmentPayment = 10;
+        segmentPayment = 10 * (10 ** 18);
 
         startSegementTime = now; // 🚨duplicate
         weekInSecs = 604800;
@@ -72,7 +72,7 @@ contract GoodGhosting {
         //users pay dai in to smart contract which the approves
         // Dai to aDai using the lending pool
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
-
+        uint daiAllowance = daiToken.allowance(msg.sender, thisContract);
         require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
         require(daiToken.transferFrom(msg.sender, thisContract, segmentPayment) == true, "Transfer failed");
         
@@ -101,7 +101,7 @@ contract GoodGhosting {
 
 
 
-    function joinGame () public {
+    function joinGame() public {
         require(now <= firstSegmentStart + 1 weeks, "game has already started");
         Player memory newPlayer = Player({
             addr : msg.sender,
