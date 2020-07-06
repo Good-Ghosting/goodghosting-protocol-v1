@@ -55,14 +55,11 @@ contract GoodGhosting {
         lastSegment = 16;
         moneyPot = 0;
         segmentPayment = 10;
-      
-
 
         startSegementTime = now; // 🚨duplicate
         weekInSecs = 604800;
         admin = msg.sender;
     
-
         // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
         uint MAX_ALLOWANCE = 2**256 - 1;
         address core = lendingPoolAddressProvider.getLendingPoolCore();
@@ -115,6 +112,17 @@ contract GoodGhosting {
         emit SendMessage(msg.sender, "game joined");
     }
 
+    // only for use in test env to check internal function
+    // function testMakePayout() public returns (uint) {
+    //     require(msg.sender == admin, "not admin");
+    //     return _makePayout();
+    // }
+
+
+    function _makePayout() internal {
+        emit SendMessage(msg.sender, "payout process starting");
+    }
+
 
     function makeDeposit() public {
         // only registered players can deposit
@@ -124,7 +132,10 @@ contract GoodGhosting {
         // should not be stagging segment
         require(currentSegment > 0, "too early to pay");
 
-        require(currentSegment < lastSegment, "game over");
+        if(currentSegment > lastSegment){
+            _makePayout();
+            return;
+        }
 
         //check if current segment is currently unpaid
         require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "current segment already paid");
