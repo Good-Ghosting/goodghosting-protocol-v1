@@ -1,79 +1,18 @@
 
 [![Build Status](https://travis-ci.org/ngmachado/viral-aave-save-game.svg?branch=master)](https://travis-ci.org/ngmachado/viral-aave-save-game) [![Coverage Status](https://coveralls.io/repos/github/ngmachado/viral-aave-save-game/badge.svg?branch=master)](https://coveralls.io/github/ngmachado/viral-aave-save-game?branch=master)
 
-# Viral Saving Game
+# GoodGhosting
 
-Try to save DAI 9.90 every week for one year.
-Earn more interest by inviting friends.
-If you drop out in the middle you lose your interest
-and it is distributed to everyone who make it to the end.
+- The game is divided up in to segments (currently hard coded to be a week long x 16), will likely be switched to a segment length of a month
+- Users must register to play 
+- Firt segement of the game is a holding segment. This is for participants to join, but no payments can be made
+- Users pay in to the smart contract with Dai
+- Dai is converted to aDai
+- The amount paid in is recorded in the players struct
+*the rest to be continued*
 
-## Referral system
-
-The game makes saving viral.
-
-* Each friend you refer gives you 10% of their interest
-
-* Each friend of a friend gives you 1% of their interest
-
-# How does it work
-
-* Any deposited DAI is converted to [interest earning aDAI on Aave Protocol](https://developers.aave.com/#atokens)
-
-* All interested is hold by the viral bank smart contract
-
-* Interested is distributed to the players who make it at the end of the game
-
-* You get extra interest bonus for friend referrals who you brought to the game
-
-* Any players who drop out in the middle of game lose their interest and it is
-  distributed to the players who make it to the end
-
-# Smart contract usage
-
-## Starting the game as a player
-
-You need to have a referral from somebody to get in the game on the first round.
-
-User needs to do the following to start the game
-
-* Have 9.90 DAI balance in their wallet
-
-* Have referring player address
-
-* `approve()` the `GoodGhosting` contract for `DAI` token transfers
-
-* Do a transaction to `startGame()`
-
-## Playing the game
-
-One week is one round.
-
-Every week the user has to
-
-* Have 9.90 DAI in their wallet
-
-* Do a transaction to `buyInToRound()`
-
-## Status and stats
-
-* `getGameState()` tells you what is the current state of the game
-
-* `getPlayerState(address)` tells if an address is playing, dropped out or successfully finished the game
-
-* `getTotalAccuredInterest()` tells the total DAI prize pot at the moment
-
-# Wallet integration
-
-There is `vDAI` faux ERC-20 token.
-
-* Add `GoodGhosting` address as a token in your wallet
-
-* Token balance shows your accrued interest balance
-
-# Frontend
-
-[Frontend is a different repo](https://github.com/RachBLondon/ethlondon-dapp).
+To run tests:
+`truffle test`
 
 # Internals
 
@@ -107,12 +46,7 @@ Start dev env in one terminal
 truffle develop
 ```
 
-Then install and start the React app.
 
-```bash
-cd app
-npm start
-```
 
 # Deployment
 
