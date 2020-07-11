@@ -73,6 +73,7 @@ contract GoodGhosting {
         // Dai to aDai using the lending pool
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
         uint daiAllowance = daiToken.allowance(msg.sender, thisContract);
+        // emit SendUint(msg.sender, daiToken.allowance(msg.sender, thisContract))
         require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
         require(daiToken.transferFrom(msg.sender, thisContract, segmentPayment) == true, "Transfer failed");
         
@@ -108,6 +109,8 @@ contract GoodGhosting {
             mostRecentSegmentPaid : 0,
             amountPaid : 0
         });
+
+        //🚨TODO add check if player exisits
         players[msg.sender] = newPlayer;
         emit SendMessage(msg.sender, "game joined");
     }
@@ -141,6 +144,7 @@ contract GoodGhosting {
         require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "current segment already paid");
 
         //check player has made payments up to the previous segment
+        // 🚨 TODO check this is OK for first payment
         require(players[msg.sender].mostRecentSegmentPaid == (currentSegment - 1),
            "previous segment was not paid - out of game"
         );
