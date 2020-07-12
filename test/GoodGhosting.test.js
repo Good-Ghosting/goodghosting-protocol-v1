@@ -122,7 +122,7 @@ contract("GoodGhosting", (accounts) => {
     });
     // 🤝 intergration test
     // 🚨 To be finished
-    xit("users can deposit adai after one time segment has passed", async () => {
+    it("users can deposit adai after one time segment has passed", async () => {
         await web3tx(bank.joinGame, "join game")({ from: player1 });
 
         await timeMachine.advanceTimeAndBlock(weekInSecs + 1);
@@ -134,12 +134,17 @@ contract("GoodGhosting", (accounts) => {
         )({
             from: player1,
         });
+        // 10000000000000000000
+        // 10000000000000000000
 
         const contractsDaiBalance = await token.balanceOf(bank.address);
         const contractsADaiBalance = await aToken.balanceOf(bank.address);
         const player = await bank.players(player1);
-        const expectedAmount = new BN(10000000000000000000);
-        console.log(contractsADaiBalance, contractsADaiBalance, player, expectedAmount)
+        // const expectedAmount = new BN('10000000000000000000', 18);
+        const expectedAmount = web3.utils.toBN(10000000000000000000);
+        console.log(contractsADaiBalance, contractsADaiBalance, player, expectedAmount);
+        assert(contractsADaiBalance.eq(expectedAmount), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
+        
         // assert((contractsDaiBalance.toNumber()=== 0),
         //     `contract did not recieve dai - DAI ${contractsDaiBalance.toString()} ADAI ${contractsADaiBalance.toString()}`
         // );
