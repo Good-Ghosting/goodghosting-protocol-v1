@@ -8,9 +8,11 @@ const { web3tx, wad4human, toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const BigNumber = require("bignumber.js");
-const BN = require('bn.js');
+// const BN = require('bn.js');
 
 contract("GoodGhosting", (accounts) => {
+    const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
+
     const admin = accounts[0];
     let token;
     let aToken;
@@ -20,8 +22,8 @@ contract("GoodGhosting", (accounts) => {
     let player2 = accounts[2];
     const weekInSecs = 604800;
     const numberOfSegments = 16;
-    const daiDecimals = 10 ** 18;
-    const segmentPayment = new BigNumber(10 * daiDecimals).toFixed();
+    const daiDecimals =  web3.utils.toBN(1000000000000000000);
+    const segmentPayment = daiDecimals.mul(new BN(10));
 
     beforeEach(async () => {
         global.web3 = web3;
@@ -35,7 +37,7 @@ contract("GoodGhosting", (accounts) => {
         console.log("start users balance", new BigNumber(usersDaiBalance).toFixed());
         // creates dai for player1 to hold.
         // Note DAI contract returns value to 18 Decimals
-        // so token.balanceOf(address) should be made in to a bignumber
+        // so token.balanceOf(address) should be converted with BN
         // and then divided by 10 ** 18
         await web3tx(token.mint, "token.mint 100 -> player1")(
             player1,
@@ -140,10 +142,10 @@ contract("GoodGhosting", (accounts) => {
         const contractsDaiBalance = await token.balanceOf(bank.address);
         const contractsADaiBalance = await aToken.balanceOf(bank.address);
         const player = await bank.players(player1);
-        // const expectedAmount = new BN('10000000000000000000', 18);
-        const expectedAmount = web3.utils.toBN(10000000000000000000);
+        const expectedAmount = new BN(10000000000000000000);
         console.log(contractsADaiBalance, contractsADaiBalance, player, expectedAmount);
         assert(contractsADaiBalance.eq(expectedAmount), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
+        assert(contractsDaiBalance.eq(web3.utils.toBN(0)), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
         
         // assert((contractsDaiBalance.toNumber()=== 0),
         //     `contract did not recieve dai - DAI ${contractsDaiBalance.toString()} ADAI ${contractsADaiBalance.toString()}`
