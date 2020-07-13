@@ -54,7 +54,7 @@ contract GoodGhosting {
         mostRecentSegmentPaid = 0;
         lastSegment = 16;
         moneyPot = 0;
-        segmentPayment = 10 * (10 ** 18);
+        segmentPayment = 10 * (10 ** 18); // equivalent to 10 Dai
 
         startSegementTime = now; // 🚨duplicate
         weekInSecs = 604800;
