@@ -18,6 +18,10 @@ To run tests:
 
 [Based on Drizzle box](https://www.trufflesuite.com/boxes/drizzle).
 
+## Smart Contract Overview
+![high level diagram](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/smart_contract_overview_11-07-20.png?raw=true)
+
+
 # Developing
 
 Install Truffle.
