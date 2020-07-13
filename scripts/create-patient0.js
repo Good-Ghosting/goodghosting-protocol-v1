@@ -14,8 +14,8 @@ module.exports = async function (callback) {
         const config = configs[network];
 
         const viralBankAddress = process.argv[process.argv.length - 1];
-        const ViralBank = artifacts.require("ViralBank");
-        const bank = await ViralBank.at(viralBankAddress);
+        const GoodGhosting = artifacts.require("GoodGhosting");
+        const bank = await GoodGhosting.at(viralBankAddress);
 
         const token = await IERC20.at(config.token.address);
         await web3tx(token.approve, "token.approve")(bank.address, MAX_UINT256);

@@ -1,5 +1,5 @@
 import Web3 from "web3";
-import ViralBank from "./contracts/ViralBank.json";
+import GoodGhosting from "./contracts/GoodGhosting.json";
 
 const options = {
   web3: {

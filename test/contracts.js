@@ -1,1 +1,1 @@
-require("./ViralBank.test.js");
+require("./GoodGhosting.test.js");
