@@ -87,20 +87,11 @@ contract GoodGhosting {
         emit SendMessage(msg.sender, 'payment made');
     }
 
-
-    // only for use in test env to check internal function
-    function testGetCurrentSegment() public returns (uint) {
-        require(msg.sender == admin, "not admin");
-        return _getCurrentSegment();
-    }
-
-    function _getCurrentSegment() internal  returns (uint){
+    function getCurrentSegment() public  returns (uint){
         // Note solidity does not return floating point numbers
         // this will always return a whole number
        return ((block.timestamp - firstSegmentStart)/ weekInSecs);
     }
-
-
 
     function joinGame() public {
         require(now <= firstSegmentStart + 1 weeks, "game has already started");
@@ -131,7 +122,7 @@ contract GoodGhosting {
         // only registered players can deposit
         require(players[msg.sender].addr == msg.sender, "not registered");
         
-        uint currentSegment = _getCurrentSegment();
+        uint currentSegment = getCurrentSegment();
         // should not be stagging segment
         require(currentSegment > 0, "too early to pay");
 

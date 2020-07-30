@@ -97,23 +97,23 @@ contract("GoodGhosting", (accounts) => {
 
     it("can calculate current segment", async () => {
         // 🚨 TODO refactor to function - unsure why this is not workin
-        let result = await bank.testGetCurrentSegment.call({from : admin});
+        let result = await bank.getCurrentSegment.call({from : admin});
         assert(result.isZero(), ` expected ${0}  actual ${result.toNumber()}`);
         await timeMachine.advanceTimeAndBlock(weekInSecs);
 
-        result = await bank.testGetCurrentSegment.call({from : admin});
+        result = await bank.getCurrentSegment.call({from : admin});
         assert(result.eq(new BN(1)), `expected ${1}  actual ${result.toNumber()}`);
         await timeMachine.advanceTimeAndBlock(weekInSecs);
 
-        result = await bank.testGetCurrentSegment.call({from : admin});
+        result = await bank.getCurrentSegment.call({from : admin});
         assert(result.eq(new BN(2)), `expected ${2}  actual ${result.toNumber()}`);
         await timeMachine.advanceTimeAndBlock(weekInSecs);
 
-        result = await bank.testGetCurrentSegment.call({from : admin})
+        result = await bank.getCurrentSegment.call({from : admin})
         assert(result.eq(new BN(3)), `expected ${3}  actual ${result.toNumber()}`);
         await timeMachine.advanceTimeAndBlock(weekInSecs);
 
-        result = await bank.testGetCurrentSegment.call({from : admin});
+        result = await bank.getCurrentSegment.call({from : admin});
         assert(result.eq(new BN(4)), `expected ${4}  actual ${result.toNumber()}`);
         await timeMachine.advanceTimeAndBlock(weekInSecs);
     });
@@ -136,7 +136,10 @@ contract("GoodGhosting", (accounts) => {
         const contractsDaiBalance = await token.balanceOf(bank.address);
         const contractsADaiBalance = await aToken.balanceOf(bank.address);
         const player = await bank.players(player1);
-        console.log("console.log", contractsADaiBalance, contractsDaiBalance, player.amountPaid.toString())
+        console.log("console.log", contractsADaiBalance, contractsDaiBalance, player.amountPaid.toString());
+        // here we should expect to see that the user has paid in 10 aDAI to the Good Ghosting
+        // smart contract.
+        // I think the smart contrat is correct, but i need to test this correctly with BN.js
         // assert(contractsADaiBalance.eq(expectedAmount), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
         // assert(contractsDaiBalance.eq(web3.utils.toBN(0)), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
     });
