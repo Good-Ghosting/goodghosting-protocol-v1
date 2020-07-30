@@ -35,6 +35,7 @@ contract GoodGhosting {
         uint amountPaid;
     }
     mapping(address => Player)public players;
+    address[] public iterablePlayers;
 
 
     uint public segmentLength;
@@ -105,7 +106,12 @@ contract GoodGhosting {
 
         //🚨TODO add check if player exisits
         players[msg.sender] = newPlayer;
+        iterablePlayers.push(msg.sender);
         emit SendMessage(msg.sender, "game joined");
+    }
+
+    function getPlayers() public view returns( address[] memory){
+        return iterablePlayers;
     }
 
 
