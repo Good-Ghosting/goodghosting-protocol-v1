@@ -96,7 +96,7 @@ contract GoodGhosting {
 
 
     function joinGame() public {
-        require(now <= firstSegmentStart + 1 weeks, "game has already started");
+        require(now <= firstSegmentStart + segmentLength, "game has already started");
         Player memory newPlayer = Player({
             addr : msg.sender,
             mostRecentSegmentPaid : 0,

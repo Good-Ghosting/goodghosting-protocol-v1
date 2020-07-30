@@ -17,8 +17,8 @@ contract("GoodGhosting", (accounts) => {
     let pap;
     let player1 = accounts[1];
     let player2 = accounts[2];
-    const weekInSecs = 604800;
-    const numberOfSegments = 16;
+    const weekInSecs = 180;
+    const numberOfSegments = 6;
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(10)); //equivalent to 10 DAI
 
