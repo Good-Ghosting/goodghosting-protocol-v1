@@ -186,6 +186,21 @@ contract("GoodGhosting", (accounts) => {
         );
     });
 
+    it("creates an iterable array for players in the game", async ()=>{
+        // we can delete this functionally once The Graph subgraph is created
+        await web3tx(
+            bank.joinGame,
+            "join the game"
+        )({ from: player1 });
+
+       await web3tx(
+            bank.joinGame,
+            "join the game"
+        )({ from: player2 });
+        const iterableArray = await bank.getPlayers.call({from : player1});
+        assert(iterableArray[0]=== player1 && iterableArray[1]=== player2);
+    });
+
     it("users cannot join after the first segment", async () => {
         await timeMachine.advanceTime(weekInSecs + 1);
         truffleAssert.reverts(
