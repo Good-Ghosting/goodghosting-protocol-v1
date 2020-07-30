@@ -102,3 +102,8 @@ token.mint 100: done, gas used 50436, gas price 20 Gwei
 * aDAI: https://kovan.etherscan.io/address/0x58AD4cB396411B691A9AAb6F74545b2C5217FE6a
 * GoodGhosting: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#code
 * Patient 0: 0xd66E40b0c30595bEc72153B502aC1E0c4785991B
+
+
+## Using
+* BN.js for handling Bignumbers
+* Both DAI and ADAI work similarily to Wei. ie 10**18 
