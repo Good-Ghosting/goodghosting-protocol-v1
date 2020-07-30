@@ -87,20 +87,11 @@ contract GoodGhosting {
         emit SendMessage(msg.sender, 'payment made');
     }
 
-
-    // only for use in test env to check internal function
-    function testGetCurrentSegment() public returns (uint) {
-        require(msg.sender == admin, "not admin");
-        return _getCurrentSegment();
-    }
-
-    function _getCurrentSegment() internal  returns (uint){
+    function getCurrentSegment() public  returns (uint){
         // Note solidity does not return floating point numbers
         // this will always return a whole number
        return ((block.timestamp - firstSegmentStart)/ weekInSecs);
     }
-
-
 
     function joinGame() public {
         require(now <= firstSegmentStart + 1 weeks, "game has already started");
@@ -115,14 +106,10 @@ contract GoodGhosting {
         emit SendMessage(msg.sender, "game joined");
     }
 
-    // only for use in test env to check internal function
-    // function testMakePayout() public returns (uint) {
-    //     require(msg.sender == admin, "not admin");
-    //     return _makePayout();
-    // }
-
-
-    function _makePayout() internal {
+    function makePayout() public {
+        require(players[msg.sender].addr == msg.sender, "only registered players can call this method");
+        uint currentSegment = getCurrentSegment();
+        require(currentSegment > lastSegment, "too early to payout");
         emit SendMessage(msg.sender, "payout process starting");
     }
 
@@ -131,14 +118,9 @@ contract GoodGhosting {
         // only registered players can deposit
         require(players[msg.sender].addr == msg.sender, "not registered");
         
-        uint currentSegment = _getCurrentSegment();
+        uint currentSegment = getCurrentSegment();
         // should not be stagging segment
         require(currentSegment > 0, "too early to pay");
-
-        if(currentSegment > lastSegment){
-            _makePayout();
-            return;
-        }
 
         //check if current segment is currently unpaid
         require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "current segment already paid");
