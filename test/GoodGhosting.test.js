@@ -44,7 +44,11 @@ contract("GoodGhosting", (accounts) => {
         pap = await web3tx(
             LendingPoolAddressesProviderMock.new,
             "LendingPoolAddressesProviderMock.new"
-        )({ from: admin });
+        )(
+            "TOKEN_NAME",
+            "TOKEN_SYMBOL",
+            { from: admin }
+        );
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
         bank = await web3tx(GoodGhosting.new, "GoodGhosting.new")(
