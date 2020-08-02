@@ -75,15 +75,20 @@ contract GoodGhosting {
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
         // emit SendUint(msg.sender, daiToken.allowance(msg.sender, thisContract))
         require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
-        require(daiToken.transferFrom(msg.sender, thisContract, segmentPayment) == true, "Transfer failed");
 
+        players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid + 1;
+        players[msg.sender].amountPaid = players[msg.sender].amountPaid + segmentPayment;
+
+        // SECURITY NOTE:
+        // Interacting with the external contracts should be the last action in the logic to avoid re-entracy attacks.
+        // Re-entrancy: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#re-entrancy
+        // Check-Effects-Interactions Pattern: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#use-the-checks-effects-interactions-pattern
+        require(daiToken.transferFrom(msg.sender, thisContract, segmentPayment), "Transfer failed");
         // lendPool.deposit does not currently return a value,
         // so it is not possible use a require statement to check.
         // if it doesn't revert, we assume it's successful
         lendingPool.deposit(address(daiToken), segmentPayment, 0);
 
-        players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid + 1;
-        players[msg.sender].amountPaid = players[msg.sender].amountPaid + segmentPayment;
         emit SendMessage(msg.sender, 'payment made');
     }
 
