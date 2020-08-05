@@ -1,4 +1,6 @@
-pragma solidity ^0.5.0;
+// SPDX-License-Identifier: UNLICENSED
+
+pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -10,102 +12,104 @@ contract LendingPoolAddressesProviderMock
 
     address public underlyingAssetAddress;
 
+    constructor (string memory name, string memory symbol) ERC20(name, symbol) public { }
+
     /// ILendingPoolAddressesProvider interface
-    function getLendingPool() public view returns (address) {
+    function getLendingPool() public override view returns (address) {
         return address(this);
     }
 
-    function setLendingPoolImpl(address _pool) public {
+    function setLendingPoolImpl(address _pool) public override {
 
     }
 
-    function getLendingPoolCore() public view returns (address payable) {
+    function getLendingPoolCore() public override view returns (address payable) {
         return address(uint160(address(this))); // cast to make it payalbe
     }
 
-    function setLendingPoolCoreImpl(address _lendingPoolCore) public {
+    function setLendingPoolCoreImpl(address _lendingPoolCore) public override {
 
     }
 
-    function getLendingPoolConfigurator() public view returns (address) {
+    function getLendingPoolConfigurator() public override view returns (address) {
 
     }
 
-    function setLendingPoolConfiguratorImpl(address _configurator) public {
+    function setLendingPoolConfiguratorImpl(address _configurator) public override {
 
     }
 
-    function getLendingPoolDataProvider() public view returns (address) {
+    function getLendingPoolDataProvider() public override view returns (address) {
 
     }
 
-    function setLendingPoolDataProviderImpl(address _provider) public {
+    function setLendingPoolDataProviderImpl(address _provider) public override {
 
     }
 
-    function getLendingPoolParametersProvider() public view returns (address) {
+    function getLendingPoolParametersProvider() public override view returns (address) {
 
     }
-    function setLendingPoolParametersProviderImpl(address _parametersProvider) public {
-
-    }
-
-    function getTokenDistributor() public view returns (address) {
+    function setLendingPoolParametersProviderImpl(address _parametersProvider) public override {
 
     }
 
-    function setTokenDistributor(address _tokenDistributor) public {
+    function getTokenDistributor() public override view returns (address) {
 
     }
 
-    function getFeeProvider() public view returns (address) {
+    function setTokenDistributor(address _tokenDistributor) public override {
 
     }
 
-    function setFeeProviderImpl(address _feeProvider) public {
+    function getFeeProvider() public override view returns (address) {
 
     }
 
-    function getLendingPoolLiquidationManager() public view returns (address) {
+    function setFeeProviderImpl(address _feeProvider) public override {
 
     }
 
-    function setLendingPoolLiquidationManager(address _manager) public {
+    function getLendingPoolLiquidationManager() public override view returns (address) {
 
     }
 
-    function getLendingPoolManager() public view returns (address) {
+    function setLendingPoolLiquidationManager(address _manager) public override {
 
     }
 
-    function setLendingPoolManager(address _lendingPoolManager) public {
+    function getLendingPoolManager() public override view returns (address) {
 
     }
 
-    function getPriceOracle() public view returns (address) {
+    function setLendingPoolManager(address _lendingPoolManager) public override {
 
     }
 
-    function setPriceOracle(address _priceOracle) public {
+    function getPriceOracle() public override view returns (address) {
 
     }
 
-    function getLendingRateOracle() public view returns (address) {
+    function setPriceOracle(address _priceOracle) public override {
 
     }
 
-    function setLendingRateOracle(address _lendingRateOracle) public {
+    function getLendingRateOracle() public override view returns (address) {
+
+    }
+
+    function setLendingRateOracle(address _lendingRateOracle) public override {
 
     }
 
     /// ILendingPool interface
-    function deposit(address _reserve, uint256 _amount, uint16 _referralCode) public {
+    function deposit(address _reserve, uint256 _amount, uint16 _referralCode) public override {
         IERC20 reserve = IERC20(_reserve);
         reserve.transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
     }
 
-    function redeem(uint256 _amount) public {
+    function redeem(uint256 _amount) public override {
         _burn(msg.sender, _amount);
         IERC20(underlyingAssetAddress).transfer(msg.sender, _amount);
     }

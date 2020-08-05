@@ -1,4 +1,6 @@
-pragma solidity ^0.5.0;
+// SPDX-License-Identifier: UNLICENSED
+
+pragma solidity ^0.6.0;
 
 /**
  * Play the save game.
@@ -152,10 +154,10 @@ import "../aave/ILendingPoolAddressesProvider.sol";
 import "../aave/ILendingPool.sol";
 /*/
 
-contract ILendingPool {
-    function deposit(address _reserve, uint256 _amount, uint16 _referralCode) public;
+abstract contract ILendingPool {
+    function deposit(address _reserve, uint256 _amount, uint16 _referralCode) public virtual;
     //see: https://github.com/aave/aave-protocol/blob/1ff8418eb5c73ce233ac44bfb7541d07828b273f/contracts/tokenization/AToken.sol#L218
-    function redeem(uint256 _amount) external;
+    function redeem(uint256 _amount) external virtual;
 }
 
 
@@ -164,41 +166,41 @@ contract ILendingPool {
 @notice provides the interface to fetch the LendingPoolCore address
  */
 
-contract ILendingPoolAddressesProvider {
+abstract contract ILendingPoolAddressesProvider {
 
-    function getLendingPool() public view returns (address);
-    function setLendingPoolImpl(address _pool) public;
+    function getLendingPool() public virtual view returns (address);
+    function setLendingPoolImpl(address _pool) public virtual;
 
-    function getLendingPoolCore() public view returns (address payable);
-    function setLendingPoolCoreImpl(address _lendingPoolCore) public;
+    function getLendingPoolCore() public virtual view returns (address payable);
+    function setLendingPoolCoreImpl(address _lendingPoolCore) public virtual;
 
-    function getLendingPoolConfigurator() public view returns (address);
-    function setLendingPoolConfiguratorImpl(address _configurator) public;
+    function getLendingPoolConfigurator() public virtual view returns (address);
+    function setLendingPoolConfiguratorImpl(address _configurator) public virtual;
 
-    function getLendingPoolDataProvider() public view returns (address);
-    function setLendingPoolDataProviderImpl(address _provider) public;
+    function getLendingPoolDataProvider() public virtual view returns (address);
+    function setLendingPoolDataProviderImpl(address _provider) public virtual;
 
-    function getLendingPoolParametersProvider() public view returns (address);
-    function setLendingPoolParametersProviderImpl(address _parametersProvider) public;
+    function getLendingPoolParametersProvider() public virtual view returns (address);
+    function setLendingPoolParametersProviderImpl(address _parametersProvider) public virtual;
 
-    function getTokenDistributor() public view returns (address);
-    function setTokenDistributor(address _tokenDistributor) public;
+    function getTokenDistributor() public virtual view returns (address);
+    function setTokenDistributor(address _tokenDistributor) public virtual;
 
 
-    function getFeeProvider() public view returns (address);
-    function setFeeProviderImpl(address _feeProvider) public;
+    function getFeeProvider() public virtual view returns (address);
+    function setFeeProviderImpl(address _feeProvider) public virtual;
 
-    function getLendingPoolLiquidationManager() public view returns (address);
-    function setLendingPoolLiquidationManager(address _manager) public;
+    function getLendingPoolLiquidationManager() public virtual view returns (address);
+    function setLendingPoolLiquidationManager(address _manager) public virtual;
 
-    function getLendingPoolManager() public view returns (address);
-    function setLendingPoolManager(address _lendingPoolManager) public;
+    function getLendingPoolManager() public virtual view returns (address);
+    function setLendingPoolManager(address _lendingPoolManager) public virtual;
 
-    function getPriceOracle() public view returns (address);
-    function setPriceOracle(address _priceOracle) public;
+    function getPriceOracle() public virtual view returns (address);
+    function setPriceOracle(address _priceOracle) public virtual;
 
-    function getLendingRateOracle() public view returns (address);
-    function setLendingRateOracle(address _lendingRateOracle) public;
+    function getLendingRateOracle() public virtual view returns (address);
+    function setLendingRateOracle(address _lendingRateOracle) public virtual;
 
 }
 
