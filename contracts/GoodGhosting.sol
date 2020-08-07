@@ -2,6 +2,9 @@
 
 pragma solidity ^0.6.0;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+
 /**
  * Play the save game.
  *
@@ -13,7 +16,7 @@ pragma solidity ^0.6.0;
  */
 
 
-contract GoodGhosting {
+contract GoodGhosting is Ownable, Pausable {
 
     address public thisContract;
     // Token that players use to buy in the game - DAI
@@ -68,6 +71,13 @@ contract GoodGhosting {
         daiToken.approve(core, MAX_ALLOWANCE);
     }
 
+    function pause() public onlyOwner whenNotPaused {
+        _pause();
+    }
+
+    function unpause() public onlyOwner whenPaused {
+        _unpause();
+    }
 
     function _transferDaiToContract() internal {
 
@@ -103,7 +113,7 @@ contract GoodGhosting {
 
 
 
-    function joinGame() public {
+    function joinGame() public whenNotPaused {
         require(now <= firstSegmentStart + segmentLength, "game has already started");
         Player memory newPlayer = Player({
             addr : msg.sender,
@@ -122,7 +132,7 @@ contract GoodGhosting {
     }
 
 
-    function makePayout() public {
+    function makePayout() public whenNotPaused {
         require(players[msg.sender].addr == msg.sender, "only registered players can call this method");
         uint currentSegment = getCurrentSegment();
         require(currentSegment > lastSegment, "too early to payout");
@@ -130,7 +140,7 @@ contract GoodGhosting {
     }
 
 
-    function makeDeposit() public {
+    function makeDeposit() public whenNotPaused {
         // only registered players can deposit
         require(players[msg.sender].addr == msg.sender, "not registered");
 

@@ -261,8 +261,6 @@ contract("GoodGhosting", (accounts) => {
         );
     });
 
-
-
     // 🤝 Intergration test
     // pay in once, then fast forward to the game end. User should get
     // back their single payment
@@ -303,4 +301,43 @@ contract("GoodGhosting", (accounts) => {
             `users not getting right amount back. Expected ${expectedBalance.toString()}  actual: ${usersDaiBalanceAfterPayout.toString()}`
         );
     });
+
+    describe("reverts when contract is paused", () => {
+        beforeEach(async function() {
+            await bank.pause({ from: admin });
+        });
+
+        it("pauses the contract", async() => {
+            const result = await bank.paused.call({ from: admin });
+            assert(result, "contract is not paused");
+        });
+
+        it("unpauses the contract", async() => {
+            await bank.unpause({ from: admin });
+            const result = await bank.pause.call({ from: admin });
+            assert(result, "contract is paused");
+        });
+
+        it("reverts joinGame when contract is paused", async() => {
+            truffleAssert.reverts(
+                bank.joinGame({ from: player1 }),
+                "Pausable: paused"
+            );
+        });
+    
+        it("reverts makeDeposit when contract is paused", async() => {
+            truffleAssert.reverts(
+                bank.makeDeposit({ from: player1 }),
+                "Pausable: paused"
+            );
+        });
+    
+        it("reverts makePayout when contract is paused", async() => {
+            truffleAssert.reverts(
+                bank.makePayout({ from: player1 }),
+                "Pausable: paused"
+            );
+        });
+    });
+
 });
