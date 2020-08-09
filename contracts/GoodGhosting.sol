@@ -6,6 +6,167 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
+ * @dev Wrappers over Solidity's arithmetic operations with added overflow
+ * checks.
+ *
+ * Arithmetic operations in Solidity wrap on overflow. This can easily result
+ * in bugs, because programmers usually assume that an overflow raises an
+ * error, which is the standard behavior in high level programming languages.
+ * `SafeMath` restores this intuition by reverting the transaction when an
+ * operation overflows.
+ *
+ * Using this library instead of the unchecked operations eliminates an entire
+ * class of bugs, so it's recommended to use it always.
+ */
+library SafeMath {
+    /**
+     * @dev Returns the addition of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `+` operator.
+     *
+     * Requirements:
+     * - Addition cannot overflow.
+     */
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot overflow.
+     */
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot overflow.
+     *
+     * _Available since v2.4.0._
+     */
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the multiplication of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `*` operator.
+     *
+     * Requirements:
+     * - Multiplication cannot overflow.
+     */
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     *
+     * _Available since v2.4.0._
+     */
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        // Solidity only automatically asserts when dividing by 0
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts with custom message when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     *
+     * _Available since v2.4.0._
+     */
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+}
+
+
+
+
+
+
+
+/**
  * Play the save game.
  *
  * No SafeMath was used (yet) to shortcut the hacking time.
@@ -17,6 +178,9 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 
 
 contract GoodGhosting is Ownable, Pausable {
+
+    
+    using SafeMath for uint256;
 
     address public thisContract;
     // Token that players use to buy in the game - DAI
@@ -60,7 +224,7 @@ contract GoodGhosting is Ownable, Pausable {
         mostRecentSegmentPaid = 0;
         lastSegment = 6;   //reduced number of segments for testing purposes
         moneyPot = 0;
-        segmentPayment = 10 * (10 ** 18); // equivalent to 10 Dai
+        segmentPayment = 10 * 10 ** 18; // equivalent to 10 Dai
 
         segmentLength = 180; // The number of seconds each game segment comprises of. E.g. 180 sec = 3 minutes
         admin = msg.sender;
@@ -88,8 +252,8 @@ contract GoodGhosting is Ownable, Pausable {
         // emit SendUint(msg.sender, daiToken.allowance(msg.sender, thisContract))
         require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
 
-        players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid + 1;
-        players[msg.sender].amountPaid = players[msg.sender].amountPaid + segmentPayment;
+        players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid.add(1);
+        players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(segmentPayment);
 
         // SECURITY NOTE:
         // Interacting with the external contracts should be the last action in the logic to avoid re-entracy attacks.
@@ -108,13 +272,14 @@ contract GoodGhosting is Ownable, Pausable {
     function getCurrentSegment() view public returns (uint){
         // Note solidity does not return floating point numbers
         // this will always return a whole number
-       return ((block.timestamp - firstSegmentStart) / segmentLength);
+       return ((block.timestamp.sub(firstSegmentStart)).div(segmentLength));
     }
 
 
 
     function joinGame() public whenNotPaused {
         require(now <= firstSegmentStart + segmentLength, "game has already started");
+        require(players[msg.sender].addr != msg.sender, "The player should not have joined the game before");
         Player memory newPlayer = Player({
             addr : msg.sender,
             mostRecentSegmentPaid : 0,
@@ -122,6 +287,7 @@ contract GoodGhosting is Ownable, Pausable {
         });
 
         //🚨TODO add check if player exisits
+        
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
         emit SendMessage(msg.sender, "game joined");
@@ -153,7 +319,7 @@ contract GoodGhosting is Ownable, Pausable {
 
         //check player has made payments up to the previous segment
         // 🚨 TODO check this is OK for first payment
-        require(players[msg.sender].mostRecentSegmentPaid == (currentSegment - 1),
+        require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
            "previous segment was not paid - out of game"
         );
 

@@ -138,7 +138,7 @@ contract("GoodGhosting", (accounts) => {
     // 🚨 Finish this test so its working with BN.js
     it("users can deposit adai after one time segment has passed", async () => {
         await web3tx(bank.joinGame, "join game")({ from: player1 });
-
+        
         await timeMachine.advanceTimeAndBlock(weekInSecs + 1);
         approveDaiToContract(player1);
 
@@ -164,6 +164,16 @@ contract("GoodGhosting", (accounts) => {
         // assert(contractsADaiBalance.eq(expectedAmount), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
         // assert(contractsDaiBalance.eq(web3.utils.toBN(0)), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
     });
+    // join twice test
+    it("a user cannot join the game twice", async() => {
+        await web3tx(bank.joinGame, "join game")({ from: player1 });
+       
+        await web3tx(bank.joinGame, "join game")({ from: player1 });
+        truffleAssert.reverts(
+            bank.joinGame({ from: player1 }),
+            "The player should not have joined the game before"
+        );
+    })
 
     it("users can not deposit straight away", async () => {
         await web3tx(bank.joinGame, "join game")({ from: player1 });
@@ -196,7 +206,7 @@ contract("GoodGhosting", (accounts) => {
             bank.joinGame,
             "join the game"
         )({ from: player1 });
-
+ 
        await web3tx(
             bank.joinGame,
             "join the game"
