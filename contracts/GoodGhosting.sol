@@ -272,7 +272,8 @@ contract GoodGhosting is Ownable, Pausable {
     function getCurrentSegment() view public returns (uint){
         // Note solidity does not return floating point numbers
         // this will always return a whole number
-       return ((block.timestamp.sub(firstSegmentStart)).div(segmentLength));
+       // handling the whole no issue in  getCurrent Segment by multipying with precision will have to handle on frontend
+       return (((block.timestamp.sub(firstSegmentStart)).mul(10**6)).div(segmentLength));
     }
 
 
