@@ -194,7 +194,8 @@ contract GoodGhosting is Ownable, Pausable {
 
 
     uint public mostRecentSegmentPaid;
-    uint public moneyPot;
+    // not sure about this so commenting for now
+    // uint public moneyPot;
     uint public segmentPayment;
     uint public lastSegment;
     uint public firstSegmentStart;
@@ -208,7 +209,8 @@ contract GoodGhosting is Ownable, Pausable {
 
 
     uint public segmentLength;
-    uint public timeElapsed;
+    // need to fit this in, ideally it should be time remaining in a particular segment, though can be calculated using block.timestamp and the segment length
+    //uint public timeElapsed;
     address public admin;
 
     event SendMessage(address receiver, string message);
@@ -223,10 +225,10 @@ contract GoodGhosting is Ownable, Pausable {
         firstSegmentStart = block.timestamp;  //get current time
         mostRecentSegmentPaid = 0;
         lastSegment = 6;   //reduced number of segments for testing purposes
-        moneyPot = 0;
+        //moneyPot = 0;
         segmentPayment = 10 * 10 ** 18; // equivalent to 10 Dai
 
-        segmentLength = 180; // The number of seconds each game segment comprises of. E.g. 180 sec = 3 minutes
+        segmentLength = 300; // The number of seconds each game segment comprises of. E.g. 180 sec = 3 minutes
         admin = msg.sender;
 
         // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
@@ -268,17 +270,15 @@ contract GoodGhosting is Ownable, Pausable {
         emit SendMessage(msg.sender, 'payment made');
     }
 
-
     function getCurrentSegment() view public returns (uint){
         // Note solidity does not return floating point numbers
         // this will always return a whole number
-       // handling the whole no issue in  getCurrent Segment by multipying with precision will have to handle on frontend
-       return (((block.timestamp.sub(firstSegmentStart)).mul(10**6)).div(segmentLength));
+       return ((block.timestamp.sub(firstSegmentStart)).div(segmentLength));
     }
 
 
 
-    function joinGame() public whenNotPaused {
+    function joinGame() external whenNotPaused {
         require(now <= firstSegmentStart + segmentLength, "game has already started");
         require(players[msg.sender].addr != msg.sender, "The player should not have joined the game before");
         Player memory newPlayer = Player({
@@ -286,11 +286,10 @@ contract GoodGhosting is Ownable, Pausable {
             mostRecentSegmentPaid : 0,
             amountPaid : 0
         });
-
-        //🚨TODO add check if player exisits
-        
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
+        // for first segment
+        _transferDaiToContract();
         emit SendMessage(msg.sender, "game joined");
     }
 
@@ -299,7 +298,7 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
 
-    function makePayout() public whenNotPaused {
+    function makePayout() external whenNotPaused {
         require(players[msg.sender].addr == msg.sender, "only registered players can call this method");
         uint currentSegment = getCurrentSegment();
         require(currentSegment > lastSegment, "too early to payout");
@@ -307,10 +306,10 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
 
-    function makeDeposit() public whenNotPaused {
+    function makeDeposit() external whenNotPaused {
         // only registered players can deposit
         require(players[msg.sender].addr == msg.sender, "not registered");
-
+        
         uint currentSegment = getCurrentSegment();
         // should not be stagging segment
         require(currentSegment > 0, "too early to pay");  //🚨 Might be removed - to discuss
@@ -320,9 +319,12 @@ contract GoodGhosting is Ownable, Pausable {
 
         //check player has made payments up to the previous segment
         // 🚨 TODO check this is OK for first payment
-        require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
+        if (currentSegment != 1) {
+           require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
            "previous segment was not paid - out of game"
         );
+        }
+
 
         //💰allow deposit to happen
         _transferDaiToContract();
