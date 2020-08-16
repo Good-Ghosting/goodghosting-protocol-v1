@@ -178,20 +178,18 @@ library SafeMath {
 
 
 contract GoodGhosting is Ownable, Pausable {
-
-    
     using SafeMath for uint256;
+    
+    uint public finalRedeem;
 
-    address public thisContract;
     // Token that players use to buy in the game - DAI
     IERC20 public daiToken;
 
     // Pointer to aDAI
-    IERC20 public adaiToken;
+    AToken public adaiToken;
 
     // Which Aave instance we use to swap DAI to interest bearing aDAI
     ILendingPoolAddressesProvider public lendingPoolAddressProvider;
-
 
     uint public mostRecentSegmentPaid;
     // not sure about this so commenting for now
@@ -203,6 +201,7 @@ contract GoodGhosting is Ownable, Pausable {
         address addr;
         uint mostRecentSegmentPaid;
         uint amountPaid;
+        uint withdrawAmount;
     }
     mapping(address => Player)public players;
     address[] public iterablePlayers;
@@ -213,15 +212,19 @@ contract GoodGhosting is Ownable, Pausable {
     //uint public timeElapsed;
     address public admin;
 
-    event SendMessage(address receiver, string message);
-    event SendUint(address receiver, uint numMessage);
+    event joinedGame(address player);
+
+    event segmentPaid(address player, uint segment);
+
+    event withdrawn(address player, uint amount);
 
 
-    constructor(IERC20 _inboundCurrency, IERC20 _interestCurrency, ILendingPoolAddressesProvider _lendingPoolAddressProvider) public {
+    constructor(IERC20 _inboundCurrency, AToken _interestCurrency, ILendingPoolAddressesProvider _lendingPoolAddressProvider) public {
         daiToken = _inboundCurrency;
         adaiToken = _interestCurrency;
+        // 0 for unlock and 1 when redeem has already taken place
+        finalRedeem = 0;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
-        thisContract = address(this);
         firstSegmentStart = block.timestamp;  //get current time
         mostRecentSegmentPaid = 0;
         lastSegment = 6;   //reduced number of segments for testing purposes
@@ -244,6 +247,8 @@ contract GoodGhosting is Ownable, Pausable {
     function unpause() public onlyOwner whenPaused {
         _unpause();
     }
+    
+    
 
     function _transferDaiToContract() internal {
 
@@ -252,7 +257,8 @@ contract GoodGhosting is Ownable, Pausable {
         // 🚨 TO DO - check for potential re-entrancy attack 🚨 warning by Remix:  Potential violation of Checks-Effects-Interaction pattern
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
         // emit SendUint(msg.sender, daiToken.allowance(msg.sender, thisContract))
-        require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
+        // this doesn't make sense since we are already transferring
+        // require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
 
         players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid.add(1);
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(segmentPayment);
@@ -261,13 +267,11 @@ contract GoodGhosting is Ownable, Pausable {
         // Interacting with the external contracts should be the last action in the logic to avoid re-entracy attacks.
         // Re-entrancy: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#re-entrancy
         // Check-Effects-Interactions Pattern: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#use-the-checks-effects-interactions-pattern
-        require(daiToken.transferFrom(msg.sender, thisContract, segmentPayment), "Transfer failed");
+        require(daiToken.transferFrom(msg.sender, address(this), segmentPayment), "Transfer failed");
         // lendPool.deposit does not currently return a value,
         // so it is not possible use a require statement to check.
         // if it doesn't revert, we assume it's successful
         lendingPool.deposit(address(daiToken), segmentPayment, 0);
-
-        emit SendMessage(msg.sender, 'payment made');
     }
 
     function getCurrentSegment() view public returns (uint){
@@ -284,27 +288,43 @@ contract GoodGhosting is Ownable, Pausable {
         Player memory newPlayer = Player({
             addr : msg.sender,
             mostRecentSegmentPaid : 0,
-            amountPaid : 0
+            amountPaid : 0,
+            withdrawAmount: 0
         });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
         // for first segment
         _transferDaiToContract();
-        emit SendMessage(msg.sender, "game joined");
+        emit joinedGame(msg.sender);
     }
 
     function getPlayers() public view returns( address[] memory){
         return iterablePlayers;
     }
-
-
-    function makePayout() external whenNotPaused {
-        require(players[msg.sender].addr == msg.sender, "only registered players can call this method");
-        uint currentSegment = getCurrentSegment();
-        require(currentSegment > lastSegment, "too early to payout");
-        emit SendMessage(msg.sender, "payout process starting");
+    
+    // to be called by the owner once we know that all segments are finished still need to decide on that
+    // maxamount would be -1 t be passed from js
+    function redeem(address[] calldata winners, address[] calldata nonWinners, uint maxAmount) external whenNotPaused {
+        require(finalRedeem == 0, "Redeem operation has already taken place for the game");
+        uint totalDaiAmtBeforeRedeem = AToken(adaiToken).balanceOf(address(this));
+        AToken(adaiToken).redeem(maxAmount);
+        for(uint i = 0; i < nonWinners.length; i++) {
+            players[nonWinners[i]].withdrawAmount = players[nonWinners[i]].mostRecentSegmentPaid.mul(segmentPayment);
+        }
+        uint totalInterestAmount = IERC20(daiToken).balanceOf(address(this)).sub(totalDaiAmtBeforeRedeem);
+        uint interestAmtForWinners = totalInterestAmount.div(winners.length);
+        for (uint j = 0; j < winners.length; j ++) {
+            players[winners[j]].withdrawAmount  = interestAmtForWinners.add(lastSegment.mul(segmentPayment));
+        }
+        finalRedeem = 1;
     }
-
+    
+    // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
+    function withdraw() external whenNotPaused {
+        IERC20(daiToken).transferFrom(address(this), msg.sender, players[msg.sender].withdrawAmount);
+        emit withdrawn(msg.sender, players[msg.sender].withdrawAmount);
+    }
+ 
 
     function makeDeposit() external whenNotPaused {
         // only registered players can deposit
@@ -324,10 +344,9 @@ contract GoodGhosting is Ownable, Pausable {
            "previous segment was not paid - out of game"
         );
         }
-
-
         //💰allow deposit to happen
         _transferDaiToContract();
+        emit segmentPaid(msg.sender, mostRecentSegmentPaid);
     }
 
 }
@@ -340,8 +359,15 @@ import "../aave/ILendingPool.sol";
 
 abstract contract ILendingPool {
     function deposit(address _reserve, uint256 _amount, uint16 _referralCode) public virtual;
-    //see: https://github.com/aave/aave-protocol/blob/1ff8418eb5c73ce233ac44bfb7541d07828b273f/contracts/tokenization/AToken.sol#L218
-    function redeem(uint256 _amount) external virtual;
+}
+
+interface AToken {
+    function redeem(uint256 _amount) external;
+    
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
+    function balanceOf(address account) external view returns (uint256);
 }
 
 
