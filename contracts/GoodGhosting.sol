@@ -304,10 +304,11 @@ contract GoodGhosting is Ownable, Pausable {
     
     // to be called by the owner once we know that all segments are finished still need to decide on that
     // maxamount would be -1 t be passed from js
-    function redeem(address[] calldata winners, address[] calldata nonWinners, uint maxAmount) external whenNotPaused {
+    function redeem(address[] calldata winners, address[] calldata nonWinners) external whenNotPaused {
         require(finalRedeem == 0, "Redeem operation has already taken place for the game");
+        // aave has 1:1 peg for tokens and atokens
         uint totalDaiAmtBeforeRedeem = AToken(adaiToken).balanceOf(address(this));
-        AToken(adaiToken).redeem(maxAmount);
+        AToken(adaiToken).redeem(totalDaiAmtBeforeRedeem);
         for(uint i = 0; i < nonWinners.length; i++) {
             players[nonWinners[i]].withdrawAmount = players[nonWinners[i]].mostRecentSegmentPaid.mul(segmentPayment);
         }
