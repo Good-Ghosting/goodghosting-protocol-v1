@@ -179,8 +179,13 @@ library SafeMath {
 
 contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
-    
-    uint public finalRedeem;
+
+    // Controls if tokens were redeemed or not from the pool
+    bool public redeemed;
+    // Controls if withdraw amounts were allocated
+    bool public withdrawAmountAllocated;
+    // Stores the total amount of interest received in the game.
+    uint public totalGameInterest;
 
     // Token that players use to buy in the game - DAI
     IERC20 public daiToken;
@@ -205,6 +210,8 @@ contract GoodGhosting is Ownable, Pausable {
     }
     mapping(address => Player)public players;
     address[] public iterablePlayers;
+    address[] public winners;
+
 
 
     uint public segmentLength;
@@ -212,18 +219,36 @@ contract GoodGhosting is Ownable, Pausable {
     //uint public timeElapsed;
     address public admin;
 
-    event joinedGame(address player);
+    event JoinedGame(address indexed player, uint amount);
+    event Deposit(address indexed player, uint indexed segment, uint amount);
+    event Withdrawal(address indexed player, uint amount);
+    event FundsRedeemedFromExternalPool(uint totalAmount, uint totalGamePrincipal, uint totalGameInterest);
+    event WinnersAnnouncement(address[] winners);
 
-    event segmentPaid(address player, uint segment);
+    modifier whenGameIsCompleted() {
+        // Game is completed when the current segment is greater than "lastSegment" of the game.
+        require(getCurrentSegment() > lastSegment, 'Game is not completed');
+        _;
+    }
 
-    event withdrawn(address player, uint amount);
+    modifier whenGameIsNotCompleted() {
+        // Game is not completed when current segment is less than or equal to the "lastSegment" of the game.
+        require(getCurrentSegment() <= lastSegment, 'Game is already completed');
+        _;
+    }
 
+    modifier afterRedeemedFromExternalPool() {
+        require(redeemed, 'Funds not redeemed from external pool yet');
+        _;
+    }
 
     constructor(IERC20 _inboundCurrency, AToken _interestCurrency, ILendingPoolAddressesProvider _lendingPoolAddressProvider) public {
         daiToken = _inboundCurrency;
         adaiToken = _interestCurrency;
-        // 0 for unlock and 1 when redeem has already taken place
-        finalRedeem = 0;
+        redeemed = false;
+        withdrawAmountAllocated = false;
+        totalGameInterest = 0;
+        
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
         firstSegmentStart = block.timestamp;  //get current time
         mostRecentSegmentPaid = 0;
@@ -247,8 +272,6 @@ contract GoodGhosting is Ownable, Pausable {
     function unpause() public onlyOwner whenPaused {
         _unpause();
     }
-    
-    
 
     function _transferDaiToContract() internal {
 
@@ -258,7 +281,7 @@ contract GoodGhosting is Ownable, Pausable {
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
         // emit SendUint(msg.sender, daiToken.allowance(msg.sender, thisContract))
         // this doesn't make sense since we are already transferring
-        require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
+        require(daiToken.allowance(msg.sender, address(this)) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
 
         players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid.add(1);
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(segmentPayment);
@@ -280,8 +303,6 @@ contract GoodGhosting is Ownable, Pausable {
        return ((block.timestamp.sub(firstSegmentStart)).div(segmentLength));
     }
 
-
-
     function joinGame() external whenNotPaused {
         require(now <= firstSegmentStart + segmentLength, "game has already started");
         require(players[msg.sender].addr != msg.sender, "The player should not have joined the game before");
@@ -295,39 +316,74 @@ contract GoodGhosting is Ownable, Pausable {
         iterablePlayers.push(msg.sender);
         // for first segment
         _transferDaiToContract();
-        emit joinedGame(msg.sender);
+        emit JoinedGame(msg.sender, segmentPayment);
     }
 
     function getPlayers() public view returns( address[] memory){
         return iterablePlayers;
     }
     
-    // to be called by the owner once we know that all segments are finished still need to decide on that
-    // maxamount would be -1 t be passed from js
-    function redeem(address[] calldata winners, address[] calldata nonWinners) external whenNotPaused {
-        require(finalRedeem == 0, "Redeem operation has already taken place for the game");
+    /**
+        Reedems funds from external pool and calculates total amount of interest for the game.
+        @dev This method only redeems funds from the external pool, without doing any allocation of balances
+             to users. This helps to prevent running out of gas and having funds locked into the external pool.
+    */
+    function redeemFromExternalPool() external whenGameIsCompleted {
+        // TODO: security improvement. Break this function in two:
+        // One for redeeming tokens from Aave; The second to calculate/allocate the interest to winners.
+        // By doing this, we keep concerns separate and increase amount of gas available for interest allocation.
+        require(!redeemed, "Redeem operation has already taken place for the game");
         // aave has 1:1 peg for tokens and atokens
         uint totalDaiAmtBeforeRedeem = AToken(adaiToken).balanceOf(address(this));
+        redeemed = true;
         AToken(adaiToken).redeem(totalDaiAmtBeforeRedeem);
-        for(uint i = 0; i < nonWinners.length; i++) {
-            players[nonWinners[i]].withdrawAmount = players[nonWinners[i]].mostRecentSegmentPaid.mul(segmentPayment);
-        }
-        uint totalInterestAmount = IERC20(daiToken).balanceOf(address(this)).sub(totalDaiAmtBeforeRedeem);
-        uint interestAmtForWinners = totalInterestAmount.div(winners.length);
-        for (uint j = 0; j < winners.length; j ++) {
-            players[winners[j]].withdrawAmount  = interestAmtForWinners.add(lastSegment.mul(segmentPayment));
-        }
-        finalRedeem = 1;
+        uint totalBalance = IERC20(daiToken).balanceOf(address(this));
+        totalGameInterest = totalBalance.sub(totalDaiAmtBeforeRedeem);
+        emit FundsRedeemedFromExternalPool(totalBalance, totalDaiAmtBeforeRedeem, totalGameInterest);
     }
-    
+
+    /**
+        Calculates the withdraw amount each user is entitled to.
+        @dev Non-winners can withdraw their principal. Winners can withdraw their principal + interest;
+     */
+    function allocateWithdrawAmounts() external afterRedeemedFromExternalPool {
+        require(!withdrawAmountAllocated, "Withdraw amounts already allocated for players");
+
+        for(uint i = 0; i < iterablePlayers.length; i++) {
+            Player storage player = players[iterablePlayers[i]];
+            // For winners, we add them to the winner's array so we can later calculate the total
+            // amount winners can withdraw (principal + interest).
+            // For non-winners, we already have their principal amount stored in state(amountPaid),
+            // so we just set this amount to the withdrawAmount.
+            if (player.mostRecentSegmentPaid == lastSegment) {
+                winners.push(player.addr);
+            } else {
+                player.withdrawAmount = player.amountPaid;
+            }
+        }
+        // Splits the interest amont between winners.
+        uint interestAmtForWinners = totalGameInterest.div(winners.length);
+        // Calculates the total amount winners can withdraw (principal + interest).
+        for (uint j = 0; j < winners.length; j++) {
+            Player storage winner = players[winners[j]];
+            // For winners, we add the interest to their principal (amountPaid)
+            winner.withdrawAmount  = winner.amountPaid.add(interestAmtForWinners);
+        }
+        withdrawAmountAllocated = true;
+        emit WinnersAnnouncement(winners);
+    }
+
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
-    function withdraw() external whenNotPaused {
-        IERC20(daiToken).transferFrom(address(this), msg.sender, players[msg.sender].withdrawAmount);
-        emit withdrawn(msg.sender, players[msg.sender].withdrawAmount);
+    function withdraw() external {
+        uint amount = players[msg.sender].withdrawAmount;
+        require(amount > 0, 'no balance available for withdrawal');
+        players[msg.sender].withdrawAmount = 0;
+        IERC20(daiToken).transferFrom(address(this), msg.sender, amount);
+        emit Withdrawal(msg.sender, amount);
     }
  
 
-    function makeDeposit() external whenNotPaused {
+    function makeDeposit() external whenNotPaused whenGameIsNotCompleted {
         // only registered players can deposit
         require(players[msg.sender].addr == msg.sender, "not registered");
         
@@ -340,6 +396,7 @@ contract GoodGhosting is Ownable, Pausable {
 
         //check player has made payments up to the previous segment
         // 🚨 TODO check this is OK for first payment
+        // 🚨 TODO: Check if getCurrentSegment returns values 0-indexed or 1-indexed. Is the first segment returned as 1 or as 0?
         if (currentSegment != 1) {
            require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
            "previous segment was not paid - out of game"
@@ -347,7 +404,7 @@ contract GoodGhosting is Ownable, Pausable {
         }
         //💰allow deposit to happen
         _transferDaiToContract();
-        emit segmentPaid(msg.sender, mostRecentSegmentPaid);
+        emit Deposit(msg.sender, currentSegment, segmentPayment);
     }
 
 }
