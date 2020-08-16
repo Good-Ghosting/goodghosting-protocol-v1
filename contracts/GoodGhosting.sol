@@ -258,7 +258,7 @@ contract GoodGhosting is Ownable, Pausable {
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
         // emit SendUint(msg.sender, daiToken.allowance(msg.sender, thisContract))
         // this doesn't make sense since we are already transferring
-        // require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
+        require(daiToken.allowance(msg.sender, thisContract) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
 
         players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid.add(1);
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(segmentPayment);
