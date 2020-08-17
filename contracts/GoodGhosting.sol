@@ -186,6 +186,9 @@ contract GoodGhosting is Ownable, Pausable {
     bool public withdrawAmountAllocated;
     // Stores the total amount of interest received in the game.
     uint public totalGameInterest;
+    
+    //  total principal amount
+    uint public totalGamePrincipal;
 
     // Token that players use to buy in the game - DAI
     IERC20 public daiToken;
@@ -295,6 +298,7 @@ contract GoodGhosting is Ownable, Pausable {
         // so it is not possible use a require statement to check.
         // if it doesn't revert, we assume it's successful
         lendingPool.deposit(address(daiToken), segmentPayment, 0);
+        totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
     }
 
     function getCurrentSegment() view public returns (uint){
@@ -334,12 +338,13 @@ contract GoodGhosting is Ownable, Pausable {
         // By doing this, we keep concerns separate and increase amount of gas available for interest allocation.
         require(!redeemed, "Redeem operation has already taken place for the game");
         // aave has 1:1 peg for tokens and atokens
-        uint totalDaiAmtBeforeRedeem = AToken(adaiToken).balanceOf(address(this));
+        uint adaiBalance = AToken(adaiToken).balanceOf(address(this));
         redeemed = true;
-        AToken(adaiToken).redeem(totalDaiAmtBeforeRedeem);
+        AToken(adaiToken).redeem(adaiBalance);
         uint totalBalance = IERC20(daiToken).balanceOf(address(this));
-        totalGameInterest = totalBalance.sub(totalDaiAmtBeforeRedeem);
-        emit FundsRedeemedFromExternalPool(totalBalance, totalDaiAmtBeforeRedeem, totalGameInterest);
+        // recording principal amount separately since adai balance will have interest has well
+        totalGameInterest = totalBalance.sub(totalGamePrincipal);
+        emit FundsRedeemedFromExternalPool(totalBalance, totalGamePrincipal, totalGameInterest);
     }
 
     /**
@@ -388,15 +393,15 @@ contract GoodGhosting is Ownable, Pausable {
         require(players[msg.sender].addr == msg.sender, "not registered");
         
         uint currentSegment = getCurrentSegment();
+        require(currentSegment <= lastSegment, "All Segments are over");
         // should not be stagging segment
-        require(currentSegment > 0, "too early to pay");  //🚨 Might be removed - to discuss
+        require(currentSegment > 0, "too early to pay");
 
         //check if current segment is currently unpaid
         require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "current segment already paid");
 
         //check player has made payments up to the previous segment
-        // 🚨 TODO check this is OK for first payment
-        // 🚨 TODO: Check if getCurrentSegment returns values 0-indexed or 1-indexed. Is the first segment returned as 1 or as 0?
+        // currentSegment will return 1 when the user pays for current segment
         if (currentSegment != 1) {
            require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
            "previous segment was not paid - out of game"
