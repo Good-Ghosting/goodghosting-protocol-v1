@@ -352,7 +352,6 @@ contract GoodGhosting is Ownable, Pausable {
         @dev Non-winners can withdraw their principal. Winners can withdraw their principal + interest;
      */
     function allocateWithdrawAmounts() external afterRedeemedFromExternalPool {
-        require(redeemed, "The amount has not beeen redeemed yet");
         require(!withdrawAmountAllocated, "Withdraw amounts already allocated for players");
 
         for(uint i = 0; i < iterablePlayers.length; i++) {
