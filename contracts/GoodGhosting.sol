@@ -176,7 +176,6 @@ library SafeMath {
  * Arguments to pass while deploing on Kovan: 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD, 0x58AD4cB396411B691A9AAb6F74545b2C5217FE6a, 0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5
  */
 
-
 contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
@@ -337,6 +336,7 @@ contract GoodGhosting is Ownable, Pausable {
         // One for redeeming tokens from Aave; The second to calculate/allocate the interest to winners.
         // By doing this, we keep concerns separate and increase amount of gas available for interest allocation.
         require(!redeemed, "Redeem operation has already taken place for the game");
+        require(getCurrentSegment() == lastSegment.sub(1), "Game has not finished yet");
         // aave has 1:1 peg for tokens and atokens
         uint adaiBalance = AToken(adaiToken).balanceOf(address(this));
         redeemed = true;
@@ -352,6 +352,7 @@ contract GoodGhosting is Ownable, Pausable {
         @dev Non-winners can withdraw their principal. Winners can withdraw their principal + interest;
      */
     function allocateWithdrawAmounts() external afterRedeemedFromExternalPool {
+        require(redeemed, "The amount has not beeen redeemed yet");
         require(!withdrawAmountAllocated, "Withdraw amounts already allocated for players");
 
         for(uint i = 0; i < iterablePlayers.length; i++) {
@@ -393,7 +394,8 @@ contract GoodGhosting is Ownable, Pausable {
         require(players[msg.sender].addr == msg.sender, "not registered");
         
         uint currentSegment = getCurrentSegment();
-        require(currentSegment <= lastSegment, "All Segments are over");
+        // since 0 -> 1 is also 1 segment
+        require(currentSegment <= lastSegment.sub(1), "All Segments are over");
         // should not be stagging segment
         require(currentSegment > 0, "too early to pay");
 
