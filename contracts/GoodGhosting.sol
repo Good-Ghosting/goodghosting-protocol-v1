@@ -229,7 +229,7 @@ contract GoodGhosting is Ownable, Pausable {
 
     modifier whenGameIsCompleted() {
         // Game is completed when the current segment is greater than "lastSegment" of the game.
-        require(getCurrentSegment() > lastSegment, 'Game is not completed');
+        require(getCurrentSegment() > lastSegment.sub(1), 'Game is not completed');
         _;
     }
 
@@ -336,7 +336,6 @@ contract GoodGhosting is Ownable, Pausable {
         // One for redeeming tokens from Aave; The second to calculate/allocate the interest to winners.
         // By doing this, we keep concerns separate and increase amount of gas available for interest allocation.
         require(!redeemed, "Redeem operation has already taken place for the game");
-        require(getCurrentSegment() == lastSegment.sub(1), "Game has not finished yet");
         // aave has 1:1 peg for tokens and atokens
         uint adaiBalance = AToken(adaiToken).balanceOf(address(this));
         redeemed = true;
