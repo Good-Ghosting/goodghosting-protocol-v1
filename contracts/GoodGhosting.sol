@@ -176,7 +176,6 @@ library SafeMath {
  * Arguments to pass while deploing on Kovan: 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD, 0x58AD4cB396411B691A9AAb6F74545b2C5217FE6a, 0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5
  */
 
-
 contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
@@ -218,8 +217,6 @@ contract GoodGhosting is Ownable, Pausable {
 
 
     uint public segmentLength;
-    // need to fit this in, ideally it should be time remaining in a particular segment, though can be calculated using block.timestamp and the segment length
-    //uint public timeElapsed;
     address public admin;
 
     event JoinedGame(address indexed player, uint amount);
@@ -230,7 +227,8 @@ contract GoodGhosting is Ownable, Pausable {
 
     modifier whenGameIsCompleted() {
         // Game is completed when the current segment is greater than "lastSegment" of the game.
-        require(getCurrentSegment() > lastSegment, 'Game is not completed');
+        // since 0 -> 1 is also 1 segment
+        require(getCurrentSegment() > lastSegment.sub(1), 'Game is not completed');
         _;
     }
 
@@ -393,7 +391,6 @@ contract GoodGhosting is Ownable, Pausable {
         require(players[msg.sender].addr == msg.sender, "not registered");
         
         uint currentSegment = getCurrentSegment();
-        require(currentSegment <= lastSegment, "All Segments are over");
         // should not be stagging segment
         require(currentSegment > 0, "too early to pay");
 
