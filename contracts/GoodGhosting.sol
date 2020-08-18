@@ -217,8 +217,6 @@ contract GoodGhosting is Ownable, Pausable {
 
 
     uint public segmentLength;
-    // need to fit this in, ideally it should be time remaining in a particular segment, though can be calculated using block.timestamp and the segment length
-    //uint public timeElapsed;
     address public admin;
 
     event JoinedGame(address indexed player, uint amount);
@@ -229,6 +227,7 @@ contract GoodGhosting is Ownable, Pausable {
 
     modifier whenGameIsCompleted() {
         // Game is completed when the current segment is greater than "lastSegment" of the game.
+        // since 0 -> 1 is also 1 segment
         require(getCurrentSegment() > lastSegment.sub(1), 'Game is not completed');
         _;
     }
@@ -392,8 +391,6 @@ contract GoodGhosting is Ownable, Pausable {
         require(players[msg.sender].addr == msg.sender, "not registered");
         
         uint currentSegment = getCurrentSegment();
-        // since 0 -> 1 is also 1 segment
-        require(currentSegment <= lastSegment.sub(1), "All Segments are over");
         // should not be stagging segment
         require(currentSegment > 0, "too early to pay");
 
