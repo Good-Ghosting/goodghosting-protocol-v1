@@ -234,7 +234,7 @@ contract GoodGhosting is Ownable, Pausable {
 
     modifier whenGameIsNotCompleted() {
         // Game is not completed when current segment is less than or equal to the "lastSegment" of the game.
-        require(getCurrentSegment() <= lastSegment, 'Game is already completed');
+        require(getCurrentSegment() < lastSegment, 'Game is already completed');
         _;
     }
 
@@ -253,11 +253,11 @@ contract GoodGhosting is Ownable, Pausable {
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
         firstSegmentStart = block.timestamp;  //get current time
         mostRecentSegmentPaid = 0;
-        lastSegment = 6;   //reduced number of segments for testing purposes
+        lastSegment = 2;   //reduced number of segments for testing purposes
         //moneyPot = 0;
         segmentPayment = 10 * 10 ** 18; // equivalent to 10 Dai
 
-        segmentLength = 300; // The number of seconds each game segment comprises of. E.g. 180 sec = 3 minutes
+        segmentLength = 180; // The number of seconds each game segment comprises of. E.g. 180 sec = 3 minutes
         admin = msg.sender;
 
         // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
@@ -284,7 +284,9 @@ contract GoodGhosting is Ownable, Pausable {
         // this doesn't make sense since we are already transferring
         require(daiToken.allowance(msg.sender, address(this)) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
 
-        players[msg.sender].mostRecentSegmentPaid = players[msg.sender].mostRecentSegmentPaid.add(1);
+        uint currentSegment = getCurrentSegment();
+
+        players[msg.sender].mostRecentSegmentPaid = currentSegment;
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(segmentPayment);
 
         // SECURITY NOTE:
