@@ -198,9 +198,6 @@ contract GoodGhosting is Ownable, Pausable {
     // Which Aave instance we use to swap DAI to interest bearing aDAI
     ILendingPoolAddressesProvider public lendingPoolAddressProvider;
 
-    uint public mostRecentSegmentPaid;
-    // not sure about this so commenting for now
-    // uint public moneyPot;
     uint public segmentPayment;
     uint public lastSegment;
     uint public firstSegmentStart;
@@ -252,7 +249,6 @@ contract GoodGhosting is Ownable, Pausable {
         
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
         firstSegmentStart = block.timestamp;  //get current time
-        mostRecentSegmentPaid = 0;
         lastSegment = 2;   //reduced number of segments for testing purposes
         //moneyPot = 0;
         segmentPayment = 10 * 10 ** 18; // equivalent to 10 Dai
@@ -297,8 +293,8 @@ contract GoodGhosting is Ownable, Pausable {
         // lendPool.deposit does not currently return a value,
         // so it is not possible use a require statement to check.
         // if it doesn't revert, we assume it's successful
-        lendingPool.deposit(address(daiToken), segmentPayment, 0);
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
+        lendingPool.deposit(address(daiToken), segmentPayment, 0);
     }
 
     function getCurrentSegment() view public returns (uint){
@@ -360,7 +356,7 @@ contract GoodGhosting is Ownable, Pausable {
             // amount winners can withdraw (principal + interest).
             // For non-winners, we already have their principal amount stored in state(amountPaid),
             // so we just set this amount to the withdrawAmount.
-            if (player.mostRecentSegmentPaid == lastSegment) {
+            if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
                 winners.push(player.addr);
             } else {
                 player.withdrawAmount = player.amountPaid;
