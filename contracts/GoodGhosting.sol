@@ -230,7 +230,7 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
     modifier whenGameIsNotCompleted() {
-        // Game is not completed when current segment is less than or equal to the "lastSegment" of the game.
+        // Game is not completed when current segment is less "lastSegment" of the game.
         require(getCurrentSegment() < lastSegment, 'Game is already completed');
         _;
     }
@@ -274,9 +274,7 @@ contract GoodGhosting is Ownable, Pausable {
 
         // users pays dai in to the smart contract, which he pre-approved to spend the DAI for him
         // convert DAI to aDAI using the lending pool
-        // 🚨 TO DO - check for potential re-entrancy attack 🚨 warning by Remix:  Potential violation of Checks-Effects-Interaction pattern
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
-        // emit SendUint(msg.sender, daiToken.allowance(msg.sender, thisContract))
         // this doesn't make sense since we are already transferring
         require(daiToken.allowance(msg.sender, address(this)) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
 
@@ -284,6 +282,7 @@ contract GoodGhosting is Ownable, Pausable {
 
         players[msg.sender].mostRecentSegmentPaid = currentSegment;
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(segmentPayment);
+        totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
 
         // SECURITY NOTE:
         // Interacting with the external contracts should be the last action in the logic to avoid re-entracy attacks.
@@ -293,7 +292,6 @@ contract GoodGhosting is Ownable, Pausable {
         // lendPool.deposit does not currently return a value,
         // so it is not possible use a require statement to check.
         // if it doesn't revert, we assume it's successful
-        totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
         lendingPool.deposit(address(daiToken), segmentPayment, 0);
     }
 
@@ -329,9 +327,6 @@ contract GoodGhosting is Ownable, Pausable {
              to users. This helps to prevent running out of gas and having funds locked into the external pool.
     */
     function redeemFromExternalPool() external whenGameIsCompleted {
-        // TODO: security improvement. Break this function in two:
-        // One for redeeming tokens from Aave; The second to calculate/allocate the interest to winners.
-        // By doing this, we keep concerns separate and increase amount of gas available for interest allocation.
         require(!redeemed, "Redeem operation has already taken place for the game");
         // aave has 1:1 peg for tokens and atokens
         uint adaiBalance = AToken(adaiToken).balanceOf(address(this));
