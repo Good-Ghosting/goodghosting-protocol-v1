@@ -20,27 +20,26 @@ contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
     // Controls if tokens were redeemed or not from the pool
-    bool public redeemed;
+    bool public redeemed = false;
     // Controls if withdraw amounts were allocated
-    bool public withdrawAmountAllocated;
+    bool public withdrawAmountAllocated = false;
     // Stores the total amount of interest received in the game.
-    uint public totalGameInterest;
-    
+    uint public totalGameInterest = 0;
     //  total principal amount
-    uint public totalGamePrincipal;
+    uint public totalGamePrincipal = 0;
 
     // Token that players use to buy in the game - DAI
     IERC20 public daiToken;
-
     // Pointer to aDAI
     AToken public adaiToken;
-
     // Which Aave instance we use to swap DAI to interest bearing aDAI
     ILendingPoolAddressesProvider public lendingPoolAddressProvider;
 
     uint public segmentPayment;
     uint public lastSegment;
     uint public firstSegmentStart;
+    uint public segmentLength;
+
     struct Player {
         address addr;
         uint mostRecentSegmentPaid;
@@ -51,10 +50,6 @@ contract GoodGhosting is Ownable, Pausable {
     address[] public iterablePlayers;
     address[] public winners;
 
-
-
-    uint public segmentLength;
-    address public admin;
 
     event JoinedGame(address indexed player, uint amount);
     event Deposit(address indexed player, uint indexed segment, uint amount);
@@ -80,23 +75,33 @@ contract GoodGhosting is Ownable, Pausable {
         _;
     }
 
-    constructor(IERC20 _inboundCurrency, AToken _interestCurrency, ILendingPoolAddressesProvider _lendingPoolAddressProvider) public {
+    /**
+        Creates a new instance of GoogGhosting game
+        @param _inboundCurrency Smart contract address of inbound currency used for the game.
+        @param _interestCurrency Smart contract address of interest currency used for the game.
+        @param _lendingPoolAddressProvider Smart contract address of the lending pool adddress provider.
+        @param _segmentCount Number of segments in the game.
+        @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
+        @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
+     */
+    constructor(
+        IERC20 _inboundCurrency,
+        AToken _interestCurrency,
+        ILendingPoolAddressesProvider _lendingPoolAddressProvider,
+        uint _segmentCount,
+        uint _segmentLength,
+        uint _segmentPayment
+    ) public {
+        // Initializes default variables
+        firstSegmentStart = block.timestamp;  //gets current time
+        lastSegment = _segmentCount;
+        segmentLength = _segmentLength;
+        segmentPayment = _segmentPayment;
         daiToken = _inboundCurrency;
         adaiToken = _interestCurrency;
-        redeemed = false;
-        withdrawAmountAllocated = false;
-        totalGameInterest = 0;
-        
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
-        firstSegmentStart = block.timestamp;  //get current time
-        lastSegment = 2;   //reduced number of segments for testing purposes
-        //moneyPot = 0;
-        segmentPayment = 10 * 10 ** 18; // equivalent to 10 Dai
 
-        segmentLength = 180; // The number of seconds each game segment comprises of. E.g. 180 sec = 3 minutes
-        admin = msg.sender;
-
-        // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
+        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint MAX_ALLOWANCE = 2**256 - 1;
         address core = lendingPoolAddressProvider.getLendingPoolCore();
         daiToken.approve(core, MAX_ALLOWANCE);
@@ -135,14 +140,16 @@ contract GoodGhosting is Ownable, Pausable {
         lendingPool.deposit(address(daiToken), segmentPayment, 0);
     }
 
+    /**
+        Returns the current segment of the game using a 0-based index (returns 0 for the 1st segment ).
+        @dev solidity does not return floating point numbers this will always return a whole number
+     */
     function getCurrentSegment() view public returns (uint){
-        // Note solidity does not return floating point numbers
-        // this will always return a whole number
-       return ((block.timestamp.sub(firstSegmentStart)).div(segmentLength));
+       return block.timestamp.sub(firstSegmentStart).div(segmentLength);
     }
 
     function joinGame() external whenNotPaused {
-        require(now <= firstSegmentStart + segmentLength, "game has already started");
+        require(now < firstSegmentStart + segmentLength, "game has already started");
         require(players[msg.sender].addr != msg.sender, "The player should not have joined the game before");
         Player memory newPlayer = Player({
             addr : msg.sender,
