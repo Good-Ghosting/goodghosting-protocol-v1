@@ -16,9 +16,10 @@ contract("GoodGhosting", (accounts) => {
     let player1 = accounts[1];
     let player2 = accounts[2];
     const weekInSecs = 180;
-    const numberOfSegments = 2;
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(10)); // equivalent to 10 DAI
+    const segmentCount = 6;
+    const segmentLength = 180;
 
     beforeEach(async () => {
         global.web3 = web3;
@@ -31,69 +32,58 @@ contract("GoodGhosting", (accounts) => {
         pap = await web3tx(LendingPoolAddressesProviderMock.new, "LendingPoolAddressesProviderMock.new")("TOKEN_NAME", "TOKEN_SYMBOL", {from: admin});
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
-        bank = await web3tx(GoodGhosting.new, "GoodGhosting.new")(token.address, aToken.address, pap.address, {from: admin});
+        bank = await web3tx(GoodGhosting.new, "GoodGhosting.new")(
+            token.address,
+            aToken.address,
+            pap.address,
+            segmentCount,
+            segmentLength,
+            segmentPayment,
+            {from: admin},
+        );
     });
 
     async function approveDaiToContract(fromAddr) {
         await web3tx(token.approve, "token.approve to send tokens to contract")(bank.address, segmentPayment, {from: fromAddr});
     }
 
-    it("dai and adai are two seperate addresses", async () => {
-        const daiAdd = token.address;
-        const aDaiAdd = pap.address;
-        assert(daiAdd != aDaiAdd, `DAI ${daiAdd} and ADAI ${aDaiAdd} the same address `);
+    describe("pre-flight checks", async() => {
+        it("checks if DAI and aDAI contracts have distinct addresses", async () => {
+            const daiAdd = token.address;
+            const aDaiAdd = pap.address;
+            assert(daiAdd !== aDaiAdd, `DAI ${daiAdd} and ADAI ${aDaiAdd} shouldn't be the same address`);
+        });
 
+        it("checks that contract starts holding 0 Dai and 0 aDai", async () => {
+            const daiBalance = await token.balanceOf(bank.address);
+            const aDaiBalance = await pap.balanceOf(bank.address);
+            assert(
+                daiBalance.toNumber() === 0,
+                `On start, smart contract's DAI balance should be 0 DAI - got ${daiBalance.toNumber()} DAI`,
+            );
+            assert(
+                aDaiBalance.toNumber() === 0,
+                `on start, smart contract's aDAI balance should be 0 aDAI - got ${aDaiBalance.toNumber()} aDAI`,
+            );
+        });
+
+        it("checks if player1 received minted DAI tokens", async () => {
+            const usersDaiBalance = await token.balanceOf(player1);
+            // BN.gte => greater than or equals (see https://github.com/indutny/bn.js/)
+            assert(usersDaiBalance.div(daiDecimals).gte(new BN(1000)), `Player1 balance should be greater than or equal to 100 DAI at start - current balance: ${usersDaiBalance}`);
+        });
     });
 
-    it("contract starts holding 0 Dai and 0 aDai", async () => {
-        const contractsDaiBalance = await token.balanceOf(bank.address);
-        const contractsADaiBalance = await pap.balanceOf(bank.address);
-        assert(contractsDaiBalance.toNumber() === 0 && contractsDaiBalance.toNumber() === 0, `at game start, smart contract holds: ${
-            contractsDaiBalance.toNumber()
-        } DAI, ${
-            contractsADaiBalance.toNumber()
-        } ADAI`);
-
-    });
-
-    it("user starts holding more than 100 Dai", async () => {
-        const usersDaiBalance = await token.balanceOf(player1);
-
-        assert(usersDaiBalance.div(daiDecimals).gte(new BN(1000)), `User has 100 or less dai at start, balance: ${usersDaiBalance}`);
-
-    });
-
-    it("can calculate current segment", async () => { // 🚨 TODO refactor to function - unsure why this is not workin
-        let result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.isZero(), ` expected ${0}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.eq(new BN(1)), `expected ${1}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.eq(new BN(2)), `expected ${2}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.eq(new BN(3)), `expected ${3}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.eq(new BN(4)), `expected ${4}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
+    it("gets current segment correctly", async () => {
+        let result = -1;
+        for (let expectedSegment = 0; expectedSegment < segmentCount; expectedSegment++) {
+            result = await bank.getCurrentSegment.call({from: admin});
+            assert(
+                result.eq(new BN(expectedSegment)),
+                `expected segment ${expectedSegment} actual ${result.toNumber()}`,
+            );
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+        }
     });
 
     // 🤝 intergration test
@@ -142,73 +132,51 @@ contract("GoodGhosting", (accounts) => {
         truffleAssert.eventEmitted(result, "Deposit", (ev) => {
             return ev.player === player1;
         }, "player was not able to deposit after first segment");
-
-        // const contractsDaiBalance = await token.balanceOf(bank.address);
-        // const contractsADaiBalance = await aToken.balanceOf(bank.address);
-        // const player = await bank.players(player1);
-        // console.log(
-        //     "console.log",
-        //     contractsADaiBalance,
-        //     contractsDaiBalance,
-        //     player.amountPaid.toString()
-        // );
-        // // here we should expect to see that the user has paid in 10 aDAI to the Good Ghosting
-        // // smart contract.
-        // // I think the4 smart contrat is correct, but i need to test this correctly with BN.js
-        // // assert(contractsADaiBalance.eq(expectedAmount), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
-        // assert(contractsDaiBalance.eq(web3.utils.toBN(0)), "Contract DAI Balance should be 0")
-
     });
 
     // join twice test
     it("a user cannot join the game twice", async () => {
         approveDaiToContract(player1);
         await web3tx(bank.joinGame, "join game")({from: player1});
-
         approveDaiToContract(player1);
-
-
-        truffleAssert.reverts(bank.joinGame({from: player2}), "The player should not have joined the game before");
+        truffleAssert.reverts(bank.joinGame({from: player1}), "The player should not have joined the game before");
     });
 
-    // it("creates an iterable array for players in the game", async ()=>{
-    //     // we can delete this functionally once The Graph subgraph is created
-    //     await web3tx(
-    //         bank.joinGame,
-    //         "join the game"
-    //     )({ from: player1 });
+    it("stores the players who joined the game", async ()=>{
+        // Player1 joins the game
+        approveDaiToContract(player1);
+        await web3tx(bank.joinGame,"join the game")({ from: player1 });
+        // Mints DAI for player2 (not minted in the beforeEach hook) and joins the game
+        await web3tx(token.mint, "token.mint 100 -> player2")(player2, toWad(1000), {from: admin});
+        approveDaiToContract(player2);
+        await web3tx(bank.joinGame,"join the game")({ from: player2 });
 
-    //    await web3tx(
-    //         bank.joinGame,
-    //         "join the game"
-    //     )({ from: player2 });
-    //     const iterableArray = await bank.getPlayers.call({from : player1});
-    //     assert(iterableArray[0]=== player1 && iterableArray[1]=== player2);
-    // });
+        // Reads stored players and compares against player1 and player2
+        // Remember: "iterablePlayers" is an array, so we need to pass the index we want to retrieve.
+        const storedPlayer1 = await bank.iterablePlayers.call(0);
+        const storedPlayer2 = await bank.iterablePlayers.call(1);
+        assert(storedPlayer1 === player1);
+        assert(storedPlayer2 === player2);
+    });
 
     it("users cannot join after the first segment", async () => {
         await timeMachine.advanceTime(weekInSecs);
         approveDaiToContract(player1);
-
         truffleAssert.reverts(bank.joinGame({from: player1}), "game has already started");
-
     });
 
-    it("unregistered players can not call deposit", async () => {
+    it("unregistered players cannot deposit", async () => {
         approveDaiToContract(player2);
-
         truffleAssert.reverts(bank.makeDeposit({from: player2}), "not registered");
-
     });
 
-    it("users can not play if they missed paying in to the previous segment", async () => {
+    it("users cannot play if they missed payment fo the previous segment", async () => {
         approveDaiToContract(player1);
         await web3tx(bank.joinGame, "join game")({from: player1});
-        const overTwoWeeks = weekInSecs * 2 + 1;
+        const overTwoWeeks = weekInSecs * 2;
         await timeMachine.advanceTime(overTwoWeeks);
         await approveDaiToContract(player1);
         truffleAssert.reverts(bank.makeDeposit({from: player1}), "previous segment was not paid - out of game");
-
     });
 
 
