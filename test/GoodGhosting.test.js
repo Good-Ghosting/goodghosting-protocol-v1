@@ -231,22 +231,29 @@ contract("GoodGhosting", (accounts) => {
     it("redeems amount after all segments are over", async () => { // having test with only 1 player for now
         approveDaiToContract(player1);
         await web3tx(bank.joinGame, "join game")({from: player1});
-        await timeMachine.advanceTime(weekInSecs);
-        approveDaiToContract(player1);
+        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+        for (let index = 1; index < segmentCount; index++) {
+            await timeMachine.advanceTime(weekInSecs);
+            approveDaiToContract(player1);
+            await web3tx(bank.makeDeposit, "make a deposit")({from: player1});
+        }
 
-        await web3tx(bank.makeDeposit, "make a deposit")({from: player1});
-        const result = await web3tx(bank.redeemFromExternalPool, "redeem funds")({from: admin});
+        await timeMachine.advanceTime(weekInSecs);
+        const result = await web3tx(bank.redeemFromExternalPool, "redeem funds")({ from: admin });
         const contractsDaiBalance = await token.balanceOf(bank.address);
-        truffleAssert.eventEmitted(result, "FundsRedeemedFromExternalPool", (ev) => {
-            return ev.totalAmount === contractsDaiBalance;
-        }, "unable to redeem");
+        truffleAssert.eventEmitted(
+            result,
+            "FundsRedeemedFromExternalPool",
+            (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
+            "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
+        );
     });
 
     it("unable to redeem before game ends", async () => { // having test with only 1 player for now
         approveDaiToContract(player1);
         await web3tx(bank.joinGame, "join game")({from: player1});
         truffleAssert.reverts(bank.redeemFromExternalPool({from: player1}), "Game is not completed");
-    })
+    });
 
     it("allocate withdraw amounts", async () => { // having test with only 1 player for now
         approveDaiToContract(player1);
