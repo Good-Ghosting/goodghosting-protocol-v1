@@ -1,5 +1,5 @@
 const IERC20 = artifacts.require("IERC20");
-const ERC20Mintable = artifacts.require("ERC20Mintable");
+const ERC20Mintable = artifacts.require("MockERC20Mintable");
 const GoodGhosting = artifacts.require("GoodGhosting");
 const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddressesProviderMock");
 const {web3tx, toWad} = require("@decentral.ee/web3-test-helpers");
@@ -23,7 +23,7 @@ contract("GoodGhosting", (accounts) => {
 
     beforeEach(async () => {
         global.web3 = web3;
-        token = await web3tx(ERC20Mintable.new, "ERC20Mintable.new")({from: admin});
+        token = await web3tx(ERC20Mintable.new, "ERC20Mintable.new")("MINT", "MINT", {from: admin});
         // creates dai for player1 to hold.
         // Note DAI contract returns value to 18 Decimals
         // so token.balanceOf(address) should be converted with BN
@@ -72,19 +72,98 @@ contract("GoodGhosting", (accounts) => {
             // BN.gte => greater than or equals (see https://github.com/indutny/bn.js/)
             assert(usersDaiBalance.div(daiDecimals).gte(new BN(1000)), `Player1 balance should be greater than or equal to 100 DAI at start - current balance: ${usersDaiBalance}`);
         });
+
+        it("checks that contract's variables were properly initialized", async () => {
+            const inboundCurrencyResult = await bank.daiToken.call();
+            const interestCurrencyResult = await bank.adaiToken.call();
+            const lendingPoolAddressProviderResult = await bank.lendingPoolAddressProvider.call();
+            const lastSegmentResult = await bank.lastSegment.call();
+            const segmentLengthResult = await bank.segmentLength.call();
+            const segmentPaymentResult = await bank.segmentPayment.call();
+            assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
+            assert(interestCurrencyResult === aToken.address, `Interest currency doesn't match. expected ${aToken.address}; got ${interestCurrencyResult}`);
+            assert(lendingPoolAddressProviderResult === pap.address, `LendingPoolAddressesProvider doesn't match. expected ${pap.address}; got ${lendingPoolAddressProviderResult}`);
+            assert(new BN(lastSegmentResult).eq(new BN(segmentCount)), `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`);
+            assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
+            assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
+        });
     });
 
-    it("gets current segment correctly", async () => {
-        let result = -1;
-        for (let expectedSegment = 0; expectedSegment < segmentCount; expectedSegment++) {
-            result = await bank.getCurrentSegment.call({from: admin});
+    describe("segments tracking checks", async() => {
+        it("starts game at segment zero", async () => {
+            const expectedSegment = new BN(0);
+            const result = await bank.getCurrentSegment.call({from: admin});
             assert(
-                result.eq(new BN(expectedSegment)),
-                `expected segment ${expectedSegment} actual ${result.toNumber()}`,
+                result.eq(new BN(0)),
+                `should start at segment ${expectedSegment} but started at ${result.toNumber()} instead.`,
             );
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-        }
+        });
+
+        it("keeps correct track of segments along the game", async () => {
+            let result = -1;
+            for (let expectedSegment = 0; expectedSegment < segmentCount; expectedSegment++) {
+                result = await bank.getCurrentSegment.call({from: admin});
+                assert(
+                    result.eq(new BN(expectedSegment)),
+                    `expected segment ${expectedSegment} actual ${result.toNumber()}`,
+                );
+                await timeMachine.advanceTimeAndBlock(weekInSecs);
+            }
+        });
     });
+
+    describe("joinGame checks", async() => {
+        it("reverts when user tries to join after the first segment", async () => {
+            await timeMachine.advanceTime(weekInSecs);
+            approveDaiToContract(player1);
+            truffleAssert.reverts(bank.joinGame({from: player1}), "game has already started");
+        });
+
+        it("reverts when user tries to join the game twice", async () => {
+            approveDaiToContract(player1);
+            await web3tx(bank.joinGame, "join game")({from: player1});
+            approveDaiToContract(player1);
+            truffleAssert.reverts(bank.joinGame({from: player1}), "The player should not have joined the game before");
+        });
+
+        it("stores the players who joined the game", async ()=>{
+            // Player1 joins the game
+            approveDaiToContract(player1);
+            await web3tx(bank.joinGame,"join the game")({ from: player1 });
+            // Mints DAI for player2 (not minted in the beforeEach hook) and joins the game
+            await web3tx(token.mint, "token.mint 100 -> player2")(player2, toWad(1000), {from: admin});
+            approveDaiToContract(player2);
+            await web3tx(bank.joinGame,"join the game")({ from: player2 });
+
+            // Reads stored players and compares against player1 and player2
+            // Remember: "iterablePlayers" is an array, so we need to pass the index we want to retrieve.
+            const storedPlayer1 = await bank.iterablePlayers.call(0);
+            const storedPlayer2 = await bank.iterablePlayers.call(1);
+            assert(storedPlayer1 === player1);
+            assert(storedPlayer2 === player2);
+        });
+
+        it("emits event JoinedGame", async () => {
+            approveDaiToContract(player1);
+            const result = await web3tx(bank.joinGame, "join game")({from: player1});
+            let playerEvent = "";
+            let paymentEvent = 0;
+            truffleAssert.eventEmitted(
+                result,
+                "JoinedGame",
+                (ev) => {
+                    playerEvent = ev.player;
+                    paymentEvent = ev.amount;
+                    return playerEvent === player1 && new BN(paymentEvent).eq(new BN(segmentPayment));
+                },
+                `JoinedGame event should be emitted when an user joins the game with params\n
+                player: expected ${player1}; got ${playerEvent}\n
+                paymentAmount: expected ${segmentPayment}; got ${paymentEvent}`,
+            );
+        });
+
+    });
+
 
     // 🤝 intergration test
     // 🚨 Finish this test so its working with BN.js
@@ -134,37 +213,6 @@ contract("GoodGhosting", (accounts) => {
         }, "player was not able to deposit after first segment");
     });
 
-    // join twice test
-    it("a user cannot join the game twice", async () => {
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-        approveDaiToContract(player1);
-        truffleAssert.reverts(bank.joinGame({from: player1}), "The player should not have joined the game before");
-    });
-
-    it("stores the players who joined the game", async ()=>{
-        // Player1 joins the game
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame,"join the game")({ from: player1 });
-        // Mints DAI for player2 (not minted in the beforeEach hook) and joins the game
-        await web3tx(token.mint, "token.mint 100 -> player2")(player2, toWad(1000), {from: admin});
-        approveDaiToContract(player2);
-        await web3tx(bank.joinGame,"join the game")({ from: player2 });
-
-        // Reads stored players and compares against player1 and player2
-        // Remember: "iterablePlayers" is an array, so we need to pass the index we want to retrieve.
-        const storedPlayer1 = await bank.iterablePlayers.call(0);
-        const storedPlayer2 = await bank.iterablePlayers.call(1);
-        assert(storedPlayer1 === player1);
-        assert(storedPlayer2 === player2);
-    });
-
-    it("users cannot join after the first segment", async () => {
-        await timeMachine.advanceTime(weekInSecs);
-        approveDaiToContract(player1);
-        truffleAssert.reverts(bank.joinGame({from: player1}), "game has already started");
-    });
-
     it("unregistered players cannot deposit", async () => {
         approveDaiToContract(player2);
         truffleAssert.reverts(bank.makeDeposit({from: player2}), "not registered");
@@ -192,8 +240,7 @@ contract("GoodGhosting", (accounts) => {
         truffleAssert.eventEmitted(result, "FundsRedeemedFromExternalPool", (ev) => {
             return ev.totalAmount === contractsDaiBalance;
         }, "unable to redeem");
-
-    })
+    });
 
     it("unable to redeem before game ends", async () => { // having test with only 1 player for now
         approveDaiToContract(player1);
@@ -274,10 +321,6 @@ contract("GoodGhosting", (accounts) => {
 
         it("reverts makeDeposit when contract is paused", async () => {
             truffleAssert.reverts(bank.makeDeposit({from: player1}), "Pausable: paused");
-        });
-
-        it("reverts makePayout when contract is paused", async () => {
-            truffleAssert.reverts(bank.makePayout({from: player1}), "Pausable: paused");
         });
     });
 
