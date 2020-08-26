@@ -1,4 +1,4 @@
 module.exports = {
     copyPackages: ['@openzeppelin/contracts'],
-    skipFiles: ['Migrations.sol', 'test/LendingPoolMock.sol', 'test/SimpleMintable.sol','test/TestBundle.sol']
+    skipFiles: ['Migrations.sol', 'test/LendingPoolAddressesProviderMock.sol', 'test/SimpleMintable.sol','test/TestBundle.sol']
 };
