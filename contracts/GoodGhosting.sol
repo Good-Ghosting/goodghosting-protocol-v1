@@ -225,8 +225,7 @@ contract GoodGhosting is Ownable, Pausable {
         uint amount = players[msg.sender].withdrawAmount;
         require(amount > 0, 'No balance available for withdrawal');
         players[msg.sender].withdrawAmount = 0;
-        IERC20(daiToken).approve(msg.sender, amount);
-        IERC20(daiToken).transferFrom(address(this), msg.sender, amount);
+        IERC20(daiToken).transfer(msg.sender, amount);
         emit Withdrawal(msg.sender, amount);
     }
  
