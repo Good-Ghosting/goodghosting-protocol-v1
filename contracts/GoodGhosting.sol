@@ -205,7 +205,11 @@ contract GoodGhosting is Ownable, Pausable {
             }
         }
         // Splits the interest amont between winners.
-        uint interestAmtForWinners = totalGameInterest.div(winners.length);
+        uint interestAmtForWinners = 0;
+        if (winners.length > 0) {
+            // Avoids reverting due to division by zero
+            interestAmtForWinners = totalGameInterest.div(winners.length);
+        }
         // Calculates the total amount winners can withdraw (principal + interest).
         for (uint j = 0; j < winners.length; j++) {
             Player storage winner = players[winners[j]];
@@ -219,8 +223,9 @@ contract GoodGhosting is Ownable, Pausable {
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
     function withdraw() external {
         uint amount = players[msg.sender].withdrawAmount;
-        require(amount > 0, 'no balance available for withdrawal');
+        require(amount > 0, 'No balance available for withdrawal');
         players[msg.sender].withdrawAmount = 0;
+        IERC20(daiToken).approve(msg.sender, amount);
         IERC20(daiToken).transferFrom(address(this), msg.sender, amount);
         emit Withdrawal(msg.sender, amount);
     }
@@ -228,20 +233,20 @@ contract GoodGhosting is Ownable, Pausable {
 
     function makeDeposit() external whenNotPaused whenGameIsNotCompleted {
         // only registered players can deposit
-        require(players[msg.sender].addr == msg.sender, "not registered");
+        require(players[msg.sender].addr == msg.sender, "Sender is not a player");
         
         uint currentSegment = getCurrentSegment();
         // should not be stagging segment
-        require(currentSegment > 0, "too early to pay");
+        require(currentSegment > 0, "Deposits start after the first segment");
 
         //check if current segment is currently unpaid
-        require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "current segment already paid");
+        require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "Player already paid current segment");
 
         //check player has made payments up to the previous segment
         // currentSegment will return 1 when the user pays for current segment
         if (currentSegment != 1) {
            require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
-           "previous segment was not paid - out of game"
+           "Player didn't pay the previous segment - game over!"
         );
         }
         //💰allow deposit to happen
