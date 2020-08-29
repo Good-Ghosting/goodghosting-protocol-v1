@@ -4,167 +4,7 @@ pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations with added overflow
- * checks.
- *
- * Arithmetic operations in Solidity wrap on overflow. This can easily result
- * in bugs, because programmers usually assume that an overflow raises an
- * error, which is the standard behavior in high level programming languages.
- * `SafeMath` restores this intuition by reverting the transaction when an
- * operation overflows.
- *
- * Using this library instead of the unchecked operations eliminates an entire
- * class of bugs, so it's recommended to use it always.
- */
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     * - Subtraction cannot overflow.
-     *
-     * _Available since v2.4.0._
-     */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b <= a, errorMessage);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     *
-     * _Available since v2.4.0._
-     */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        // Solidity only automatically asserts when dividing by 0
-        require(b > 0, errorMessage);
-        uint256 c = a / b;
-        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts with custom message when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     *
-     * _Available since v2.4.0._
-     */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b != 0, errorMessage);
-        return a % b;
-    }
-}
-
-
-
-
-
-
+import "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
  * Play the save game.
@@ -180,27 +20,26 @@ contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
     // Controls if tokens were redeemed or not from the pool
-    bool public redeemed;
+    bool public redeemed = false;
     // Controls if withdraw amounts were allocated
-    bool public withdrawAmountAllocated;
+    bool public withdrawAmountAllocated = false;
     // Stores the total amount of interest received in the game.
-    uint public totalGameInterest;
-    
+    uint public totalGameInterest = 0;
     //  total principal amount
-    uint public totalGamePrincipal;
+    uint public totalGamePrincipal = 0;
 
     // Token that players use to buy in the game - DAI
     IERC20 public daiToken;
-
     // Pointer to aDAI
     AToken public adaiToken;
-
     // Which Aave instance we use to swap DAI to interest bearing aDAI
     ILendingPoolAddressesProvider public lendingPoolAddressProvider;
 
     uint public segmentPayment;
     uint public lastSegment;
     uint public firstSegmentStart;
+    uint public segmentLength;
+
     struct Player {
         address addr;
         uint mostRecentSegmentPaid;
@@ -211,10 +50,6 @@ contract GoodGhosting is Ownable, Pausable {
     address[] public iterablePlayers;
     address[] public winners;
 
-
-
-    uint public segmentLength;
-    address public admin;
 
     event JoinedGame(address indexed player, uint amount);
     event Deposit(address indexed player, uint indexed segment, uint amount);
@@ -240,23 +75,33 @@ contract GoodGhosting is Ownable, Pausable {
         _;
     }
 
-    constructor(IERC20 _inboundCurrency, AToken _interestCurrency, ILendingPoolAddressesProvider _lendingPoolAddressProvider) public {
+    /**
+        Creates a new instance of GoogGhosting game
+        @param _inboundCurrency Smart contract address of inbound currency used for the game.
+        @param _interestCurrency Smart contract address of interest currency used for the game.
+        @param _lendingPoolAddressProvider Smart contract address of the lending pool adddress provider.
+        @param _segmentCount Number of segments in the game.
+        @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
+        @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
+     */
+    constructor(
+        IERC20 _inboundCurrency,
+        AToken _interestCurrency,
+        ILendingPoolAddressesProvider _lendingPoolAddressProvider,
+        uint _segmentCount,
+        uint _segmentLength,
+        uint _segmentPayment
+    ) public {
+        // Initializes default variables
+        firstSegmentStart = block.timestamp;  //gets current time
+        lastSegment = _segmentCount;
+        segmentLength = _segmentLength;
+        segmentPayment = _segmentPayment;
         daiToken = _inboundCurrency;
         adaiToken = _interestCurrency;
-        redeemed = false;
-        withdrawAmountAllocated = false;
-        totalGameInterest = 0;
-        
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
-        firstSegmentStart = block.timestamp;  //get current time
-        lastSegment = 2;   //reduced number of segments for testing purposes
-        //moneyPot = 0;
-        segmentPayment = 10 * 10 ** 18; // equivalent to 10 Dai
 
-        segmentLength = 180; // The number of seconds each game segment comprises of. E.g. 180 sec = 3 minutes
-        admin = msg.sender;
-
-        // Allow lending pool convert DAI deposited on this contract to aDAI on lending pool
+        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint MAX_ALLOWANCE = 2**256 - 1;
         address core = lendingPoolAddressProvider.getLendingPoolCore();
         daiToken.approve(core, MAX_ALLOWANCE);
@@ -295,14 +140,16 @@ contract GoodGhosting is Ownable, Pausable {
         lendingPool.deposit(address(daiToken), segmentPayment, 0);
     }
 
+    /**
+        Returns the current segment of the game using a 0-based index (returns 0 for the 1st segment ).
+        @dev solidity does not return floating point numbers this will always return a whole number
+     */
     function getCurrentSegment() view public returns (uint){
-        // Note solidity does not return floating point numbers
-        // this will always return a whole number
-       return ((block.timestamp.sub(firstSegmentStart)).div(segmentLength));
+       return block.timestamp.sub(firstSegmentStart).div(segmentLength);
     }
 
     function joinGame() external whenNotPaused {
-        require(now <= firstSegmentStart + segmentLength, "game has already started");
+        require(now < firstSegmentStart + segmentLength, "game has already started");
         require(players[msg.sender].addr != msg.sender, "The player should not have joined the game before");
         Player memory newPlayer = Player({
             addr : msg.sender,
@@ -317,17 +164,13 @@ contract GoodGhosting is Ownable, Pausable {
         emit JoinedGame(msg.sender, segmentPayment);
     }
 
-    function getPlayers() public view returns( address[] memory){
-        return iterablePlayers;
-    }
-    
     /**
         Reedems funds from external pool and calculates total amount of interest for the game.
         @dev This method only redeems funds from the external pool, without doing any allocation of balances
              to users. This helps to prevent running out of gas and having funds locked into the external pool.
     */
     function redeemFromExternalPool() external whenGameIsCompleted {
-        require(!redeemed, "Redeem operation has already taken place for the game");
+        require(!redeemed, "Redeem operation already happened for the game");
         // aave has 1:1 peg for tokens and atokens
         uint adaiBalance = AToken(adaiToken).balanceOf(address(this));
         redeemed = true;
@@ -358,7 +201,11 @@ contract GoodGhosting is Ownable, Pausable {
             }
         }
         // Splits the interest amont between winners.
-        uint interestAmtForWinners = totalGameInterest.div(winners.length);
+        uint interestAmtForWinners = 0;
+        if (winners.length > 0) {
+            // Avoids reverting due to division by zero
+            interestAmtForWinners = totalGameInterest.div(winners.length);
+        }
         // Calculates the total amount winners can withdraw (principal + interest).
         for (uint j = 0; j < winners.length; j++) {
             Player storage winner = players[winners[j]];
@@ -372,29 +219,29 @@ contract GoodGhosting is Ownable, Pausable {
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
     function withdraw() external {
         uint amount = players[msg.sender].withdrawAmount;
-        require(amount > 0, 'no balance available for withdrawal');
+        require(amount > 0, 'No balance available for withdrawal');
         players[msg.sender].withdrawAmount = 0;
-        IERC20(daiToken).transferFrom(address(this), msg.sender, amount);
+        IERC20(daiToken).transfer(msg.sender, amount);
         emit Withdrawal(msg.sender, amount);
     }
  
 
     function makeDeposit() external whenNotPaused whenGameIsNotCompleted {
         // only registered players can deposit
-        require(players[msg.sender].addr == msg.sender, "not registered");
+        require(players[msg.sender].addr == msg.sender, "Sender is not a player");
         
         uint currentSegment = getCurrentSegment();
         // should not be stagging segment
-        require(currentSegment > 0, "too early to pay");
+        require(currentSegment > 0, "Deposits start after the first segment");
 
         //check if current segment is currently unpaid
-        require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "current segment already paid");
+        require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "Player already paid current segment");
 
         //check player has made payments up to the previous segment
         // currentSegment will return 1 when the user pays for current segment
         if (currentSegment != 1) {
            require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
-           "previous segment was not paid - out of game"
+           "Player didn't pay the previous segment - game over!"
         );
         }
         //💰allow deposit to happen

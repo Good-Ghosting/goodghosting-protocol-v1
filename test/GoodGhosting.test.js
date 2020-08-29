@@ -1,8 +1,8 @@
 const IERC20 = artifacts.require("IERC20");
-const ERC20Mintable = artifacts.require("ERC20Mintable");
+const ERC20Mintable = artifacts.require("MockERC20Mintable");
 const GoodGhosting = artifacts.require("GoodGhosting");
 const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddressesProviderMock");
-const {web3tx, toWad} = require("@decentral.ee/web3-test-helpers");
+const { web3tx, toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 
@@ -11,305 +11,384 @@ contract("GoodGhosting", (accounts) => {
     const admin = accounts[0];
     let token;
     let aToken;
-    let bank;
+    let goodGhosting;
     let pap;
     let player1 = accounts[1];
     let player2 = accounts[2];
     const weekInSecs = 180;
-    const numberOfSegments = 2;
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(10)); // equivalent to 10 DAI
+    const segmentCount = 6;
+    const segmentLength = 180;
 
     beforeEach(async () => {
         global.web3 = web3;
-        token = await web3tx(ERC20Mintable.new, "ERC20Mintable.new")({from: admin});
+        token = await web3tx(ERC20Mintable.new, "ERC20Mintable.new")("MINT", "MINT", {from: admin});
         // creates dai for player1 to hold.
         // Note DAI contract returns value to 18 Decimals
         // so token.balanceOf(address) should be converted with BN
         // and then divided by 10 ** 18
-        await web3tx(token.mint, "token.mint 100 -> player1")(player1, toWad(1000), {from: admin});
+        await mintTokensFor(player1);
         pap = await web3tx(LendingPoolAddressesProviderMock.new, "LendingPoolAddressesProviderMock.new")("TOKEN_NAME", "TOKEN_SYMBOL", {from: admin});
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
-        bank = await web3tx(GoodGhosting.new, "GoodGhosting.new")(token.address, aToken.address, pap.address, {from: admin});
+        goodGhosting = await web3tx(GoodGhosting.new, "GoodGhosting.new")(
+            token.address,
+            aToken.address,
+            pap.address,
+            segmentCount,
+            segmentLength,
+            segmentPayment,
+            {from: admin},
+        );
     });
 
-    async function approveDaiToContract(fromAddr) {
-        await web3tx(token.approve, "token.approve to send tokens to contract")(bank.address, segmentPayment, {from: fromAddr});
+    async function mintTokensFor(player) {
+        await web3tx(token.mint, `token.mint 100 -> ${player}`)(player, toWad(1000), {from: admin});
     }
 
-    it("dai and adai are two seperate addresses", async () => {
-        const daiAdd = token.address;
-        const aDaiAdd = pap.address;
-        assert(daiAdd != aDaiAdd, `DAI ${daiAdd} and ADAI ${aDaiAdd} the same address `);
+    async function approveDaiToContract(fromAddr) {
+        await web3tx(token.approve, "token.approve to send tokens to contract")(goodGhosting.address, segmentPayment, {from: fromAddr});
+    }
 
-    });
+    async function advanceToEndOfGame() {
+        await timeMachine.advanceTime(weekInSecs * segmentCount);
+    }
 
-    it("contract starts holding 0 Dai and 0 aDai", async () => {
-        const contractsDaiBalance = await token.balanceOf(bank.address);
-        const contractsADaiBalance = await pap.balanceOf(bank.address);
-        assert(contractsDaiBalance.toNumber() === 0 && contractsDaiBalance.toNumber() === 0, `at game start, smart contract holds: ${
-            contractsDaiBalance.toNumber()
-        } DAI, ${
-            contractsADaiBalance.toNumber()
-        } ADAI`);
-
-    });
-
-    it("user starts holding more than 100 Dai", async () => {
-        const usersDaiBalance = await token.balanceOf(player1);
-
-        assert(usersDaiBalance.div(daiDecimals).gte(new BN(1000)), `User has 100 or less dai at start, balance: ${usersDaiBalance}`);
-
-    });
-
-    it("can calculate current segment", async () => { // 🚨 TODO refactor to function - unsure why this is not workin
-        let result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.isZero(), ` expected ${0}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.eq(new BN(1)), `expected ${1}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.eq(new BN(2)), `expected ${2}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.eq(new BN(3)), `expected ${3}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        result = await bank.getCurrentSegment.call({from: admin});
-        assert(result.eq(new BN(4)), `expected ${4}  actual ${
-            result.toNumber()
-        }`);
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-    });
-
-    // 🤝 intergration test
-    // 🚨 Finish this test so its working with BN.js
-    // it("users can deposit first segment when they join", async () => {
-    //     approveDaiToContract(player1);
-
-    //     await web3tx(bank.joinGame, "join game")({ from: player1 });
-
-    //     // await timeMachine.advanceTimeAndBlock(weekInSecs + 1);
-
-    //     // await web3tx(
-    //     //     bank.makeDeposit,
-    //     //     "token.approve to send tokens to contract"
-    //     // )({
-    //     //     from: player1,
-    //     // });
-
-    //     const contractsDaiBalance = await token.balanceOf(bank.address);
-    //     const contractsADaiBalance = await aToken.balanceOf(bank.address);
-    //     const player = await bank.players(player1);
-    //     console.log(
-    //         "console.log",
-    //         contractsADaiBalance,
-    //         contractsDaiBalance,
-    //         player.amountPaid.toString()
-    //     );
-    //     assert(contractsDaiBalance.eq(web3.utils.toBN(0)), "Contract DAI Balance should be 0")
-    //     // here we should expect to see that the user has paid in 10 aDAI to the Good Ghosting
-    //     // smart contract.
-    //     // I think the smart contrat is correct, but i need to test this correctly with BN.js
-    //     // assert(contractsADaiBalance.eq(expectedAmount), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
-    //     // assert(contractsDaiBalance.eq(web3.utils.toBN(0)), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
-
-    // });
-
-    it("users can deposit after first segment", async () => {
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-
-        await timeMachine.advanceTimeAndBlock(weekInSecs);
-
-        approveDaiToContract(player1);
-
-        const result = await web3tx(bank.makeDeposit, "depositing in 2nd segment")({from: player1});
-        truffleAssert.eventEmitted(result, "Deposit", (ev) => {
-            return ev.player === player1;
-        }, "player was not able to deposit after first segment");
-
-        // const contractsDaiBalance = await token.balanceOf(bank.address);
-        // const contractsADaiBalance = await aToken.balanceOf(bank.address);
-        // const player = await bank.players(player1);
-        // console.log(
-        //     "console.log",
-        //     contractsADaiBalance,
-        //     contractsDaiBalance,
-        //     player.amountPaid.toString()
-        // );
-        // // here we should expect to see that the user has paid in 10 aDAI to the Good Ghosting
-        // // smart contract.
-        // // I think the4 smart contrat is correct, but i need to test this correctly with BN.js
-        // // assert(contractsADaiBalance.eq(expectedAmount), `expected: ${expectedAmount}  actual: ${contractsADaiBalance}`)
-        // assert(contractsDaiBalance.eq(web3.utils.toBN(0)), "Contract DAI Balance should be 0")
-
-    });
-
-    // join twice test
-    it("a user cannot join the game twice", async () => {
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-
-        approveDaiToContract(player1);
-
-
-        truffleAssert.reverts(bank.joinGame({from: player2}), "The player should not have joined the game before");
-    });
-
-    // it("creates an iterable array for players in the game", async ()=>{
-    //     // we can delete this functionally once The Graph subgraph is created
-    //     await web3tx(
-    //         bank.joinGame,
-    //         "join the game"
-    //     )({ from: player1 });
-
-    //    await web3tx(
-    //         bank.joinGame,
-    //         "join the game"
-    //     )({ from: player2 });
-    //     const iterableArray = await bank.getPlayers.call({from : player1});
-    //     assert(iterableArray[0]=== player1 && iterableArray[1]=== player2);
-    // });
-
-    it("users cannot join after the first segment", async () => {
+    async function joinGamePaySegmentsAndComplete(player) {
+        await approveDaiToContract(player);
+        await web3tx(goodGhosting.joinGame, "join game")({ from: player });
+        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+        for (let index = 1; index < segmentCount; index++) {
+            await timeMachine.advanceTime(weekInSecs);
+            await approveDaiToContract(player);
+            await web3tx(goodGhosting.makeDeposit, "make a deposit")({ from: player });
+        }
         await timeMachine.advanceTime(weekInSecs);
-        approveDaiToContract(player1);
+    }
 
-        truffleAssert.reverts(bank.joinGame({from: player1}), "game has already started");
-
-    });
-
-    it("unregistered players can not call deposit", async () => {
-        approveDaiToContract(player2);
-
-        truffleAssert.reverts(bank.makeDeposit({from: player2}), "not registered");
-
-    });
-
-    it("users can not play if they missed paying in to the previous segment", async () => {
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-        const overTwoWeeks = weekInSecs * 2 + 1;
-        await timeMachine.advanceTime(overTwoWeeks);
-        await approveDaiToContract(player1);
-        truffleAssert.reverts(bank.makeDeposit({from: player1}), "previous segment was not paid - out of game");
-
-    });
-
-
-    it("redeems amount after all segments are over", async () => { // having test with only 1 player for now
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-        await timeMachine.advanceTime(weekInSecs);
-        approveDaiToContract(player1);
-
-        await web3tx(bank.makeDeposit, "make a deposit")({from: player1});
-        const result = await web3tx(bank.redeemFromExternalPool, "redeem funds")({from: admin});
-        const contractsDaiBalance = await token.balanceOf(bank.address);
-        truffleAssert.eventEmitted(result, "FundsRedeemedFromExternalPool", (ev) => {
-            return ev.totalAmount === contractsDaiBalance;
-        }, "unable to redeem");
-
-    })
-
-    it("unable to redeem before game ends", async () => { // having test with only 1 player for now
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-        truffleAssert.reverts(bank.redeemFromExternalPool({from: player1}), "Game is not completed");
-    })
-
-    it("allocate withdraw amounts", async () => { // having test with only 1 player for now
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-        await timeMachine.advanceTime(weekInSecs);
-        approveDaiToContract(player1);
-        await web3tx(bank.makeDeposit, "make a deposit")({from: player1});
-        await web3tx(bank.redeemFromExternalPool, "redeem funds")({from: admin});
-        await web3tx(bank.allocateWithdrawAmounts, "allocate withdraw amount")({from: admin});
-
-        truffleAssert.eventEmitted(result, "WinnersAnnouncement", (ev) => {
-            return ev.winners === [player1];
-        }, "unable to allocate withdraw amounts")
-
-    })
-
-    it("unable to allocate withdraw amounts", async () => { // having test with only 1 player for now
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-        await timeMachine.advanceTime(weekInSecs);
-        approveDaiToContract(player1);
-        await web3tx(bank.makeDeposit, "make a deposit")({from: player1});
-        truffleAssert.reverts(bank.allocateWithdrawAmounts({from: player1}), "Funds not redeemed from external pool yet");
-    })
-
-    it("user is able to withdraw amount", async () => { // having test with only 1 player for now
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-        await timeMachine.advanceTime(weekInSecs);
-        approveDaiToContract(player1);
-        await web3tx(bank.makeDeposit, "make a deposit")({from: player1});
-        await web3tx(bank.redeemFromExternalPool, "redeem funds")({from: admin});
-        await web3tx(bank.allocateWithdrawAmounts, "allocate withdraw amount")({from: admin});
-        await web3tx(bank.withdraw, "withdraw funds")({from: player1});
-
-        truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
-            return ev.player === player1;
-        }, "unable to withdraw amount")
-
-    })
-
-    it("user unable to withdraw amount", async () => { // having test with only 1 player for now
-        approveDaiToContract(player1);
-        await web3tx(bank.joinGame, "join game")({from: player1});
-        await timeMachine.advanceTime(weekInSecs);
-        approveDaiToContract(player1);
-        await web3tx(bank.makeDeposit, "make a deposit")({from: player1});
-        await web3tx(bank.redeemFromExternalPool, "redeem funds")({from: admin});
-        truffleAssert.reverts(bank.withdraw({from: player1}), "no balance available for withdrawal");
-
-    })
-
-    describe("reverts when contract is paused", () => {
-        beforeEach(async function () {
-            await bank.pause({from: admin});
+    describe("pre-flight checks", async () => {
+        it("checks if DAI and aDAI contracts have distinct addresses", async () => {
+            const daiAdd = token.address;
+            const aDaiAdd = pap.address;
+            assert(daiAdd !== aDaiAdd, `DAI ${daiAdd} and ADAI ${aDaiAdd} shouldn't be the same address`);
         });
 
-        it("pauses the contract", async () => {
-            const result = await bank.paused.call({from: admin});
-            assert(result, "contract is not paused");
+        it("checks that contract starts holding 0 Dai and 0 aDai", async () => {
+            const daiBalance = await token.balanceOf(goodGhosting.address);
+            const aDaiBalance = await pap.balanceOf(goodGhosting.address);
+            assert(
+                daiBalance.toNumber() === 0,
+                `On start, smart contract's DAI balance should be 0 DAI - got ${daiBalance.toNumber()} DAI`,
+            );
+            assert(
+                aDaiBalance.toNumber() === 0,
+                `on start, smart contract's aDAI balance should be 0 aDAI - got ${aDaiBalance.toNumber()} aDAI`,
+            );
         });
 
-        it("unpauses the contract", async () => {
-            await bank.unpause({from: admin});
-            const result = await bank.pause.call({from: admin});
-            assert(result, "contract is paused");
+        it("checks if player1 received minted DAI tokens", async () => {
+            const usersDaiBalance = await token.balanceOf(player1);
+            // BN.gte => greater than or equals (see https://github.com/indutny/bn.js/)
+            assert(usersDaiBalance.div(daiDecimals).gte(new BN(1000)), `Player1 balance should be greater than or equal to 100 DAI at start - current balance: ${usersDaiBalance}`);
+        });
+    });
+
+    describe("when the contract is deployed", async () => {
+        it("checks if the contract's variables were properly initialized", async () => {
+            const inboundCurrencyResult = await goodGhosting.daiToken.call();
+            const interestCurrencyResult = await goodGhosting.adaiToken.call();
+            const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
+            const lastSegmentResult = await goodGhosting.lastSegment.call();
+            const segmentLengthResult = await goodGhosting.segmentLength.call();
+            const segmentPaymentResult = await goodGhosting.segmentPayment.call();
+            assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
+            assert(interestCurrencyResult === aToken.address, `Interest currency doesn't match. expected ${aToken.address}; got ${interestCurrencyResult}`);
+            assert(lendingPoolAddressProviderResult === pap.address, `LendingPoolAddressesProvider doesn't match. expected ${pap.address}; got ${lendingPoolAddressProviderResult}`);
+            assert(new BN(lastSegmentResult).eq(new BN(segmentCount)), `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`);
+            assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
+            assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
         });
 
-        it("reverts joinGame when contract is paused", async () => {
-            truffleAssert.reverts(bank.joinGame({from: player1}), "Pausable: paused");
+        it("checks if game starts at segment zero", async () => {
+            const expectedSegment = new BN(0);
+            const result = await goodGhosting.getCurrentSegment.call({from: admin});
+            assert(
+                result.eq(new BN(0)),
+                `should start at segment ${expectedSegment} but started at ${result.toNumber()} instead.`,
+            );
+        });
+    });
+
+    describe("when the time passes for a game", async () => {
+        it("checks if the game segments are correctly tracked", async () => {
+            let result = -1;
+            for (let expectedSegment = 0; expectedSegment < segmentCount; expectedSegment++) {
+                result = await goodGhosting.getCurrentSegment.call({from: admin});
+                assert(
+                    result.eq(new BN(expectedSegment)),
+                    `expected segment ${expectedSegment} actual ${result.toNumber()}`,
+                );
+                await timeMachine.advanceTimeAndBlock(weekInSecs);
+            }
+        });
+    });
+
+    describe("when an user tries to join a game", async () => {
+        it("reverts if the contract is paused", async () => {
+            await goodGhosting.pause({ from: admin });
+            truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "Pausable: paused");
         });
 
-        it("reverts makeDeposit when contract is paused", async () => {
-            truffleAssert.reverts(bank.makeDeposit({from: player1}), "Pausable: paused");
+        it("reverts if the user tries to join after the first segment", async () => {
+            await timeMachine.advanceTime(weekInSecs);
+            await approveDaiToContract(player1);
+            truffleAssert.reverts(goodGhosting.joinGame({from: player1}), "game has already started");
         });
 
-        it("reverts makePayout when contract is paused", async () => {
-            truffleAssert.reverts(bank.makePayout({from: player1}), "Pausable: paused");
+        it("reverts if the user tries to join the game twice", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            await approveDaiToContract(player1);
+            truffleAssert.reverts(goodGhosting.joinGame({from: player1}), "The player should not have joined the game before");
+        });
+
+        it("stores the player(s) who joined the game", async ()=>{
+            // Player1 joins the game
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame,"join the game")({ from: player1 });
+            // Mints DAI for player2 (not minted in the beforeEach hook) and joins the game
+            await mintTokensFor(player2);
+            await approveDaiToContract(player2);
+            await web3tx(goodGhosting.joinGame,"join the game")({ from: player2 });
+
+            // Reads stored players and compares against player1 and player2
+            // Remember: "iterablePlayers" is an array, so we need to pass the index we want to retrieve.
+            const storedPlayer1 = await goodGhosting.iterablePlayers.call(0);
+            const storedPlayer2 = await goodGhosting.iterablePlayers.call(1);
+            assert(storedPlayer1 === player1);
+            assert(storedPlayer2 === player2);
+        });
+
+        it("emits the event JoinedGame", async () => {
+            await approveDaiToContract(player1);
+            const result = await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            let playerEvent = "";
+            let paymentEvent = 0;
+            truffleAssert.eventEmitted(
+                result,
+                "JoinedGame",
+                (ev) => {
+                    playerEvent = ev.player;
+                    paymentEvent = ev.amount;
+                    return playerEvent === player1 && new BN(paymentEvent).eq(new BN(segmentPayment));
+                },
+                `JoinedGame event should be emitted when an user joins the game with params\n
+                player: expected ${player1}; got ${playerEvent}\n
+                paymentAmount: expected ${segmentPayment}; got ${paymentEvent}`,
+            );
+        });
+    });
+
+    describe("when an user tries to make a deposit", async () => {
+        it("reverts if the contract is paused", async () => {
+            await goodGhosting.pause({ from: admin });
+            truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Pausable: paused");
+        });
+
+        it("reverts if the game is completed", async () => {
+            await advanceToEndOfGame();
+            truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Game is already completed");
+        });
+
+        it("reverts if user didn't join the game", async () => {
+            await approveDaiToContract(player1);
+            truffleAssert.reverts(goodGhosting.makeDeposit({from: player1}), "Sender is not a player");
+        });
+
+        it("reverts if user is making a deposit for the first segment", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            await approveDaiToContract(player1);
+            truffleAssert.reverts(goodGhosting.makeDeposit({from: player1}), "Deposits start after the first segment");
+        });
+
+        it("reverts if user is making a duplicated deposit for the same segment", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            // Moves to the next segment
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.makeDeposit, "makeDeposit")({from: player1});
+            await approveDaiToContract(player1);
+            truffleAssert.reverts(goodGhosting.makeDeposit({from: player1}), "Player already paid current segment");
+        });
+
+        it("reverts if user forgot to deposit for a previous segment", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            await timeMachine.advanceTime(weekInSecs * 2);
+            await approveDaiToContract(player1);
+            truffleAssert.reverts(goodGhosting.makeDeposit({from: player1}), "Player didn't pay the previous segment - game over!");
+        });
+
+        it("user can deposit successfully if all requirements are met", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await approveDaiToContract(player1);
+            const result = await web3tx(goodGhosting.makeDeposit, "depositing for segment 2")({from: player1});
+            truffleAssert.eventEmitted(
+                result,
+                "Deposit",
+                (ev) => ev.player === player1,
+                "player unable to deposit for segment 2 when all requirements were met",
+            );
+        });
+    });
+
+    describe("when an user tries to redeem from the external pool", async () => {
+        it("reverts if game is not completed", async () => {
+            truffleAssert.reverts(goodGhosting.redeemFromExternalPool({ from: player1 }), "Game is not completed");
+        });
+
+        it("reverts if funds were already redeemed", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            truffleAssert.reverts(goodGhosting.redeemFromExternalPool({ from: player1 }), "Redeem operation already happened for the game");
+        });
+
+        it("allows to redeem from external pool when game is completed", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            truffleAssert.passes(goodGhosting.redeemFromExternalPool);
+        });
+
+        it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            const result = await web3tx(goodGhosting.redeemFromExternalPool, "redeem funds")({ from: player1 });
+            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
+            truffleAssert.eventEmitted(
+                result,
+                "FundsRedeemedFromExternalPool",
+                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
+                "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
+            );
+        });
+    });
+
+    describe("when an tries to allocate/distribute withdraw amounts to players", async () => {
+        it("reverts if funds weren't redeemed from external pool", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            truffleAssert.reverts(goodGhosting.allocateWithdrawAmounts({from: player1}), "Funds not redeemed from external pool yet");
+        });
+
+        it("reverts if withdraw amounts were already allocated", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            await goodGhosting.allocateWithdrawAmounts({from: player1});
+            truffleAssert.reverts(goodGhosting.allocateWithdrawAmounts({from: player1}), "Withdraw amounts already allocated for players");
+        });
+
+        it("allocates withdraw amount correctly for winners and non-winners", async () => { // having test with only 1 player for now
+            await mintTokensFor(player2);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame({ from: player2 });
+            await joinGamePaySegmentsAndComplete(player1);
+            const redeemResult = await goodGhosting.redeemFromExternalPool({ from: player1 });
+            let totalGameInterest = 0;
+            truffleAssert.eventEmitted(
+                redeemResult,
+                "FundsRedeemedFromExternalPool",
+                (ev) => {
+                    totalGameInterest = ev.totalGameInterest;
+                    return true;
+                },
+                "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
+            );
+            await goodGhosting.allocateWithdrawAmounts({ from: player1 });
+            const player2Result = await goodGhosting.players.call(player2);
+            const player1Result = await goodGhosting.players.call(player1);
+            const player2WithdrawExpected = new BN(segmentPayment);
+            const player1WithdrawExpected = new BN(segmentPayment).mul(new BN(segmentCount)).add(new BN(totalGameInterest));
+            assert(player2WithdrawExpected.eq(player2Result.withdrawAmount));
+            assert(player1WithdrawExpected.eq(player1Result.withdrawAmount));
+        });
+
+        it("emits WinnersAnnouncement event when allocates withdraw amounts", async () => { // having test with only 1 player for now
+            await joinGamePaySegmentsAndComplete(player1);
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const result = await web3tx(goodGhosting.allocateWithdrawAmounts, "allocate withdraw amount")({ from: player1 });
+            truffleAssert.eventEmitted(result, "WinnersAnnouncement", (ev) => {
+                return ev.winners[0] === player1;
+            }, "unable to allocate withdraw amounts");
+        });
+    });
+
+    describe("when an tries to withdraw", async () => {
+        it("reverts if user has no balance to withdraw", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            // Funds weren't redeemed and withdraw amounts weren't allocated yet, so should revert.
+            truffleAssert.reverts(goodGhosting.withdraw({from: player1}), "No balance available for withdrawal");
+        });
+
+        it("sets withdraw amount to zero after user withdraws", async () => { // having test with only 1 player for now
+            await joinGamePaySegmentsAndComplete(player1);
+            await goodGhosting.redeemFromExternalPool({from: admin});
+            await goodGhosting.allocateWithdrawAmounts({from: admin});
+            await goodGhosting.withdraw({from: player1});
+            const player1Result = await goodGhosting.players.call(player1);
+            assert(player1Result.withdrawAmount.eq(new BN(0)));
+        });
+
+        it("emits Withdrawal event when user withdraws", async () => { // having test with only 1 player for now
+            await joinGamePaySegmentsAndComplete(player1);
+            await goodGhosting.redeemFromExternalPool({from: admin});
+            await goodGhosting.allocateWithdrawAmounts({from: admin});
+            const result = await web3tx(goodGhosting.withdraw, "withdraw funds")({from: player1});
+            truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
+                return ev.player === player1;
+            }, "unable to withdraw amount");
+        });
+    });
+
+    describe("as a Pausable contract", async () => {
+        describe("checks Pausable access control", async () => {
+            it("does not revert when admin invokes pause()", async () => {
+                truffleAssert.passes(goodGhosting.pause({ from: admin }), "Ownable: caller is owner but failed to pause the contract");
+            });
+
+            it("does not revert when admin invokes unpause()", async () => {
+                await goodGhosting.pause({ from: admin });
+                truffleAssert.passes(goodGhosting.unpause({ from: admin }), "Ownable: caller is owner but failed to unpause the contract");
+            });
+
+            it("reverts when non-admin invokes pause()", async () => {
+                truffleAssert.reverts(goodGhosting.pause({ from: player1 }), "Ownable: caller is not the owner");
+            });
+
+            it("reverts when non-admin invokes unpause()", async () => {
+                await goodGhosting.pause({ from: admin });
+                truffleAssert.reverts(goodGhosting.unpause({ from: player1 }), "Ownable: caller is not the owner");
+            });
+        });
+
+        describe("checks Pausable contract default behavior", () => {
+            beforeEach(async function () {
+                await goodGhosting.pause({ from: admin });
+            });
+
+            describe("checks Pausable contract default behavior", () => {
+                it("pauses the contract", async () => {
+                    const result = await goodGhosting.paused.call({ from: admin });
+                    assert(result, "contract is not paused");
+                });
+    
+                it("unpauses the contract", async () => {
+                    await goodGhosting.unpause({ from: admin });
+                    const result = await goodGhosting.pause.call({ from: admin });
+                    assert(result, "contract is paused");
+                });
+            });
         });
     });
 
