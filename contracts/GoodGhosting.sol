@@ -164,17 +164,13 @@ contract GoodGhosting is Ownable, Pausable {
         emit JoinedGame(msg.sender, segmentPayment);
     }
 
-    function getPlayers() public view returns( address[] memory){
-        return iterablePlayers;
-    }
-    
     /**
         Reedems funds from external pool and calculates total amount of interest for the game.
         @dev This method only redeems funds from the external pool, without doing any allocation of balances
              to users. This helps to prevent running out of gas and having funds locked into the external pool.
     */
     function redeemFromExternalPool() external whenGameIsCompleted {
-        require(!redeemed, "Redeem operation has already taken place for the game");
+        require(!redeemed, "Redeem operation already happened for the game");
         // aave has 1:1 peg for tokens and atokens
         uint adaiBalance = AToken(adaiToken).balanceOf(address(this));
         redeemed = true;
