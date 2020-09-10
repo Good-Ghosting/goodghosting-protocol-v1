@@ -3,13 +3,12 @@
 
 # GoodGhosting
 
-- The game is divided up in to segments (currently hard coded to be a week long x 16), will likely be switched to a segment length of a month
+- The game is divided up in to segments these can be weekly, monthly or any other time unit.
 - Users must register to play 
-- Firt segement of the game is a holding segment. This is for participants to join, but no payments can be made
+- Firt segement of the game users can join and pay in 
 - Users pay in to the smart contract with Dai
 - Dai is converted to aDai
 - The amount paid in is recorded in the players struct
-*the rest to be continued*
 
 To run tests:
 `truffle test`
@@ -50,49 +49,6 @@ Start dev env in one terminal
 truffle develop
 ```
 
-
-
-# Deployment
-
-First setup .env file:
-
-```
-KOVAN_MNEMONIC="xxx yyy"
-KOVAN_PROVIDER_URL=https://kovan.infura.io/v3/your_key
-
-MAINNET_MNEMONIC="xxx yyy"
-MAINNET_PROVIDER_URL=https://mainnet.infura.io/v3/your_key
-MAINNET_GAS_PRICE=3000000000
-
-# you can get this from etherscan website
-ETHERSCAN_API_KEY=your_key
-```
-
-To deploy and verify the code
-```
-$ npx truffle --network kovan exec scripts/deploy.js
-Using network 'kovan'.
-
-network:  kovan
-GoodGhosting.new: started
-GoodGhosting.new: done, gas used 0x2713e2, gas price 20 Gwei
-bank address 0x9Eb6a33451643A564049f6D65b077E3308717b54
-$ npx truffle run --network kovan etherscan GoodGhosting@0x9Eb6a33451643A564049f6D65b077E3308717b54
-Verifying GoodGhosting@0x9Eb6a33451643A564049f6D65b077E3308717b54
-Pass - Verified: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#contracts
-Successfully verified 1 contract(s).
-```
-
-## Mint test tokens
-
-```
-master $ npx truffle --network kovan exec scripts/mint-tokens.js
-Using network 'kovan'.
-
-network:  kovan
-token.mint 100: started
-token.mint 100: done, gas used 50436, gas price 20 Gwei
-```
 
 ## Addresses
 
