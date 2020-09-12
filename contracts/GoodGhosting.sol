@@ -147,6 +147,10 @@ contract GoodGhosting is Ownable, Pausable {
     function getCurrentSegment() view public returns (uint){
        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
     }
+    
+    function getPlayers() public view returns( address[] memory){
+        return iterablePlayers;
+    }
 
     function joinGame() external whenNotPaused {
         require(now < firstSegmentStart + segmentLength, "game has already started");
