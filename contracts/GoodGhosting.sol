@@ -21,8 +21,6 @@ contract GoodGhosting is Ownable, Pausable {
 
     // Controls if tokens were redeemed or not from the pool
     bool public redeemed = false;
-    // Controls if withdraw amounts were allocated
-    bool public withdrawAmountAllocated = false;
     // Stores the total amount of interest received in the game.
     uint public totalGameInterest = 0;
     //  total principal amount
