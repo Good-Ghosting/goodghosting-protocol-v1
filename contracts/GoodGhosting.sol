@@ -40,9 +40,9 @@ contract GoodGhosting is Ownable, Pausable {
 
     struct Player {
         address addr;
+        bool withdrawn;
         uint mostRecentSegmentPaid;
         uint amountPaid;
-        bool withdrawn;
     }
     mapping(address => Player)public players;
     address[] public iterablePlayers;
