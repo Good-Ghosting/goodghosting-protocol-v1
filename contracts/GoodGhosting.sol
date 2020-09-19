@@ -173,11 +173,11 @@ contract GoodGhosting is Ownable, Pausable {
         @dev This method only redeems funds from the external pool, without doing any allocation of balances
              to users. This helps to prevent running out of gas and having funds locked into the external pool.
     */
-    function redeemFromExternalPool() external whenGameIsCompleted {
+    function redeemFromExternalPool() public whenGameIsCompleted {
         require(!redeemed, "Redeem operation already happened for the game");
+        redeemed = true;
         // aave has 1:1 peg for tokens and atokens
         uint adaiBalance = AToken(adaiToken).balanceOf(address(this));
-        redeemed = true;
         AToken(adaiToken).redeem(adaiBalance);
         uint totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
@@ -188,7 +188,10 @@ contract GoodGhosting is Ownable, Pausable {
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
     function withdraw() external {
-        require(redeemed, "Redeem operation has not yet happened for the game");
+        // First player to withdraw redeems everyone's funds
+        if (!redeemed) {
+            redeemFromExternalPool()
+        }
 
         Player storage player = players[msg.sender];
         require(!player.withdrawn, 'Player has already withdrawn');
