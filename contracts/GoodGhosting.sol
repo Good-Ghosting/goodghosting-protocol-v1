@@ -188,7 +188,7 @@ contract GoodGhosting is Ownable, Pausable {
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
     function withdraw() external {
-        require(!redeemed, "Redeem operation has not yet happened for the game");
+        require(redeemed, "Redeem operation has not yet happened for the game");
 
         Player storage player = players[msg.sender];
         require(!player.withdrawn, 'Player has already withdrawn');
