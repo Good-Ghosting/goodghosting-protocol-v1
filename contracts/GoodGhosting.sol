@@ -188,7 +188,7 @@ contract GoodGhosting is Ownable, Pausable {
     function withdraw() external {
         // First player to withdraw redeems everyone's funds
         if (!redeemed) {
-            redeemFromExternalPool()
+            redeemFromExternalPool();
         }
 
         Player storage player = players[msg.sender];
