@@ -34,7 +34,6 @@ contract("GoodGhosting", (accounts) => {
         await pap.setUnderlyingAssetAddress(token.address);
         goodGhosting = await web3tx(GoodGhosting.new, "GoodGhosting.new")(
             token.address,
-            aToken.address,
             pap.address,
             segmentCount,
             segmentLength,

@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
  *
  * Short game duration for testing purposes
  *
- * Arguments to pass while deploing on Kovan: 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD, 0x58AD4cB396411B691A9AAb6F74545b2C5217FE6a, 0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5
+ * Arguments to pass while deploing on Kovan: 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD, 0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5
  */
 
 contract GoodGhosting is Ownable, Pausable {
@@ -76,9 +76,8 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
     /**
-        Creates a new instance of GoogGhosting game
+        Creates a new instance of GoodGhosting game
         @param _inboundCurrency Smart contract address of inbound currency used for the game.
-        @param _interestCurrency Smart contract address of interest currency used for the game.
         @param _lendingPoolAddressProvider Smart contract address of the lending pool adddress provider.
         @param _segmentCount Number of segments in the game.
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
@@ -86,7 +85,6 @@ contract GoodGhosting is Ownable, Pausable {
      */
     constructor(
         IERC20 _inboundCurrency,
-        AToken _interestCurrency,
         ILendingPoolAddressesProvider _lendingPoolAddressProvider,
         uint _segmentCount,
         uint _segmentLength,
@@ -98,8 +96,11 @@ contract GoodGhosting is Ownable, Pausable {
         segmentLength = _segmentLength;
         segmentPayment = _segmentPayment;
         daiToken = _inboundCurrency;
-        adaiToken = _interestCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
+
+        ILendingPoolCore lendingPoolCore = ILendingPoolCore(lendingPoolAddressProvider.getLendingPoolCore());
+        adaiToken = AToken(lendingPoolCore.getReserveATokenAddress(address(_inboundCurrency)));
+        require(address(adaiToken) != address(0), "Aave doesn't support _inboundCurrency");
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint MAX_ALLOWANCE = 2**256 - 1;
@@ -263,6 +264,10 @@ import "../aave/ILendingPool.sol";
 
 abstract contract ILendingPool {
     function deposit(address _reserve, uint256 _amount, uint16 _referralCode) public virtual;
+}
+
+interface ILendingPoolCore {
+    function getReserveATokenAddress(address _reserve) external returns (address);
 }
 
 interface AToken {
