@@ -29,16 +29,16 @@ contract GoodGhosting is Ownable, Pausable {
     uint public totalGamePrincipal = 0;
 
     // Token that players use to buy in the game - DAI
-    IERC20 public daiToken;
+    IERC20 public immutable daiToken;
     // Pointer to aDAI
-    AToken public adaiToken;
+    AToken public immutable adaiToken;
     // Which Aave instance we use to swap DAI to interest bearing aDAI
-    ILendingPoolAddressesProvider public lendingPoolAddressProvider;
+    ILendingPoolAddressesProvider immutable public lendingPoolAddressProvider;
 
-    uint public segmentPayment;
-    uint public lastSegment;
-    uint public firstSegmentStart;
-    uint public segmentLength;
+    uint public immutable segmentPayment;
+    uint public immutable lastSegment;
+    uint public immutable firstSegmentStart;
+    uint public immutable segmentLength;
 
     struct Player {
         address addr;
@@ -104,8 +104,8 @@ contract GoodGhosting is Ownable, Pausable {
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint MAX_ALLOWANCE = 2**256 - 1;
-        address core = lendingPoolAddressProvider.getLendingPoolCore();
-        daiToken.approve(core, MAX_ALLOWANCE);
+        address core = _lendingPoolAddressProvider.getLendingPoolCore();
+        _inboundCurrency.approve(core, MAX_ALLOWANCE);
     }
 
     function pause() public onlyOwner whenNotPaused {
