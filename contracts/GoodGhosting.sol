@@ -44,7 +44,7 @@ contract GoodGhosting is Ownable, Pausable {
         address addr;
         uint mostRecentSegmentPaid;
         uint amountPaid;
-        uint withdrawAmount;
+        bool withdrawn;
     }
     mapping(address => Player)public players;
     address[] public iterablePlayers;
@@ -156,10 +156,10 @@ contract GoodGhosting is Ownable, Pausable {
         require(now < firstSegmentStart + segmentLength, "game has already started");
         require(players[msg.sender].addr != msg.sender, "The player should not have joined the game before");
         Player memory newPlayer = Player({
-            addr : msg.sender,
-            mostRecentSegmentPaid : 0,
-            amountPaid : 0,
-            withdrawAmount: 0
+            addr: msg.sender,
+            mostRecentSegmentPaid: 0,
+            amountPaid: 0,
+            withdrawn: false
         });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
@@ -183,50 +183,26 @@ contract GoodGhosting is Ownable, Pausable {
         // recording principal amount separately since adai balance will have interest has well
         totalGameInterest = totalBalance.sub(totalGamePrincipal);
         emit FundsRedeemedFromExternalPool(totalBalance, totalGamePrincipal, totalGameInterest);
-    }
-
-    /**
-        Calculates the withdraw amount each user is entitled to.
-        @dev Non-winners can withdraw their principal. Winners can withdraw their principal + interest;
-     */
-    function allocateWithdrawAmounts() external afterRedeemedFromExternalPool {
-        require(!withdrawAmountAllocated, "Withdraw amounts already allocated for players");
-
-        for(uint i = 0; i < iterablePlayers.length; i++) {
-            Player storage player = players[iterablePlayers[i]];
-            // For winners, we add them to the winner's array so we can later calculate the total
-            // amount winners can withdraw (principal + interest).
-            // For non-winners, we already have their principal amount stored in state(amountPaid),
-            // so we just set this amount to the withdrawAmount.
-            if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
-                winners.push(player.addr);
-            } else {
-                player.withdrawAmount = player.amountPaid;
-            }
-        }
-        // Splits the interest amont between winners.
-        uint interestAmtForWinners = 0;
-        if (winners.length > 0) {
-            // Avoids reverting due to division by zero
-            interestAmtForWinners = totalGameInterest.div(winners.length);
-        }
-        // Calculates the total amount winners can withdraw (principal + interest).
-        for (uint j = 0; j < winners.length; j++) {
-            Player storage winner = players[winners[j]];
-            // For winners, we add the interest to their principal (amountPaid)
-            winner.withdrawAmount  = winner.amountPaid.add(interestAmtForWinners);
-        }
-        withdrawAmountAllocated = true;
         emit WinnersAnnouncement(winners);
     }
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
     function withdraw() external {
-        uint amount = players[msg.sender].withdrawAmount;
-        require(amount > 0, 'No balance available for withdrawal');
-        players[msg.sender].withdrawAmount = 0;
-        IERC20(daiToken).transfer(msg.sender, amount);
-        emit Withdrawal(msg.sender, amount);
+        require(!redeemed, "Redeem operation has not yet happened for the game");
+
+        Player storage player = players[msg.sender];
+        require(!player.withdrawn, 'Player has already withdrawn');
+        player.withdrawn = true;
+
+        uint256 payout = player.amountPaid;
+        if (player.mostRecentSegmentPaid == lastSegment.sub(1)){
+            // Player is a winner and gets a bonus!
+            // No need to worry about if winners.length = 0
+            // If we're in this block then the user is a winner
+            payout = payout.add(totalGameInterest / winners.length);
+        }
+        IERC20(daiToken).transfer(msg.sender, payout);
+        emit Withdrawal(msg.sender, payout);
     }
  
 
@@ -235,13 +211,13 @@ contract GoodGhosting is Ownable, Pausable {
         require(players[msg.sender].addr == msg.sender, "Sender is not a player");
         
         uint currentSegment = getCurrentSegment();
-        // should not be stagging segment
+        // should not be staging segment
         require(currentSegment > 0, "Deposits start after the first segment");
 
         //check if current segment is currently unpaid
         require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "Player already paid current segment");
 
-        //check player has made payments up to the previous segment
+        // check player has made payments up to the previous segment
         // currentSegment will return 1 when the user pays for current segment
         if (currentSegment != 1) {
            require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
@@ -250,6 +226,12 @@ contract GoodGhosting is Ownable, Pausable {
         }
         //💰allow deposit to happen
         _transferDaiToContract();
+
+        // check if this is deposit for the last segment
+        // if so, the user is a winner
+        if (currentSegment == lastSegment.sub(1)) {
+            winners.push(msg.sender);
+        }
         emit Deposit(msg.sender, currentSegment, segmentPayment);
     }
 
