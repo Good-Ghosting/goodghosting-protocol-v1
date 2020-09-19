@@ -24,7 +24,11 @@ contract LendingPoolAddressesProviderMock
     }
 
     function getLendingPoolCore() public override view returns (address payable) {
-        return address(uint160(address(this))); // cast to make it payalbe
+        return address(uint160(address(this))); // cast to make it payable
+    }
+
+    function getReserveATokenAddress(address _reserve) public view returns (address) {
+        return address(this);
     }
 
     function setLendingPoolCoreImpl(address _lendingPoolCore) public override {
