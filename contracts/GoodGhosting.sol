@@ -20,11 +20,11 @@ contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
     // Controls if tokens were redeemed or not from the pool
-    bool public redeemed = false;
+    bool public redeemed;
     // Stores the total amount of interest received in the game.
-    uint public totalGameInterest = 0;
+    uint public totalGameInterest;
     //  total principal amount
-    uint public totalGamePrincipal = 0;
+    uint public totalGamePrincipal;
 
     // Token that players use to buy in the game - DAI
     IERC20 public immutable daiToken;
