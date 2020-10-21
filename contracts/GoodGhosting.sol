@@ -96,14 +96,14 @@ contract GoodGhosting is Ownable, Pausable {
         daiToken = _inboundCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
 
-        ILendingPoolCore lendingPoolCore = ILendingPoolCore(lendingPoolAddressProvider.getLendingPoolCore());
-        adaiToken = AToken(lendingPoolCore.getReserveATokenAddress(address(_inboundCurrency)));
-        require(address(adaiToken) != address(0), "Aave doesn't support _inboundCurrency");
+        ILendingPoolCore lendingPoolCore = ILendingPoolCore(_lendingPoolAddressProvider.getLendingPoolCore());
+        address adaiTokenAddress = lendingPoolCore.getReserveATokenAddress(address(_inboundCurrency));
+        require(adaiTokenAddress != address(0), "Aave doesn't support _inboundCurrency");
+        adaiToken = AToken(adaiTokenAddress);
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint MAX_ALLOWANCE = 2**256 - 1;
-        address core = _lendingPoolAddressProvider.getLendingPoolCore();
-        _inboundCurrency.approve(core, MAX_ALLOWANCE);
+        _inboundCurrency.approve(address(lendingPoolCore), MAX_ALLOWANCE);
     }
 
     function pause() public onlyOwner whenNotPaused {
