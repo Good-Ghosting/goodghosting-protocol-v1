@@ -16,6 +16,7 @@ contract("GoodGhosting", (accounts) => {
     let player1 = accounts[1];
     let player2 = accounts[2];
     const weekInSecs = 180;
+    const fee = 9;
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(10)); // equivalent to 10 DAI
     const segmentCount = 6;
@@ -38,6 +39,7 @@ contract("GoodGhosting", (accounts) => {
             segmentCount,
             segmentLength,
             segmentPayment,
+            fee,
             {from: admin},
         );
     });
@@ -246,6 +248,21 @@ contract("GoodGhosting", (accounts) => {
         });
     });
 
+    describe("when a user withdraw in between the game",  async () => {
+        it("user can withdraw in between successfully", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            const result = await web3tx(goodGhosting.emergencyWithdraw, "doing an emergency withdrawal before game ends")({from: player1});
+            truffleAssert.eventEmitted(
+                result,
+                "EmergencyWithdrawal",
+                (ev) => ev.player === player1,
+                "player unable to withdraw in between the game",
+            );
+        });
+    })
+
     describe("when an user tries to redeem from the external pool", async () => {
         it("reverts if game is not completed", async () => {
             truffleAssert.reverts(goodGhosting.redeemFromExternalPool({ from: player1 }), "Game is not completed");
@@ -363,7 +380,7 @@ contract("GoodGhosting", (accounts) => {
                     const result = await goodGhosting.paused.call({ from: admin });
                     assert(result, "contract is not paused");
                 });
-    
+
                 it("unpauses the contract", async () => {
                     await goodGhosting.unpause({ from: admin });
                     const result = await goodGhosting.pause.call({ from: admin });
