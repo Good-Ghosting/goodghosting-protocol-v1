@@ -68,11 +68,6 @@ contract GoodGhosting is Ownable, Pausable {
         _;
     }
 
-    modifier afterRedeemedFromExternalPool() {
-        require(redeemed, 'Funds not redeemed from external pool yet');
-        _;
-    }
-
     /**
         Creates a new instance of GoodGhosting game
         @param _inboundCurrency Smart contract address of inbound currency used for the game.
