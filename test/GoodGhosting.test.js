@@ -261,6 +261,22 @@ contract("GoodGhosting", (accounts) => {
                 "player unable to withdraw in between the game",
             );
         });
+
+        it("user cannot pay for future segments if he has withdrawn before", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await web3tx(goodGhosting.emergencyWithdraw, "doing an emergency withdrawal before game ends")({from: player1});
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await approveDaiToContract(player1);
+            truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Player is not a part of the game");
+            // truffleAssert.eventEmitted(
+            //     result,
+            //     "EmergencyWithdrawal",
+            //     (ev) => ev.player === player1,
+            //     "player unable to withdraw in between the game",
+            // );
+        });
     })
 
     describe("when an user tries to redeem from the external pool", async () => {
