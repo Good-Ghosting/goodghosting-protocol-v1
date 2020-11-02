@@ -16,7 +16,7 @@ contract("GoodGhosting", (accounts) => {
     let player1 = accounts[1];
     let player2 = accounts[2];
     const weekInSecs = 180;
-    const fee = 9;
+    const fee = 9; // represents 9%
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(10)); // equivalent to 10 DAI
     const segmentCount = 6;
@@ -248,8 +248,40 @@ contract("GoodGhosting", (accounts) => {
         });
     });
 
-    describe("when a user withdraw in between the game",  async () => {
-        it("user can withdraw in between successfully", async () => {
+    describe("when a user withdraws before the end of the game",  async () => {
+        it("reverts if the contract is paused", async () => {
+            await goodGhosting.pause({ from: admin });
+            truffleAssert.reverts(goodGhosting.emergencyWithdraw({ from: player1 }), "Pausable: paused");
+        });
+
+        it("reverts if the game is completed", async () => {
+            await advanceToEndOfGame();
+            truffleAssert.reverts(goodGhosting.emergencyWithdraw({ from: player1 }), "Game is already completed");
+        });
+
+        it("sets withdrawn flag to true after user withdraws before end of game", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await web3tx(goodGhosting.emergencyWithdraw, "doing an emergency withdrawal before game ends")({from: player1});
+            const player1Result = await goodGhosting.players.call(player1);
+            assert(player1Result.withdrawn);
+        });
+        
+        it("user can successfully withdraw before end of game by paying an early redemption fee", async () => {
+            await approveDaiToContract(player1);
+            await web3tx(goodGhosting.joinGame, "join game")({from: player1});
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+
+            // Expect Player1 to get back their deposit minus the early withdraw fee defined in the constructor.
+            const player1PreWithdrawBalance = await token.balanceOf(player1);
+            await goodGhosting.emergencyWithdraw({from: player1});
+            const player1PostWithdrawBalance = await token.balanceOf(player1);
+            const feeAmount = segmentPayment.mul(new BN(fee)).div(new BN(100)); // fee is set as an integer, so needs to be converted to a percentage
+            assert(player1PostWithdrawBalance.sub(player1PreWithdrawBalance).eq(segmentPayment.sub(feeAmount)));
+        });
+
+        it("emits EmergencyWithdrawal event when user withdraws before end of game", async () => { // having test with only 1 player for now
             await approveDaiToContract(player1);
             await web3tx(goodGhosting.joinGame, "join game")({from: player1});
             await timeMachine.advanceTimeAndBlock(weekInSecs);
@@ -262,7 +294,7 @@ contract("GoodGhosting", (accounts) => {
             );
         });
 
-        it("user cannot pay for future segments if he has withdrawn before", async () => {
+        it("reverts if user tries to pay next segment after emergency withdraw", async () => {
             await approveDaiToContract(player1);
             await web3tx(goodGhosting.joinGame, "join game")({from: player1});
             await timeMachine.advanceTimeAndBlock(weekInSecs);
@@ -270,14 +302,8 @@ contract("GoodGhosting", (accounts) => {
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await approveDaiToContract(player1);
             truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Player is not a part of the game");
-            // truffleAssert.eventEmitted(
-            //     result,
-            //     "EmergencyWithdrawal",
-            //     (ev) => ev.player === player1,
-            //     "player unable to withdraw in between the game",
-            // );
         });
-    })
+    });
 
     describe("when an user tries to redeem from the external pool", async () => {
         it("reverts if game is not completed", async () => {
@@ -316,7 +342,7 @@ contract("GoodGhosting", (accounts) => {
         });
     });
 
-    describe("when an tries to withdraw", async () => {
+    describe("when an user tries to withdraw", async () => {
         it("sets withdrawn flag to true after user withdraws", async () => { // having test with only 1 player for now
             await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.withdraw({from: player1});

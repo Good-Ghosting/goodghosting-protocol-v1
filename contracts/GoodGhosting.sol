@@ -169,14 +169,14 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
     /**
-       @dev Allows player to withdraw funds in the middle fo the game with a fee amount deducted which is set when the game starts.
+       @dev Allows player to withdraw funds in the middle of the game with a fee amount deducted which is set when the game starts.
     */
-    function emergencyWithdraw() external whenNotPaused {
-        require(getCurrentSegment() <= segmentLength, "Game has ended");
+    function emergencyWithdraw() external whenNotPaused whenGameIsNotCompleted {
         Player storage player = players[msg.sender];
-        // since atokenunderlying has 1:1 ratio so we redeem the amount paid by the player-
+        // since atokenunderlying has 1:1 ratio so we redeem the amount paid by the player
         player.withdrawn = true;
-        // fee % of the amount paid will be given back to the player so if fee is 1% and deposit amount is 10 dai so player will get 9 dai
+        // In an early/emergency withdraw, users get their principal minus a fee % defined in the constructor.
+        // So if fee is 10% and deposit amount is 10 dai, player will get 9 dai back, losing 1 dai.
         uint deductedAmount = player.amountPaid.sub(player.amountPaid.mul(fee).div(100));
         AToken(adaiToken).redeem(deductedAmount);
         IERC20(daiToken).transfer(msg.sender, deductedAmount);
