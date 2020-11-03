@@ -37,6 +37,7 @@ contract GoodGhosting is Ownable, Pausable {
     uint public immutable lastSegment;
     uint public immutable firstSegmentStart;
     uint public immutable segmentLength;
+    uint public immutable fee;
 
     struct Player {
         address addr;
@@ -54,6 +55,7 @@ contract GoodGhosting is Ownable, Pausable {
     event Withdrawal(address indexed player, uint amount);
     event FundsRedeemedFromExternalPool(uint totalAmount, uint totalGamePrincipal, uint totalGameInterest);
     event WinnersAnnouncement(address[] winners);
+    event EmergencyWithdrawal(address indexed player, uint amount);
 
     modifier whenGameIsCompleted() {
         // Game is completed when the current segment is greater than "lastSegment" of the game.
@@ -81,13 +83,15 @@ contract GoodGhosting is Ownable, Pausable {
         ILendingPoolAddressesProvider _lendingPoolAddressProvider,
         uint _segmentCount,
         uint _segmentLength,
-        uint _segmentPayment
+        uint _segmentPayment,
+        uint _fee
     ) public {
         // Initializes default variables
         firstSegmentStart = block.timestamp;  //gets current time
         lastSegment = _segmentCount;
         segmentLength = _segmentLength;
         segmentPayment = _segmentPayment;
+        fee = _fee;
         daiToken = _inboundCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
 
@@ -141,7 +145,7 @@ contract GoodGhosting is Ownable, Pausable {
     function getCurrentSegment() view public returns (uint){
        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
     }
-    
+
 
     function joinGame() external whenNotPaused {
         require(now < firstSegmentStart + segmentLength, "game has already started");
@@ -157,6 +161,21 @@ contract GoodGhosting is Ownable, Pausable {
         // for first segment
         _transferDaiToContract();
         emit JoinedGame(msg.sender, segmentPayment);
+    }
+
+    /**
+       @dev Allows player to withdraw funds in the middle of the game with a fee amount deducted which is set when the game starts.
+    */
+    function emergencyWithdraw() external whenNotPaused whenGameIsNotCompleted {
+        Player storage player = players[msg.sender];
+        // since atokenunderlying has 1:1 ratio so we redeem the amount paid by the player
+        player.withdrawn = true;
+        // In an early/emergency withdraw, users get their principal minus a fee % defined in the constructor.
+        // So if fee is 10% and deposit amount is 10 dai, player will get 9 dai back, losing 1 dai.
+        uint deductedAmount = player.amountPaid.sub(player.amountPaid.mul(fee).div(100));
+        AToken(adaiToken).redeem(deductedAmount);
+        IERC20(daiToken).transfer(msg.sender, deductedAmount);
+        emit EmergencyWithdrawal(msg.sender, deductedAmount);
     }
 
     /**
@@ -198,12 +217,13 @@ contract GoodGhosting is Ownable, Pausable {
         IERC20(daiToken).transfer(msg.sender, payout);
         emit Withdrawal(msg.sender, payout);
     }
- 
+
 
     function makeDeposit() external whenNotPaused whenGameIsNotCompleted {
         // only registered players can deposit
+        require(!players[msg.sender].withdrawn, "Player is not a part of the game");
         require(players[msg.sender].addr == msg.sender, "Sender is not a player");
-        
+
         uint currentSegment = getCurrentSegment();
         // should not be staging segment
         require(currentSegment > 0, "Deposits start after the first segment");
@@ -247,7 +267,7 @@ interface ILendingPoolCore {
 
 interface AToken {
     function redeem(uint256 _amount) external;
-    
+
     /**
      * @dev Returns the amount of tokens owned by `account`.
      */
