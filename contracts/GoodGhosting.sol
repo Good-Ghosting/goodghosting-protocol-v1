@@ -9,8 +9,6 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 /**
  * Play the save game.
  *
- * No SafeMath was used (yet) to shortcut the hacking time.
- *
  * Short game duration for testing purposes
  *
  * Arguments to pass while deploing on Kovan: 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD, 0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5
