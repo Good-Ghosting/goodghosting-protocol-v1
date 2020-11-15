@@ -5,7 +5,10 @@
     "main": "truffle-config.js",
     "scripts": {
         "test": "truffle test",
-        "coverage": "truffle run coverage"
+        "coverage": "truffle run coverage",
+        "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",
+        "deploy:kovan": "truffle deploy -f 2 --network kovan --reset",
+        "deploy:mainnet": "truffle deploy -f 2 --network mainnet --reset"
     },
     "repository": {
         "type": "git",

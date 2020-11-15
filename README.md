@@ -49,6 +49,21 @@ Start dev env in one terminal
 truffle develop
 ```
 
+## Deploying contracts to Ethereum Networks
+The project uses [Infura](https://https://infura.io/) to deploy smart contracts to Ethereum networks (testnets and mainnet). What you'll need:
+- SignIn/SignUp at Infura, create a project and get the project id.
+- Your wallet mnemonic (12 words seed).
+
+**Steps**
+1. Copy [.env.sample](./.env.sample) as an `.env` file. You can run this command in your terminal: `cp .env.sample .env`
+2. Open file `.env`
+3. Insert your Infura's ProjectId and your wallet mnemonic in the file for the desired network
+4. Open the file [deploy.config.js](./deploy.config.js) and set the desired deployment configs for the contract.
+5. Once you have the `.env` and `deploy.config.js` files properly setup, you can deploy the GoodGhosting contract to the desired network by running one of the following commands:
+- Deploy to kovan: `npm run deploy:kovan`
+- Deploy to ropsten: `npm run deploy:ropsten`
+- Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
+
 
 ## Addresses
 
