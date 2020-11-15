@@ -67,7 +67,7 @@ module.exports = {
             gasPrice: +process.env.MAINNET_GAS_PRICE || 1000*1000*1000, // default 1 gwei
             confirmations: 2, // # of confs to wait between deployments. (default: 0)
             timeoutBlocks: 100, // # of blocks before a deployment times out  (minimum/default: 50)
-            skipDryRun: true // Skip dry run before migrations? (default: false for public nets )
+            skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
         },
 
         coverage: {
