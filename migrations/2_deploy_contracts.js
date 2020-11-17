@@ -23,6 +23,9 @@ function getNetworkName(network) {
 }
 
 module.exports = function(deployer, network, accounts) {
+    // Skips migration for local tests and soliditycoverage
+    if (["test", "soliditycoverage"].includes(network)) return;
+
     deployer.then(async () => {
         
         const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][getNetworkName(network)];
