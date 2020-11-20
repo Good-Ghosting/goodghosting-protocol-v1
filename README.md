@@ -1,15 +1,18 @@
-
-[![Build Status](https://travis-ci.org/ngmachado/viral-aave-save-game.svg?branch=master)](https://travis-ci.org/ngmachado/viral-aave-save-game) [![Coverage Status](https://coveralls.io/repos/github/ngmachado/viral-aave-save-game/badge.svg?branch=master)](https://coveralls.io/github/ngmachado/viral-aave-save-game?branch=master)
-
 # GoodGhosting
 
-- The game is divided up in to segments these can be weekly, monthly or any other time unit.
-- Users must register to play 
-- Firt segement of the game users can join and pay in 
-- Users pay in to the smart contract with Dai
-- Dai is converted to aDai
-- The amount paid in is recorded in the players struct
+The new addictive way to save. Our savings pools reward regular savers with higher interest rates. The more people drop out, the greater the returns for the winners!
 
+How?
+- The game is divided into segments. These can be weekly, monthly or any other duration.
+- During the first segment, players can join the game by depositing a fixed amount of DAI (by calling `joinGame`)
+- This DAI is transferred into the smart contract
+- DAI is converted to aDAI. In other words: deposited into Aave where it accrues interest for the savings pool.
+- To stay in the game, players must deposit before the end of each segment (via `makeDeposit`)
+- At the end of the game, the earned interest is split amongst all players who made every deposit. Aka: the winners. 
+- Players that missed a deposit, still get their principal back but do not earn any interest. 
+- Users can withdraw their principal at any time, if they wish to do so (`emergencyWithdraw`)
+
+# Tests 
 To run tests:
 `truffle test`
 
@@ -17,8 +20,11 @@ To run tests:
 
 [Based on Drizzle box](https://www.trufflesuite.com/boxes/drizzle).
 
-## Smart Contract Overview
+## Smart Contract Overview 
+Note: this is outdated. There have been a number of improvements. For instance, users are able to join from segment 0 and we use the 'The Graph' to query the game data.
 ![high level diagram](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/smart_contract_overview_11-07-20.png?raw=true)
+
+## Example view of the UI
 
 
 # Developing
@@ -71,10 +77,9 @@ The project uses [Infura](https://https://infura.io/) to deploy smart contracts 
 
 * DAI: https://kovan.etherscan.io/address/0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD
 * aDAI: https://kovan.etherscan.io/address/0x58AD4cB396411B691A9AAb6F74545b2C5217FE6a
-* GoodGhosting: https://kovan.etherscan.io/address/0x9Eb6a33451643A564049f6D65b077E3308717b54#code
-* Patient 0: 0xd66E40b0c30595bEc72153B502aC1E0c4785991B
+* GoodGhosting.sol: https://kovan.etherscan.io/address/0x16D1feaC977dFb79a879BD5e5B7Ed37E81C3D660#code
 
 
 ## Using
 * BN.js for handling Bignumbers
-* Both DAI and ADAI work similarily to Wei. ie 10**18 
+* Both DAI and aDAI work similarily to Wei. ie 10**18 
