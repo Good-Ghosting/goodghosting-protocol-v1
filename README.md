@@ -56,7 +56,7 @@ truffle develop
 ```
 
 ## Deploying contracts to Ethereum Networks
-The project uses [Infura](https://https://infura.io/) to deploy smart contracts to Ethereum networks (testnets and mainnet). What you'll need:
+The project uses [Infura](https://infura.io/) to deploy smart contracts to Ethereum networks (testnets and mainnet). What you'll need:
 - SignIn/SignUp at Infura, create a project and get the project id.
 - Your wallet mnemonic (12 words seed).
 
