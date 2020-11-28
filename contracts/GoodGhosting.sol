@@ -43,7 +43,9 @@ contract GoodGhosting is Ownable, Pausable {
         uint mostRecentSegmentPaid;
         uint amountPaid;
     }
-    mapping(address => Player)public players;
+    mapping(address => Player) public players;
+    // we need to differentiate the deposit amount to aave or any other protocol for each window hence this mapping segment no => total deposit amount for that
+    mapping (uint256 => uint256) public segmentDeposit;
     address[] public iterablePlayers;
     address[] public winners;
 
@@ -57,14 +59,14 @@ contract GoodGhosting is Ownable, Pausable {
 
     modifier whenGameIsCompleted() {
         // Game is completed when the current segment is greater than "lastSegment" of the game.
-        // since 0 -> 1 is also 1 segment
-        require(getCurrentSegment() > lastSegment.sub(1), 'Game is not completed');
+        // since with deposit window we need to to wait for extra for aave deposit for last segemnt
+        require(getCurrentSegment() > lastSegment, 'Game is not completed');
         _;
     }
 
     modifier whenGameIsNotCompleted() {
         // Game is not completed when current segment is less "lastSegment" of the game.
-        require(getCurrentSegment() < lastSegment, 'Game is already completed');
+        require(getCurrentSegment() < lastSegment.add(1), 'Game is already completed');
         _;
     }
 
@@ -115,7 +117,6 @@ contract GoodGhosting is Ownable, Pausable {
 
         // users pays dai in to the smart contract, which he pre-approved to spend the DAI for him
         // convert DAI to aDAI using the lending pool
-        ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
         // this doesn't make sense since we are already transferring
         require(daiToken.allowance(msg.sender, address(this)) >= segmentPayment , "You need to have allowance to do transfer DAI on the smart contract");
 
@@ -130,10 +131,9 @@ contract GoodGhosting is Ownable, Pausable {
         // Re-entrancy: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#re-entrancy
         // Check-Effects-Interactions Pattern: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#use-the-checks-effects-interactions-pattern
         require(daiToken.transferFrom(msg.sender, address(this), segmentPayment), "Transfer failed");
-        // lendPool.deposit does not currently return a value,
+        segmentDeposit[currentSegment] = segmentDeposit[currentSegment].add(segmentPayment);
         // so it is not possible use a require statement to check.
         // if it doesn't revert, we assume it's successful
-        lendingPool.deposit(address(daiToken), segmentPayment, 0);
     }
 
     /**
@@ -146,7 +146,7 @@ contract GoodGhosting is Ownable, Pausable {
 
 
     function joinGame() external whenNotPaused {
-        require(now < firstSegmentStart + segmentLength, "game has already started");
+        require(now < firstSegmentStart.add(segmentLength), "game has already started");
         require(players[msg.sender].addr != msg.sender, "The player should not have joined the game before");
         Player memory newPlayer = Player({
             addr: msg.sender,
@@ -162,7 +162,21 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
     /**
-       @dev Allows player to withdraw funds in the middle of the game with a fee amount deducted which is set when the game starts.
+       @dev Allows player to withdraw funds in the middle of the game with a fee amount deducted which is set when the game starts
+    */
+    function protocolDeposit() external whenNotPaused {
+        uint currentSegment = getCurrentSegment();
+        require(currentSegment > 0, "First Segment has not started");
+        // since the deposit window for 1st segments stats before hence checking whether the deposit window for prev. segment has finished or not
+        require(now > firstSegmentStart.add(segmentLength.mul(currentSegment)), "Deposit Window of previous segment is not finished");
+        uint256 amount = segmentDeposit[currentSegment.sub(1)];
+        require(amount > 0, "Segment has no deposits");
+        ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
+        lendingPool.deposit(address(daiToken), amount, 0);
+    }
+
+    /**
+       @dev Allows player to withdraw funds in the middle of the game with a fee amount deducted which is set when the game starts
     */
     function emergencyWithdraw() external whenNotPaused whenGameIsNotCompleted {
         Player storage player = players[msg.sender];
@@ -171,7 +185,9 @@ contract GoodGhosting is Ownable, Pausable {
         // In an early/emergency withdraw, users get their principal minus a fee % defined in the constructor.
         // So if fee is 10% and deposit amount is 10 dai, player will get 9 dai back, losing 1 dai.
         uint deductedAmount = player.amountPaid.sub(player.amountPaid.mul(fee).div(100));
-        AToken(adaiToken).redeem(deductedAmount);
+        if (IERC20(daiToken).balanceOf(address(this)) < deductedAmount) {
+           AToken(adaiToken).redeem(deductedAmount);
+        }
         IERC20(daiToken).transfer(msg.sender, deductedAmount);
         emit EmergencyWithdrawal(msg.sender, deductedAmount);
     }
