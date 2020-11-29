@@ -125,15 +125,12 @@ contract GoodGhosting is Ownable, Pausable {
         players[msg.sender].mostRecentSegmentPaid = currentSegment;
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(segmentPayment);
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
-
+        segmentDeposit[currentSegment] = segmentDeposit[currentSegment].add(segmentPayment);
         // SECURITY NOTE:
         // Interacting with the external contracts should be the last action in the logic to avoid re-entracy attacks.
         // Re-entrancy: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#re-entrancy
         // Check-Effects-Interactions Pattern: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#use-the-checks-effects-interactions-pattern
         require(daiToken.transferFrom(msg.sender, address(this), segmentPayment), "Transfer failed");
-        segmentDeposit[currentSegment] = segmentDeposit[currentSegment].add(segmentPayment);
-        // so it is not possible use a require statement to check.
-        // if it doesn't revert, we assume it's successful
     }
 
     /**
@@ -162,7 +159,7 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
     /**
-       @dev Allows player to withdraw funds in the middle of the game with a fee amount deducted which is set when the game starts
+       @dev Allows anyone to deposit the previous segment funds to aave.
     */
     function protocolDeposit() external whenNotPaused {
         uint currentSegment = getCurrentSegment();
