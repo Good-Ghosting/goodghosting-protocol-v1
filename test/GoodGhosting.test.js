@@ -251,54 +251,54 @@ contract("GoodGhosting", (accounts) => {
     describe("when a user withdraws before the end of the game",  async () => {
         it("reverts if the contract is paused", async () => {
             await goodGhosting.pause({ from: admin });
-            truffleAssert.reverts(goodGhosting.emergencyWithdraw({ from: player1 }), "Pausable: paused");
+            truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: player1 }), "Pausable: paused");
         });
 
         it("reverts if the game is completed", async () => {
             await advanceToEndOfGame();
-            truffleAssert.reverts(goodGhosting.emergencyWithdraw({ from: player1 }), "Game is already completed");
+            truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: player1 }), "Game is already completed");
         });
 
         it("sets withdrawn flag to true after user withdraws before end of game", async () => {
             await approveDaiToContract(player1);
             await web3tx(goodGhosting.joinGame, "join game")({from: player1});
             await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await web3tx(goodGhosting.emergencyWithdraw, "doing an emergency withdrawal before game ends")({from: player1});
+            await web3tx(goodGhosting.earlyWithdraw, "doing an early withdrawal before game ends")({from: player1});
             const player1Result = await goodGhosting.players.call(player1);
             assert(player1Result.withdrawn);
         });
         
-        it("user can successfully withdraw before end of game by paying an early redemption fee", async () => {
+        it("user can successfully withdraw before end of game by paying an early withdraw fee", async () => {
             await approveDaiToContract(player1);
             await web3tx(goodGhosting.joinGame, "join game")({from: player1});
             await timeMachine.advanceTimeAndBlock(weekInSecs);
 
             // Expect Player1 to get back their deposit minus the early withdraw fee defined in the constructor.
             const player1PreWithdrawBalance = await token.balanceOf(player1);
-            await goodGhosting.emergencyWithdraw({from: player1});
+            await goodGhosting.earlyWithdraw({from: player1});
             const player1PostWithdrawBalance = await token.balanceOf(player1);
             const feeAmount = segmentPayment.mul(new BN(fee)).div(new BN(100)); // fee is set as an integer, so needs to be converted to a percentage
             assert(player1PostWithdrawBalance.sub(player1PreWithdrawBalance).eq(segmentPayment.sub(feeAmount)));
         });
 
-        it("emits EmergencyWithdrawal event when user withdraws before end of game", async () => { // having test with only 1 player for now
+        it("emits EarlyWithdrawal event when user withdraws before end of game", async () => { // having test with only 1 player for now
             await approveDaiToContract(player1);
             await web3tx(goodGhosting.joinGame, "join game")({from: player1});
             await timeMachine.advanceTimeAndBlock(weekInSecs);
-            const result = await web3tx(goodGhosting.emergencyWithdraw, "doing an emergency withdrawal before game ends")({from: player1});
+            const result = await web3tx(goodGhosting.earlyWithdraw, "doing an early withdrawal before game ends")({from: player1});
             truffleAssert.eventEmitted(
                 result,
-                "EmergencyWithdrawal",
+                "EarlyWithdrawal",
                 (ev) => ev.player === player1,
                 "player unable to withdraw in between the game",
             );
         });
 
-        it("reverts if user tries to pay next segment after emergency withdraw", async () => {
+        it("reverts if user tries to pay next segment after early withdraw", async () => {
             await approveDaiToContract(player1);
             await web3tx(goodGhosting.joinGame, "join game")({from: player1});
             await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await web3tx(goodGhosting.emergencyWithdraw, "doing an emergency withdrawal before game ends")({from: player1});
+            await web3tx(goodGhosting.earlyWithdraw, "doing an early withdrawal before game ends")({from: player1});
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await approveDaiToContract(player1);
             truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Player is not a part of the game");

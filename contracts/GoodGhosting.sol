@@ -35,7 +35,7 @@ contract GoodGhosting is Ownable, Pausable {
     uint public immutable lastSegment;
     uint public immutable firstSegmentStart;
     uint public immutable segmentLength;
-    uint public immutable fee;
+    uint public immutable earlyWithdrawalFee;
 
     struct Player {
         address addr;
@@ -55,7 +55,7 @@ contract GoodGhosting is Ownable, Pausable {
     event Withdrawal(address indexed player, uint amount);
     event FundsRedeemedFromExternalPool(uint totalAmount, uint totalGamePrincipal, uint totalGameInterest);
     event WinnersAnnouncement(address[] winners);
-    event EmergencyWithdrawal(address indexed player, uint amount);
+    event EarlyWithdrawal(address indexed player, uint amount);
 
     modifier whenGameIsCompleted() {
         // Game is completed when the current segment is greater than "lastSegment" of the game.
@@ -77,6 +77,7 @@ contract GoodGhosting is Ownable, Pausable {
         @param _segmentCount Number of segments in the game.
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
+        @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -84,14 +85,14 @@ contract GoodGhosting is Ownable, Pausable {
         uint _segmentCount,
         uint _segmentLength,
         uint _segmentPayment,
-        uint _fee
+        uint _earlyWithdrawalFee
     ) public {
         // Initializes default variables
         firstSegmentStart = block.timestamp;  //gets current time
         lastSegment = _segmentCount;
         segmentLength = _segmentLength;
         segmentPayment = _segmentPayment;
-        fee = _fee;
+        earlyWithdrawalFee = _earlyWithdrawalFee;
         daiToken = _inboundCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
 
@@ -173,20 +174,23 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
     /**
-       @dev Allows player to withdraw funds in the middle of the game with a fee amount deducted which is set when the game starts
+       @dev Allows player to withdraw funds in the middle of the game with an early withdrawal fee deducted from the user's principal.
+       earlyWithdrawalFee is set via constructor
     */
-    function emergencyWithdraw() external whenNotPaused whenGameIsNotCompleted {
+    function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
         Player storage player = players[msg.sender];
         // since atokenunderlying has 1:1 ratio so we redeem the amount paid by the player
         player.withdrawn = true;
-        // In an early/emergency withdraw, users get their principal minus a fee % defined in the constructor.
-        // So if fee is 10% and deposit amount is 10 dai, player will get 9 dai back, losing 1 dai.
-        uint deductedAmount = player.amountPaid.sub(player.amountPaid.mul(fee).div(100));
-        if (IERC20(daiToken).balanceOf(address(this)) < deductedAmount) {
-           AToken(adaiToken).redeem(deductedAmount);
+        // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
+        // So if earlyWithdrawalFee is 10% and deposit amount is 10 dai, player will get 9 dai back, losing 1 dai.
+        uint withdrawAmount = player.amountPaid.sub(player.amountPaid.mul(earlyWithdrawalFee).div(100));
+        uint contractBalance = IERC20(daiToken).balanceOf(address(this));
+        // Only withdraw funds from underlying pool if contract doesn't have enough balance to fulfill the early withdraw.
+        if (contractBalance < withdrawAmount) {
+           AToken(adaiToken).redeem(withdrawAmount.sub(contractBalance));
         }
-        IERC20(daiToken).transfer(msg.sender, deductedAmount);
-        emit EmergencyWithdrawal(msg.sender, deductedAmount);
+        IERC20(daiToken).transfer(msg.sender, withdrawAmount);
+        emit EarlyWithdrawal(msg.sender, withdrawAmount);
     }
 
     /**
