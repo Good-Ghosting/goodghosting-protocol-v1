@@ -53,7 +53,10 @@ contract("GoodGhosting", (accounts) => {
     }
 
     async function advanceToEndOfGame() {
-        await timeMachine.advanceTime(weekInSecs * segmentCount);
+        // We need to to account for the first deposit window.
+        // i.e., if game has 5 segments, we need to add + 1, because while current segment was 0,
+        // it was just the first deposit window and game was not started yet.
+        await timeMachine.advanceTime(weekInSecs * (segmentCount + 1));
     }
 
     async function joinGamePaySegmentsAndComplete(player) {
@@ -65,7 +68,11 @@ contract("GoodGhosting", (accounts) => {
             await approveDaiToContract(player);
             await web3tx(goodGhosting.makeDeposit, "make a deposit")({ from: player });
         }
-        await timeMachine.advanceTime(weekInSecs);
+        // We need to to account for the first deposit window, where there was no active game segment.
+        // We multiply the segment length by 2 because the first length amount, is just to complete
+        // the last deposit window (which is also the one-to-last game segment).
+        // Then, the second segment length, is to actually complete the last segment of game.
+        await timeMachine.advanceTime(weekInSecs * 2);
     }
 
     describe("pre-flight checks", async () => {
