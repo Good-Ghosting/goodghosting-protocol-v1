@@ -58,15 +58,18 @@ contract GoodGhosting is Ownable, Pausable {
     event EarlyWithdrawal(address indexed player, uint amount);
 
     modifier whenGameIsCompleted() {
-        // Game is completed when the current segment is greater than "lastSegment" of the game.
+        // Game is completed when the current segment is greater than "lastSegment" of the game plus and additional segment
         // since with deposit window we need to to wait for extra for aave deposit for last segemnt
-        require(getCurrentSegment() > lastSegment, 'Game is not completed');
+        // but once the protocol deposit is made for the last segment we need to wait one extra segment for the the last segment deposit to accure interest
+        require(getCurrentSegment() > lastSegment.add(1), 'Game is not completed');
         _;
     }
 
     modifier whenGameIsNotCompleted() {
-        // Game is not completed when current segment is less "lastSegment" of the game.
-        require(getCurrentSegment() < lastSegment.add(1), 'Game is already completed');
+        // Game is completed when the current segment is greater than "lastSegment" of the game plus and additional segment
+        // since with deposit window we need to to wait for extra for aave deposit for last segemnt
+        // but once the protocol deposit is made for the last segment we need to wait one extra segment for the the last segment deposit to accure interest
+        require(getCurrentSegment() < lastSegment.add(2), 'Game is already completed');
         _;
     }
 
