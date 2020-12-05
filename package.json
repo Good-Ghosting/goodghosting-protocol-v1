@@ -25,6 +25,7 @@
     "homepage": "https://github.com/Good-Ghosting/goodghosting-smart-contracts#readme",
     "dependencies": {
         "@openzeppelin/contracts": "^3.1.0",
+        "ethereumjs-abi": "^0.6.8",
         "install": "^0.13.0",
         "npm": "^6.14.7"
     },
