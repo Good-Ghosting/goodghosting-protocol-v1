@@ -152,8 +152,8 @@ contract("GoodGhosting", (accounts) => {
             async function checksCompletion(expected, errorMsg) {
                 currentSegment = await goodGhosting.getCurrentSegment.call({ from: admin });
                 result = await goodGhosting.isGameCompleted.call({ from: admin });
-                console.log(`currentSegment: ${currentSegment}`);
-                console.log(`isGameCompleted: ${result}`);
+                // console.log(`currentSegment: ${currentSegment}`);
+                // console.log(`isGameCompleted: ${result}`);
                 assert(result === expected, errorMsg);
             }
 
