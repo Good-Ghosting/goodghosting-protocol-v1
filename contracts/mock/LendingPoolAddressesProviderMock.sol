@@ -4,8 +4,8 @@ pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ILendingPoolAddressesProvider } from "../../aave/ILendingPoolAddressesProvider.sol";
-import { ILendingPool } from "../../aave/ILendingPool.sol";
+import { ILendingPoolAddressesProvider } from "../aave/ILendingPoolAddressesProvider.sol";
+import { ILendingPool } from "../aave/ILendingPool.sol";
 
 contract LendingPoolAddressesProviderMock
     is ILendingPoolAddressesProvider, ILendingPool, ERC20 {
