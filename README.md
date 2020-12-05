@@ -70,6 +70,106 @@ The project uses [Infura](https://infura.io/) to deploy smart contracts to Ether
 - Deploy to ropsten: `npm run deploy:ropsten`
 - Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
 
+If the deployment is successful, you should see a deployment log in the terminal window similar to this:
+
+```
+Starting migrations...
+======================
+> Network name:    'kovan'
+> Network id:      42
+> Block gas limit: 12500000 (0xbebc20)
+
+
+2_deploy_contracts.js
+=====================
+
+   Replacing 'SafeMath'
+   --------------------
+   > transaction hash:    0x0f400b0dc0fcd29c943271f2823d3922db14aa3a7baa8e17295d15b6c1d442b6
+   > Blocks: 0            Seconds: 0
+   > contract address:    0x66FF9E7d6Dca966eB6798079Fec3D482179cdDC8
+   > block number:        22436472
+   > block timestamp:     1607159132
+   > account:             0x826a471055333505E596F424348983aF0Aa8411B
+   > balance:             192.247194179
+   > gas used:            71933 (0x118fd)
+   > gas price:           20 gwei
+   > value sent:          0 ETH
+   > total cost:          0.00143866 ETH
+
+   Pausing for 2 confirmations...
+   ------------------------------
+   > confirmation number: 1 (block: 22436473)
+   > confirmation number: 2 (block: 22436474)
+
+   Replacing 'GoodGhosting'
+   ------------------------
+   > transaction hash:    0xaded2b2130afff3c62ec96dc67e7fc63dbf830edc4c551746c72566c8f6e15ce
+   > Blocks: 0            Seconds: 0
+   > contract address:    0x1180d93c188874F1BE03702c259fb53a88605EC7
+   > block number:        22436475
+   > block timestamp:     1607159152
+   > account:             0x826a471055333505E596F424348983aF0Aa8411B
+   > balance:             192.192982659
+   > gas used:            2710576 (0x295c30)
+   > gas price:           20 gwei
+   > value sent:          0 ETH
+   > total cost:          0.05421152 ETH
+
+   Pausing for 2 confirmations...
+   ------------------------------
+   > confirmation number: 1 (block: 22436476)
+   > confirmation number: 2 (block: 22436477)
+
+
+
+----------------------------------------------------
+GoogGhosting deployed with the following parameters:
+----------------------------------------------------
+
+Network Name: kovan
+Lending Pool: aave
+Lending Pool Address Provider: 0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5
+Inbound Currency: dai at 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD
+Segment Count: 6
+Segment Length: 180 seconds
+Segment Payment: 10 dai (10000000000000000000 wei)
+Early Withdrawal Fee: 10%
+
+
+ABI-Enconded Constructor Parameters:
+000000000000000000000000ff795577d9ac8bd7d90ee22b6c1703490b6512fd000000000000000000000000506b0b2cf20faa8f38a4e2b524ee43e1f4458cc5000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000b40000000000000000000000000000000000000000000000008ac7230489e80000000000000000000000000000000000000000000000000000000000000000000a
+
+
+
+
+
+   > Saving artifacts
+   -------------------------------------
+   > Total cost:          0.05565018 ETH
+
+
+Summary
+=======
+> Total deployments:   2
+> Final cost:          0.05565018 ETH
+```
+
+## Verifying contracts on Etherscan
+Use the following steps to verify the contract on Etherscan:
+
+1. Flatten the GoogGhosting contract. If using VSCode, you can use the extension (Solidity Contract Flattener)[https://marketplace.visualstudio.com/items?itemName=tintinweb.vscode-solidity-flattener]
+2. In the new flattened file, delete all references to "// SPDX-License-Identifier: MIT". Tip: Use the "find and replace" option on your code editor, by finding by the value "// SPDX-License-Identifier: MIT" and replacing by an empty string (empty value in the "replace" field)
+3. Access the deployed contract address on Etherscan. Make sure to use the appropriate Etherscan version that matches the network where the contract is deployed to
+    1. The address of the deployed contract is available in the deployment log, displayed in the terminal window
+4. Access the option to "Verify and Publish" the contract on Etherscan and enter the required parameters as below:
+    1. *Contract Address*: get the address of the deployed contract from the deployment log, displayed in the terminal window
+    2. *Compiler Type*: Select the option "Solidity (Single File)"
+    3. *Compiler Version*: Check the version used by the repo on (truffle-config file)[./truffle-config.js]. Select the same config
+    4. *Open Source License*: Choose the license. You can use "No licence (None)" if not sure about which one to use
+    5. *Optimization*: Check is optimization is used by the repo on (truffle-config file)[./truffle-config.js]. Select the same config
+    6. *Solidity Contract Code*: Copy/Paste the code from the flattened file (after executing steps 1 and 2 above).
+    7. *Constructor Arguments ABI-Enconded*: Copy/Paste the Constructor Arguments ABI-Enconded available in the deployment log, displayed in the terminal window
 
 ## Addresses
 

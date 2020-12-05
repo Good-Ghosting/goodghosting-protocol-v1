@@ -1,5 +1,7 @@
 /* global artifacts web3 */
 
+var abi = require('ethereumjs-abi')
+
 const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
 
@@ -22,30 +24,73 @@ function getNetworkName(network) {
     throw new Error(`Unsupported network "${network}"`);
 }
 
+function printSummary(
+    // contract's constructor parameters
+    {
+        inboundCurrencyAddress,
+        lendingPoolAddressProvider,
+        segmentCount,
+        segmentLength,
+        segmentPaymentWei,
+        earlyWithdrawFee,
+    },
+    // additional logging info
+    {
+        networkName,
+        selectedProvider,
+        inboundCurrencySymbol,
+        segmentPayment,
+    }
+    
+) {
+    var parameterTypes = [
+        "address", // inboundCurrencyAddress
+        "address", // lendingPoolAddressProvider
+        "uint256", // segmentCount
+        "uint256", // segmentLength
+        "uint256", // segmentPaymentWei
+        "uint256", // earlyWithdrawFee
+    ];
+    var parameterValues = [
+        inboundCurrencyAddress,
+        lendingPoolAddressProvider,
+        segmentCount,
+        segmentLength,
+        segmentPaymentWei,
+        earlyWithdrawFee
+    ];
+    var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
+
+    console.log("\n\n\n----------------------------------------------------");
+    console.log("GoogGhosting deployed with the following arguments:");
+    console.log("----------------------------------------------------\n");
+    console.log(`Network Name: ${networkName}`);
+    console.log(`Lending Pool: ${selectedProvider}`);
+    console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
+    console.log(`Inbound Currency: ${inboundCurrencySymbol} at ${inboundCurrencyAddress}`);
+    console.log(`Segment Count: ${segmentCount}`);
+    console.log(`Segment Length: ${segmentLength} seconds`);
+    console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
+    console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
+    console.log('\n\nConstructor Arguments ABI-Enconded:')
+    console.log(encodedParameters.toString('hex'));
+    console.log("\n\n\n\n");
+
+}
+
 module.exports = function(deployer, network, accounts) {
     // Skips migration for local tests and soliditycoverage
     if (["test", "soliditycoverage"].includes(network)) return;
 
     deployer.then(async () => {
         
-        const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][getNetworkName(network)];
+        const networkName = getNetworkName(network);
+        const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkName];
         const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
         const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
 
-
-        console.log("---------------------------------------------------");
-        console.log("Deploying GoogGhosting with the following parameters:");
-        console.log("---------------------------------------------------");
-        console.log(`Lending Pool: ${deployConfigs.selectedProvider}`);
-        console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
-        console.log(`Inbound Currency: ${deployConfigs.inboundCurrencySymbol} at ${inboundCurrencyAddress}`);
-        console.log(`Early Withdrawal Fee: ${deployConfigs.earlyWithdrawFee}%`);
-        console.log(`Segment Count: ${deployConfigs.segmentCount}`);
-        console.log(`Segment Length: ${deployConfigs.segmentLength} seconds`);
-        console.log(`Segment Payment: ${deployConfigs.segmentPayment} ${deployConfigs.inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
-        console.log("---------------------------------------------------\n\n\n");
 
         // Deploys GoodGhostingContract
         await deployer.deploy(SafeMathLib);
@@ -58,6 +103,24 @@ module.exports = function(deployer, network, accounts) {
             deployConfigs.segmentLength,
             segmentPaymentWei,
             deployConfigs.earlyWithdrawFee,
+        );
+
+        // Prints deployment summary
+        printSummary(
+            {
+                inboundCurrencyAddress,
+                lendingPoolAddressProvider,
+                segmentCount: deployConfigs.segmentCount,
+                segmentLength: deployConfigs.segmentLength,
+                segmentPaymentWei,
+                earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
+            },
+            {
+                networkName,
+                selectedProvider: deployConfigs.selectedProvider,
+                inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
+                segmentPayment: deployConfigs.segmentPayment,
+            }
         );
     });
 };
