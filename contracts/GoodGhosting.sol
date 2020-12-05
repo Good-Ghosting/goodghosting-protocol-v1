@@ -13,9 +13,6 @@ import "./aave/AToken.sol";
 /**
  * Play the save game.
  *
- * Short game duration for testing purposes
- *
- * Arguments to pass while deploing on Kovan: 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD, 0x506B0B2CF20FAA8f38a4E2B524EE43e1f4458Cc5
  */
 
 contract GoodGhosting is Ownable, Pausable {
@@ -57,23 +54,18 @@ contract GoodGhosting is Ownable, Pausable {
     event JoinedGame(address indexed player, uint amount);
     event Deposit(address indexed player, uint indexed segment, uint amount);
     event Withdrawal(address indexed player, uint amount);
+    event FundsDepositedIntoExternalPool(uint segment, uint amount);
     event FundsRedeemedFromExternalPool(uint totalAmount, uint totalGamePrincipal, uint totalGameInterest);
     event WinnersAnnouncement(address[] winners);
     event EarlyWithdrawal(address indexed player, uint amount);
 
     modifier whenGameIsCompleted() {
-        // Game is completed when the current segment is greater than "lastSegment" of the game plus and additional segment
-        // since with deposit window we need to to wait for extra for aave deposit for last segemnt
-        // but once the protocol deposit is made for the last segment we need to wait one extra segment for the the last segment deposit to accure interest
-        require(getCurrentSegment() > lastSegment.add(1), 'Game is not completed');
+        require(isGameCompleted(), 'Game is not completed');
         _;
     }
 
     modifier whenGameIsNotCompleted() {
-        // Game is completed when the current segment is greater than "lastSegment" of the game plus and additional segment
-        // since with deposit window we need to to wait for extra for aave deposit for last segemnt
-        // but once the protocol deposit is made for the last segment we need to wait one extra segment for the the last segment deposit to accure interest
-        require(getCurrentSegment() < lastSegment.add(2), 'Game is already completed');
+        require(!isGameCompleted(), 'Game is already completed');
         _;
     }
 
@@ -149,10 +141,14 @@ contract GoodGhosting is Ownable, Pausable {
        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
     }
 
+    function isGameCompleted() view public returns (bool) {
+        // Game is completed when the current segment is greater than "lastSegment" of the game.
+        return getCurrentSegment() > lastSegment;
+    }
 
     function joinGame() external whenNotPaused {
-        require(now < firstSegmentStart.add(segmentLength), "game has already started");
-        require(players[msg.sender].addr != msg.sender, "The player should not have joined the game before");
+        require(getCurrentSegment() == 0, "Game has already started");
+        require(players[msg.sender].addr != msg.sender, "Cannot join the game more than once");
         Player memory newPlayer = Player({
             addr: msg.sender,
             mostRecentSegmentPaid: 0,
@@ -161,23 +157,26 @@ contract GoodGhosting is Ownable, Pausable {
         });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
-        // for first segment
+        // payment for first segment
         _transferDaiToContract();
         emit JoinedGame(msg.sender, segmentPayment);
     }
 
     /**
-       @dev Allows anyone to deposit the previous segment funds to aave.
+       @dev Allows anyone to deposit the previous segment funds into the underlying protocol.
+       Deposits into the protocol can happen at any moment after segment 0 (first deposit window)
+       is completed, as long as the game is not completed.
     */
-    function protocolDeposit() external whenNotPaused {
+    function depositIntoExternalPool() external whenNotPaused whenGameIsNotCompleted {
         uint currentSegment = getCurrentSegment();
-        require(currentSegment > 0, "First Segment has not started");
-        // since the deposit window for 1st segments stats before hence checking whether the deposit window for prev. segment has finished or not
-        require(now > firstSegmentStart.add(segmentLength.mul(currentSegment)), "Deposit Window of previous segment is not finished");
+        require(currentSegment > 0, "Cannot deposit into underlying protocol during segment zero");
         uint256 amount = segmentDeposit[currentSegment.sub(1)];
-        require(amount > 0, "Segment has no deposits");
+        require(amount > 0, "No amount from previous segment to deposit into protocol");
+        // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
+        segmentDeposit[currentSegment.sub(1)] = 0;
         ILendingPool lendingPool = ILendingPool(lendingPoolAddressProvider.getLendingPool());
         lendingPool.deposit(address(daiToken), amount, 0);
+        emit FundsDepositedIntoExternalPool(currentSegment, amount);
     }
 
     /**
@@ -186,10 +185,12 @@ contract GoodGhosting is Ownable, Pausable {
     */
     function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
         Player storage player = players[msg.sender];
+        // Makes sure player didn't withdraw; otherwise, player could withdraw multiple times.
+        require(!player.withdrawn, "Player has already withdrawn");
         // since atokenunderlying has 1:1 ratio so we redeem the amount paid by the player
         player.withdrawn = true;
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
-        // So if earlyWithdrawalFee is 10% and deposit amount is 10 dai, player will get 9 dai back, losing 1 dai.
+        // So if earlyWithdrawalFee is 10% and deposit amount is 10 dai, player will get 9 dai back, keeping 1 dai in the pool.
         uint withdrawAmount = player.amountPaid.sub(player.amountPaid.mul(earlyWithdrawalFee).div(100));
         uint contractBalance = IERC20(daiToken).balanceOf(address(this));
         // Only withdraw funds from underlying pool if contract doesn't have enough balance to fulfill the early withdraw.
@@ -241,26 +242,31 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
 
-    function makeDeposit() external whenNotPaused whenGameIsNotCompleted {
+    function makeDeposit() external whenNotPaused {
         // only registered players can deposit
-        require(!players[msg.sender].withdrawn, "Player is not a part of the game");
+        require(!players[msg.sender].withdrawn, "Player already withdraw from game");
         require(players[msg.sender].addr == msg.sender, "Sender is not a player");
 
         uint currentSegment = getCurrentSegment();
-        // should not be staging segment
-        require(currentSegment > 0, "Deposits start after the first segment");
+        // User can only deposit between segment 1 and segmetn n-1 (where n the number of segments for the game).
+        // Details:
+        // Segment 0 is paid when user joins the game (the first deposit window).
+        // Last segment doesn't accept payments, because the payment window for the last
+        // segment happens on segment n-1 (penultimate segment).
+        // Any segment greather than the last segment means the game is completed, and cannot
+        // receive payments
+        require(currentSegment > 0 && currentSegment < lastSegment, "Deposit available only between segment 1 and segment n-1 (penultimate)");
 
         //check if current segment is currently unpaid
         require(players[msg.sender].mostRecentSegmentPaid != currentSegment, "Player already paid current segment");
 
         // check player has made payments up to the previous segment
-        // currentSegment will return 1 when the user pays for current segment
-        if (currentSegment != 1) {
-           require(players[msg.sender].mostRecentSegmentPaid == (currentSegment.sub(1)),
-           "Player didn't pay the previous segment - game over!"
+        require(
+            players[msg.sender].mostRecentSegmentPaid == currentSegment.sub(1),
+            "Player didn't pay the previous segment - game over!"
         );
-        }
-        //💰allow deposit to happen
+
+        //:moneybag:allow deposit to happen
         _transferDaiToContract();
 
         // check if this is deposit for the last segment
