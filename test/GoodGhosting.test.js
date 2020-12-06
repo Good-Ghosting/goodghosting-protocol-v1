@@ -400,6 +400,19 @@ contract("GoodGhosting", (accounts) => {
             assert(player1PostWithdrawBalance.sub(player1PreWithdrawBalance).eq(segmentPayment.sub(feeAmount)));
         });
 
+        it("withdraws user balance subtracted by early withdraw fee when not enough withdrawable balance in the contract", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame({ from: player1 });
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await goodGhosting.depositIntoExternalPool({ from: player1 });
+            // Expect Player1 to get back their deposit minus the early withdraw fee defined in the constructor.
+            const player1PreWithdrawBalance = await token.balanceOf(player1);
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            const player1PostWithdrawBalance = await token.balanceOf(player1);
+            const feeAmount = segmentPayment.mul(new BN(fee)).div(new BN(100)); // fee is set as an integer, so needs to be converted to a percentage
+            assert(player1PostWithdrawBalance.sub(player1PreWithdrawBalance).eq(segmentPayment.sub(feeAmount)));
+        });
+
         it("emits EarlyWithdrawal event when user withdraws before end of game", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
