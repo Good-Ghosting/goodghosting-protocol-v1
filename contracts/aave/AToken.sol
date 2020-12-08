@@ -3,8 +3,6 @@
 pragma solidity ^0.6.0;
 
 interface AToken {
-    function redeem(uint256 _amount) external;
-
     /**
      * @dev Returns the amount of tokens owned by `account`.
      */
