@@ -58,7 +58,7 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 amount
     );
     event Withdrawal(address indexed player, uint256 amount);
-    event FundsDepositedIntoExternalPool(uint256 segment, uint256 amount);
+    event FundsDepositedIntoExternalPool(uint256 amount);
     event FundsRedeemedFromExternalPool(
         uint256 totalAmount,
         uint256 totalGamePrincipal,
@@ -215,7 +215,7 @@ contract GoodGhosting is Ownable, Pausable {
         // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
         segmentDeposit[currentSegment.sub(1)] = 0;
         lendingPool.deposit(address(daiToken), amount, 0);
-        emit FundsDepositedIntoExternalPool(currentSegment, amount);
+        emit FundsDepositedIntoExternalPool(amount);
     }
 
     /**
