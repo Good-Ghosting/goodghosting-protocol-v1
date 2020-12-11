@@ -11,6 +11,7 @@ abstract contract ILendingPoolAddressesProvider {
 
     function getLendingPool() public virtual view returns (address);
     function setLendingPoolImpl(address _pool) public virtual;
+    function getAddress(bytes32 id) public virtual view returns (address);
 
     function getLendingPoolCore() public virtual view returns (address payable);
     function setLendingPoolCoreImpl(address _lendingPoolCore) public virtual;

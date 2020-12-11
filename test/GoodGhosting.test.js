@@ -40,6 +40,7 @@ contract("GoodGhosting", (accounts) => {
             segmentLength,
             segmentPayment,
             fee,
+            "0x1",
             { from: admin },
         );
     });

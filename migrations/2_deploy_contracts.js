@@ -11,7 +11,7 @@ const {providers, deployConfigs} = require("../deploy.config");
 
 /** @dev truffle may use network name as "kovan-fork", for example, so we need to get the correct name to be used in the configs */
 function getNetworkName(network) {
-    
+
     if (Object.prototype.toString.call(network) !== "[object String]") {
         throw new Error(`Invalid value type for parameter "${network}"`);
     }
@@ -33,6 +33,7 @@ function printSummary(
         segmentLength,
         segmentPaymentWei,
         earlyWithdrawFee,
+        dataProviderId
     },
     // additional logging info
     {
@@ -41,7 +42,7 @@ function printSummary(
         inboundCurrencySymbol,
         segmentPayment,
     }
-    
+
 ) {
     var parameterTypes = [
         "address", // inboundCurrencyAddress
@@ -50,6 +51,7 @@ function printSummary(
         "uint256", // segmentLength
         "uint256", // segmentPaymentWei
         "uint256", // earlyWithdrawFee
+        "bytes32", // dataProviderId
     ];
     var parameterValues = [
         inboundCurrencyAddress,
@@ -57,7 +59,8 @@ function printSummary(
         segmentCount,
         segmentLength,
         segmentPaymentWei,
-        earlyWithdrawFee
+        earlyWithdrawFee,
+        dataProviderId
     ];
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
 
@@ -72,6 +75,7 @@ function printSummary(
     console.log(`Segment Length: ${segmentLength} seconds`);
     console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
+    console.log(`Data Provider Contract Id: ${dataProviderId}%`);
     console.log('\n\nConstructor Arguments ABI-Enconded:')
     console.log(encodedParameters.toString('hex'));
     console.log("\n\n\n\n");
@@ -83,13 +87,14 @@ module.exports = function(deployer, network, accounts) {
     if (["test", "soliditycoverage"].includes(network)) return;
 
     deployer.then(async () => {
-        
+
         const networkName = getNetworkName(network);
         const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkName];
         const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
         const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
+        const dataProviderId = deployConfigs.dataProviderId
 
 
         // Deploys GoodGhostingContract
@@ -103,6 +108,7 @@ module.exports = function(deployer, network, accounts) {
             deployConfigs.segmentLength,
             segmentPaymentWei,
             deployConfigs.earlyWithdrawFee,
+            dataProviderId
         );
 
         // Prints deployment summary
@@ -114,6 +120,7 @@ module.exports = function(deployer, network, accounts) {
                 segmentLength: deployConfigs.segmentLength,
                 segmentPaymentWei,
                 earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
+                dataProviderId
             },
             {
                 networkName,
