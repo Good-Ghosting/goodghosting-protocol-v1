@@ -171,6 +171,15 @@ Use the following steps to verify the contract on Etherscan:
     6. *Solidity Contract Code*: Copy/Paste the code from the flattened file (after executing steps 1 and 2 above).
     7. *Constructor Arguments ABI-Enconded*: Copy/Paste the Constructor Arguments ABI-Enconded available in the deployment log, displayed in the terminal window
 
+
+## Maintaining Packages Updated
+
+To check for new packages, install [npm-check-updates](https://www.npmjs.com/package/npm-check-updates): `npm install -g npm-check-updates`.
+
+To check for updates for `ncu`
+To check and update `package.json` file, run `ncu -u`. Once completed, make sure to run `npm install` to update all the packages.
+
+
 ## Addresses
 
 **Kovan**
