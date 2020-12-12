@@ -345,7 +345,6 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("emits FundsDepositedIntoExternalPool event for a successful deposit", async () => {
-            const expectedSegment = web3.utils.toBN(1);
             const expectedAmount = web3.utils.toBN(segmentPayment);
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
@@ -354,7 +353,7 @@ contract("GoodGhosting", (accounts) => {
             truffleAssert.eventEmitted(
                 result,
                 "FundsDepositedIntoExternalPool",
-                (ev) => web3.utils.toBN(ev.segment).eq(expectedSegment) && web3.utils.toBN(ev.amount).eq(expectedAmount),
+                (ev) => web3.utils.toBN(ev.amount).eq(expectedAmount),
                 "FundsDepositedIntoExternalPool events was not emitted",
             );
         });
