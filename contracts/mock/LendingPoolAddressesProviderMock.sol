@@ -127,11 +127,8 @@ contract LendingPoolAddressesProviderMock is
     function setLendingRateOracle(address _lendingRateOracle) public override {}
 
     /// ILendingPool interface
-    function deposit(
-        address _reserve,
-        uint256 _amount,
-        uint16 _referralCode
-    ) public override {
+    function deposit(address _reserve, uint256 _amount, address onBehalfOf, uint16 _referralCode)
+     public override {
         IERC20 reserve = IERC20(_reserve);
         reserve.transferFrom(msg.sender, address(this), _amount);
         _mint(msg.sender, _amount);
@@ -142,6 +139,7 @@ contract LendingPoolAddressesProviderMock is
         uint256 amount,
         address to
     ) public override {
+        amount = IERC20(address(this)).balanceOf(msg.sender);
         _burn(to, amount);
         IERC20(asset).transfer(to, amount);
     }

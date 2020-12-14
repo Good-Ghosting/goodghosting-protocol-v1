@@ -40,7 +40,7 @@ contract("GoodGhosting", (accounts) => {
             segmentLength,
             segmentPayment,
             fee,
-            "0x1",
+            pap.address,
             { from: admin },
         );
     });
@@ -531,7 +531,7 @@ contract("GoodGhosting", (accounts) => {
             // Simulate some interest by giving the contract more aDAI
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
 
             // Expect Player1 to get back the deposited amount
