@@ -85,7 +85,7 @@ contract GoodGhosting is Ownable, Pausable {
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
-        @param _dataProviderId id for getting the data provider contract address 0x1 to be passed.
+        @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -94,7 +94,7 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _segmentLength,
         uint256 _segmentPayment,
         uint256 _earlyWithdrawalFee,
-        bytes32 _dataProviderId
+        address _dataProvider
     ) public {
         // Initializes default variables
         firstSegmentStart = block.timestamp; //gets current time
@@ -105,7 +105,7 @@ contract GoodGhosting is Ownable, Pausable {
         daiToken = _inboundCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
         AaveProtocolDataProvider dataProvider = AaveProtocolDataProvider(
-            _lendingPoolAddressProvider.getAddress(_dataProviderId)
+            _dataProvider
         );
         // lending pool needs to be approved in v2 since it is the core contract in v2 and not lending pool core
         lendingPool = ILendingPool(
@@ -214,7 +214,7 @@ contract GoodGhosting is Ownable, Pausable {
         );
         // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
         segmentDeposit[currentSegment.sub(1)] = 0;
-        lendingPool.deposit(address(daiToken), amount, 0);
+        lendingPool.deposit(address(daiToken), amount, address(this), 0);
         emit FundsDepositedIntoExternalPool(amount);
     }
 
@@ -256,9 +256,8 @@ contract GoodGhosting is Ownable, Pausable {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
         // aave has 1:1 peg for tokens and atokens
-        uint256 adaiBalance = AToken(adaiToken).balanceOf(address(this));
         // there is no redeem function in v2 it is replaced by withdraw in v2
-        lendingPool.withdraw(address(daiToken), adaiBalance, address(this));
+        lendingPool.withdraw(address(daiToken), uint(-1), address(this));
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
         totalGameInterest = totalBalance.sub(totalGamePrincipal);

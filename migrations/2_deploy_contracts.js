@@ -33,7 +33,7 @@ function printSummary(
         segmentLength,
         segmentPaymentWei,
         earlyWithdrawFee,
-        dataProviderId
+        dataProviderAddress
     },
     // additional logging info
     {
@@ -51,7 +51,7 @@ function printSummary(
         "uint256", // segmentLength
         "uint256", // segmentPaymentWei
         "uint256", // earlyWithdrawFee
-        "bytes32", // dataProviderId
+        "address", // dataProviderAddress
     ];
     var parameterValues = [
         inboundCurrencyAddress,
@@ -60,7 +60,7 @@ function printSummary(
         segmentLength,
         segmentPaymentWei,
         earlyWithdrawFee,
-        dataProviderId
+        dataProviderAddress
     ];
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
 
@@ -75,7 +75,7 @@ function printSummary(
     console.log(`Segment Length: ${segmentLength} seconds`);
     console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
-    console.log(`Data Provider Contract Id: ${dataProviderId}%`);
+    console.log(`Data Provider Address: ${dataProviderAddress}%`);
     console.log('\n\nConstructor Arguments ABI-Enconded:')
     console.log(encodedParameters.toString('hex'));
     console.log("\n\n\n\n");
@@ -94,7 +94,7 @@ module.exports = function(deployer, network, accounts) {
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
         const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
-        const dataProviderId = deployConfigs.dataProviderId
+        const dataProviderAddress = poolConfigs.dataProvider;
 
 
         // Deploys GoodGhostingContract
@@ -108,7 +108,7 @@ module.exports = function(deployer, network, accounts) {
             deployConfigs.segmentLength,
             segmentPaymentWei,
             deployConfigs.earlyWithdrawFee,
-            dataProviderId
+            dataProviderAddress
         );
 
         // Prints deployment summary
@@ -120,7 +120,7 @@ module.exports = function(deployer, network, accounts) {
                 segmentLength: deployConfigs.segmentLength,
                 segmentPaymentWei,
                 earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
-                dataProviderId
+                dataProviderAddress
             },
             {
                 networkName,
