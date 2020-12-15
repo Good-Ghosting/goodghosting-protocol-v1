@@ -94,7 +94,7 @@ module.exports = function(deployer, network, accounts) {
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
         const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
-        const dataProviderAddress = deployConfigs.dataProvider
+        const dataProviderAddress = poolConfigs.dataProvider;
 
 
         // Deploys GoodGhostingContract
