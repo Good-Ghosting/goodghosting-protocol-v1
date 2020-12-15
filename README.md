@@ -10,7 +10,7 @@ How?
 - To stay in the game, players must deposit before the end of each segment (via `makeDeposit`)
 - At the end of the game, the earned interest is split amongst all players who made every deposit. Aka: the winners. 
 - Players that missed a deposit, still get their principal back but do not earn any interest. 
-- Users can withdraw their principal at any time, if they wish to do so (`emergencyWithdraw`)
+- Users can withdraw their principal at any time, if they wish to do so (`earlyWithdraw`)
 
 # Tests 
 To run tests:
