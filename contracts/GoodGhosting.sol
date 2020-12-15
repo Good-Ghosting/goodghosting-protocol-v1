@@ -219,7 +219,7 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
     /**
-       @dev Allows player to withdrawa funds in the middle of the game with an early withdrawal fee deducted from the user's principal.
+       @dev Allows player to withdraw funds in the middle of the game with an early withdrawal fee deducted from the user's principal.
        earlyWithdrawalFee is set via constructor
     */
     function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
