@@ -257,10 +257,13 @@ contract GoodGhosting is Ownable, Pausable {
         redeemed = true;
         // aave has 1:1 peg for tokens and atokens
         // there is no redeem function in v2 it is replaced by withdraw in v2
-        lendingPool.withdraw(address(daiToken), uint(-1), address(this));
+        lendingPool.withdraw(address(daiToken), uint256(-1), address(this));
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
         totalGameInterest = totalBalance.sub(totalGamePrincipal);
+        if (winners.length == 0) {
+            IERC20(daiToken).transfer(owner(), totalGameInterest);
+        }
         emit FundsRedeemedFromExternalPool(
             totalBalance,
             totalGamePrincipal,
@@ -285,7 +288,10 @@ contract GoodGhosting is Ownable, Pausable {
             // Player is a winner and gets a bonus!
             // No need to worry about if winners.length = 0
             // If we're in this block then the user is a winner
-            payout = payout.add(totalGameInterest / winners.length);
+            // only add interest if there are winners
+            if (winners.length > 0) {
+                payout = payout.add(totalGameInterest / winners.length);
+            }
         }
         IERC20(daiToken).transfer(msg.sender, payout);
         emit Withdrawal(msg.sender, payout);
