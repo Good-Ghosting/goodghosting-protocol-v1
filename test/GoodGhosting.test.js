@@ -517,12 +517,12 @@ contract("GoodGhosting", (accounts) => {
         it("transfers interest to the owner in case no one wins", async () => { // having test with only 1 player for now
             await joinGamePaySegmentsAndIncomplete(player1);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
-            const adminBlance = await token.balanceOf(admin);
-            const primcipalBalance = await token.balanceOf(goodGhosting.address);
+            const adminBalance = await token.balanceOf(admin);
+            const principalBalance = await token.balanceOf(goodGhosting.address);
             truffleAssert.eventEmitted(
                 result,
                 "FundsRedeemedFromExternalPool",
-                (ev) => new BN(ev.totalGameInterest).eq(new BN(adminBlance)) && new BN(ev.totalGamePrincipal).eq(new BN(primcipalBalance)),
+                (ev) => new BN(ev.totalGameInterest).eq(new BN(adminBalance)) && new BN(ev.totalGamePrincipal).eq(new BN(principalBalance)),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
         });
