@@ -80,6 +80,28 @@ contract("GoodGhosting", (accounts) => {
         await timeMachine.advanceTime(weekInSecs);
     }
 
+    async function joinGamePaySegmentsAndIncomplete(player) {
+        await approveDaiToContract(player);
+        await goodGhosting.joinGame({ from: player });
+        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+        for (let index = 1; index < segmentCount - 1; index++) {
+            await timeMachine.advanceTime(weekInSecs);
+            // protocol deposit of the prev. deposit
+            await goodGhosting.depositIntoExternalPool({ from: player1 });
+            await approveDaiToContract(player);
+            await goodGhosting.makeDeposit({ from: player });
+        }
+        await timeMachine.advanceTime(weekInSecs);
+        // protocol deposit of the prev. deposit
+        await goodGhosting.depositIntoExternalPool({ from: player1 });
+        // accounted for 1st deposit window
+        // the loop will run till segmentCount - 1
+        // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
+        // and another segment where the last segment deposit can generate yield
+        await timeMachine.advanceTime(weekInSecs);
+        await timeMachine.advanceTime(weekInSecs);
+    }
+
     describe("pre-flight checks", async () => {
         it("checks if DAI and aDAI contracts have distinct addresses", async () => {
             const daiAdd = token.address;
@@ -490,6 +512,21 @@ contract("GoodGhosting", (accounts) => {
             }, "WinnersAnnouncement event should be emitted when funds are redeemed from external pool");
         });
     });
+
+    describe("when no one wins the game", async () => {
+        it("transfers interest to the owner in case no one wins", async () => { // having test with only 1 player for now
+            await joinGamePaySegmentsAndIncomplete(player1);
+            const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const adminBalance = await token.balanceOf(admin);
+            const principalBalance = await token.balanceOf(goodGhosting.address);
+            truffleAssert.eventEmitted(
+                result,
+                "FundsRedeemedFromExternalPool",
+                (ev) => new BN(ev.totalGameInterest).eq(new BN(adminBalance)) && new BN(ev.totalGamePrincipal).eq(new BN(principalBalance)),
+                "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
+            );
+        });
+    })
 
     describe("when an user tries to withdraw", async () => {
         it("reverts if user tries to withdraw more than once", async () => {
