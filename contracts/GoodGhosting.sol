@@ -123,11 +123,11 @@ contract GoodGhosting is Ownable, Pausable {
         _inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE);
     }
 
-    function pause() public onlyOwner whenNotPaused {
+    function pause() external onlyOwner whenNotPaused {
         _pause();
     }
 
-    function unpause() public onlyOwner whenPaused {
+    function unpause() external onlyOwner whenPaused {
         _unpause();
     }
 
