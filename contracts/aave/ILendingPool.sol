@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.6.0;
+pragma solidity 0.6.11;
 
 interface ILendingPool {
     function deposit(address _reserve, uint256 _amount, address onBehalfOf, uint16 _referralCode) external;
