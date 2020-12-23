@@ -120,7 +120,7 @@ contract GoodGhosting is Ownable, Pausable {
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 MAX_ALLOWANCE = 2**256 - 1;
-        _inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE);
+        require(_inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE), "Fail to approve allowance to lending pool");
     }
 
     function pause() external onlyOwner whenNotPaused {
@@ -243,7 +243,7 @@ contract GoodGhosting is Ownable, Pausable {
                 address(this)
             );
         }
-        IERC20(daiToken).transfer(msg.sender, withdrawAmount);
+        require(IERC20(daiToken).transfer(msg.sender, withdrawAmount), "Fail to transfer ERC20 tokens on early withdraw");
         emit EarlyWithdrawal(msg.sender, withdrawAmount);
     }
 
@@ -262,7 +262,7 @@ contract GoodGhosting is Ownable, Pausable {
         // recording principal amount separately since adai balance will have interest has well
         totalGameInterest = totalBalance.sub(totalGamePrincipal);
         if (winners.length == 0) {
-            IERC20(daiToken).transfer(owner(), totalGameInterest);
+            require(IERC20(daiToken).transfer(owner(), totalGameInterest), "Fail to transfer ER20 tokens to owner");
         }
         emit FundsRedeemedFromExternalPool(
             totalBalance,
@@ -293,7 +293,7 @@ contract GoodGhosting is Ownable, Pausable {
                 payout = payout.add(totalGameInterest / winners.length);
             }
         }
-        IERC20(daiToken).transfer(msg.sender, payout);
+        require(IERC20(daiToken).transfer(msg.sender, payout), "Fail to transfer ERC20 tokens on withdraw");
         emit Withdrawal(msg.sender, payout);
     }
 
