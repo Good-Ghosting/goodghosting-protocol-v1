@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.6.0;
+pragma solidity 0.6.11;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -120,14 +120,14 @@ contract GoodGhosting is Ownable, Pausable {
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 MAX_ALLOWANCE = 2**256 - 1;
-        _inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE);
+        require(_inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE), "Fail to approve allowance to lending pool");
     }
 
-    function pause() public onlyOwner whenNotPaused {
+    function pause() external onlyOwner whenNotPaused {
         _pause();
     }
 
-    function unpause() public onlyOwner whenPaused {
+    function unpause() external onlyOwner whenPaused {
         _unpause();
     }
 
@@ -187,9 +187,10 @@ contract GoodGhosting is Ownable, Pausable {
         });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
+        emit JoinedGame(msg.sender, segmentPayment);
+
         // payment for first segment
         _transferDaiToContract();
-        emit JoinedGame(msg.sender, segmentPayment);
     }
 
     /**
@@ -214,8 +215,10 @@ contract GoodGhosting is Ownable, Pausable {
         );
         // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
         segmentDeposit[currentSegment.sub(1)] = 0;
-        lendingPool.deposit(address(daiToken), amount, address(this), 0);
+
         emit FundsDepositedIntoExternalPool(amount);
+
+        lendingPool.deposit(address(daiToken), amount, address(this), 0);
     }
 
     /**
@@ -234,6 +237,9 @@ contract GoodGhosting is Ownable, Pausable {
             player.amountPaid.mul(earlyWithdrawalFee).div(100)
         );
         uint256 contractBalance = IERC20(daiToken).balanceOf(address(this));
+
+        emit EarlyWithdrawal(msg.sender, withdrawAmount);
+
         // Only withdraw funds from underlying pool if contract doesn't have enough balance to fulfill the early withdraw.
         // there is no redeem function in v2 it is replaced by withdraw in v2
         if (contractBalance < withdrawAmount) {
@@ -243,8 +249,7 @@ contract GoodGhosting is Ownable, Pausable {
                 address(this)
             );
         }
-        IERC20(daiToken).transfer(msg.sender, withdrawAmount);
-        emit EarlyWithdrawal(msg.sender, withdrawAmount);
+        require(IERC20(daiToken).transfer(msg.sender, withdrawAmount), "Fail to transfer ERC20 tokens on early withdraw");
     }
 
     /**
@@ -257,28 +262,26 @@ contract GoodGhosting is Ownable, Pausable {
         redeemed = true;
         // aave has 1:1 peg for tokens and atokens
         // there is no redeem function in v2 it is replaced by withdraw in v2
+        // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
         lendingPool.withdraw(address(daiToken), uint(-1), address(this));
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
         totalGameInterest = totalBalance.sub(totalGamePrincipal);
-        if (winners.length == 0) {
-            IERC20(daiToken).transfer(owner(), totalGameInterest);
-        }
+
         emit FundsRedeemedFromExternalPool(
             totalBalance,
             totalGamePrincipal,
             totalGameInterest
         );
         emit WinnersAnnouncement(winners);
+
+        if (winners.length == 0) {
+            require(IERC20(daiToken).transfer(owner(), totalGameInterest), "Fail to transfer ER20 tokens to owner");
+        }
     }
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
     function withdraw() external {
-        // First player to withdraw redeems everyone's funds
-        if (!redeemed) {
-            redeemFromExternalPool();
-        }
-
         Player storage player = players[msg.sender];
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
@@ -293,8 +296,14 @@ contract GoodGhosting is Ownable, Pausable {
                 payout = payout.add(totalGameInterest / winners.length);
             }
         }
-        IERC20(daiToken).transfer(msg.sender, payout);
         emit Withdrawal(msg.sender, payout);
+
+        // First player to withdraw redeems everyone's funds
+        if (!redeemed) {
+            redeemFromExternalPool();
+        }
+
+        require(IERC20(daiToken).transfer(msg.sender, payout), "Fail to transfer ERC20 tokens on withdraw");
     }
 
     function makeDeposit() external whenNotPaused {
@@ -333,14 +342,15 @@ contract GoodGhosting is Ownable, Pausable {
             "Player didn't pay the previous segment - game over!"
         );
 
-        //:moneybag:allow deposit to happen
-        _transferDaiToContract();
-
         // check if this is deposit for the last segment
         // if so, the user is a winner
         if (currentSegment == lastSegment.sub(1)) {
             winners.push(msg.sender);
         }
+
         emit Deposit(msg.sender, currentSegment, segmentPayment);
+
+        //:moneybag:allow deposit to happen
+        _transferDaiToContract();
     }
 }
