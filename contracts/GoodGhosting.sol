@@ -236,6 +236,8 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 withdrawAmount = player.amountPaid.sub(
             player.amountPaid.mul(earlyWithdrawalFee).div(100)
         );
+        // Decreases the totalGamePrincipal on earlyWithdraw
+        totalGamePrincipal = totalGamePrincipal.sub(segmentPayment);
         uint256 contractBalance = IERC20(daiToken).balanceOf(address(this));
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount);
