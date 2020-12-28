@@ -1,4 +1,3 @@
-const path = require("path");
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 
 require("dotenv").config();
@@ -6,7 +5,6 @@ require("dotenv").config();
 module.exports = {
     // See <http://truffleframework.com/docs/advanced/configuration>
     // to customize your Truffle configuration!
-    // contracts_build_directory: path.join(__dirname, "app/src/contracts"),
 
     plugins: [
         //"truffle-security",
@@ -21,10 +19,23 @@ module.exports = {
         reporterOptions : {
             currency: "USD",
             showTimeSpent: true,
+            coinmarketcap: process.env.COINMARKETCAP_API_KEY,
+            excludeContracts: ["Migrations", "ForceSend"]
         }
     },
 
     networks: {
+
+        "teams-mainnet-fork": {
+            url: "", // Get URL from Truffle Teams
+            network_id: 0, // Get network_id from Truffle Teams
+        },
+
+        "local-mainnet-fork": {
+            host: "127.0.0.1",
+            port: 8545,
+            network_id: "*",
+        },
 
         kovan: {
             provider: () => new HDWalletProvider(

@@ -83,6 +83,9 @@ function printSummary(
 }
 
 module.exports = function(deployer, network, accounts) {
+    // Injects network name into process .env variable to make accessible on test suite.
+    process.env.NETWORK = network;
+
     // Skips migration for local tests and soliditycoverage
     if (["test", "soliditycoverage"].includes(network)) return;
 

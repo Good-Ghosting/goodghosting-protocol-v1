@@ -7,6 +7,10 @@ const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 
 contract("GoodGhosting", (accounts) => {
+
+    // Only executes this test file for local network fork
+    if (process.env.NETWORK === "local-mainnet-fork") return;
+
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     const admin = accounts[0];
     let token;

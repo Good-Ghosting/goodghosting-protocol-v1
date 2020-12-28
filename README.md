@@ -16,6 +16,16 @@ How?
 To run tests:
 `truffle test`
 
+## Tests forking from Mainnet
+Steps:
+
+- Configure `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` in your `.env` file with an externally owned account (not smart contract) that holds enough DAI balance on the forked network. To find one, go to the DAI Token explorer (https://ethplorer.io/ or https://etherscan.io/) and get one of the top holders
+
+- On a terminal window, execute `ganache-cli` forking from mainnet. For details, check this [article](https://ethereumdev.io/testing-your-smart-contract-with-existing-protocols-ganache-fork/). Make sure to pass the address defined in the `.env` file in the `--unlock` parameter. The full command should look something like this: `ganache-cli -f https://cloudflare-eth.com/  -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
+
+- On another terminal window (from the root of the project directory), run `truffle test --network local-mainnet-fork` or `npm run test:fork:mainnet`
+
+
 # Internals
 
 [Based on Drizzle box](https://www.trufflesuite.com/boxes/drizzle).
