@@ -6,6 +6,7 @@ module.exports = {
         'mock/SimpleMintable.sol',
         'mock/TestBundle.sol',
         'mock/ERC20Mintable.sol',
+        'mock/ForceSend.sol',
         'aave/AToken.sol',
         'aave/ILendingPool.sol',
         'aave/ILendingPoolAddressesProvider.sol',

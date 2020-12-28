@@ -5,6 +5,7 @@
     "main": "truffle-config.js",
     "scripts": {
         "test": "truffle test",
+        "test:fork:mainnet": "truffle test --network local-mainnet-fork",
         "coverage": "truffle run coverage",
         "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",
         "deploy:kovan": "truffle deploy -f 2 --network kovan --reset",
