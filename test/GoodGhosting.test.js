@@ -19,6 +19,7 @@ contract("GoodGhosting", (accounts) => {
     let pap;
     let player1 = accounts[1];
     let player2 = accounts[2];
+    let player3 = accounts[3];
     const weekInSecs = 180;
     const fee = 9; // represents 9%
     const daiDecimals = web3.utils.toBN(1000000000000000000);
@@ -198,6 +199,10 @@ contract("GoodGhosting", (accounts) => {
             await goodGhosting.pause({ from: admin });
             await truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "Pausable: paused");
         });
+
+        it("reverts if user does not approve the contract to spend dai", async () => {
+            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "You need to have allowance to do transfer DAI on the smart contract");
+        })
 
         it("reverts if the user tries to join after the first segment", async () => {
             await timeMachine.advanceTime(weekInSecs);
