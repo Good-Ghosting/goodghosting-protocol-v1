@@ -535,6 +535,19 @@ contract("GoodGhosting", (accounts) => {
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
         });
+
+        it("transfers principal to the user in case no one wins", async () => {
+            await joinGamePaySegmentsAndIncomplete(player1);
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const result = await goodGhosting.withdraw({ from: player1 });
+
+            truffleAssert.eventEmitted(
+                result,
+                "Withdrawal",
+                (ev) => ev.player === player1,
+                "Withdrawal event should be emitted when user tries to withdraw their principal",
+            );
+        })
     })
 
     describe("when an user tries to withdraw", async () => {
