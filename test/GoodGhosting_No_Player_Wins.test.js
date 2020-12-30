@@ -96,8 +96,8 @@ contract("GoodGhosting", (accounts) => {
                     console.log("totalGamePrincipal", ev.totalGamePrincipal.toString());
                     console.log("totalGameInterest", ev.totalGameInterest.toString());
                     console.log("interestPerPlayer", ev.totalGameInterest.div(new BN(players.length - 1)).toString());
-                    eventAmount = new BN(ev.totalAmount.toString());
-                    // contractsDaiBalance does not have the interest included this is a weird issue
+                    // interest already transferred to the admin
+                    eventAmount = new BN(ev.totalGamePrincipal.toString());
                     return eventAmount.eq(contractsDaiBalance);
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
