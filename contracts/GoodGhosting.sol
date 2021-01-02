@@ -238,6 +238,20 @@ contract GoodGhosting is Ownable, Pausable {
         );
         // Decreases the totalGamePrincipal on earlyWithdraw
         totalGamePrincipal = totalGamePrincipal.sub(withdrawAmount);
+        // BUG FIX - Deposit External Pool Tx reverted after an early withdraw
+        // Fixed by first checking at what segment early withdraw happens if > 0 then re-assign current segment as -1
+        // Since in deposit external pool the amount is calculated from the segmentDeposit mapping
+        // and the amount is reduced by withdrawAmount
+        uint256 currentSegment = getCurrentSegment();
+        if (currentSegment > 0) {
+            currentSegment = currentSegment.sub(1);
+        }
+        if (segmentDeposit[currentSegment] > 0) {
+            segmentDeposit[currentSegment] = segmentDeposit[currentSegment].sub(
+            withdrawAmount
+        );
+        }
+
         uint256 contractBalance = IERC20(daiToken).balanceOf(address(this));
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount);
@@ -253,6 +267,7 @@ contract GoodGhosting is Ownable, Pausable {
         }
         require(IERC20(daiToken).transfer(msg.sender, withdrawAmount), "Fail to transfer ERC20 tokens on early withdraw");
     }
+
 
     /**
         Reedems funds from external pool and calculates total amount of interest for the game.
