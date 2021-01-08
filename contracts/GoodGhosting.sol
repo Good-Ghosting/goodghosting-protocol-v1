@@ -120,7 +120,10 @@ contract GoodGhosting is Ownable, Pausable {
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 MAX_ALLOWANCE = 2**256 - 1;
-        require(_inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE), "Fail to approve allowance to lending pool");
+        require(
+            _inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE),
+            "Fail to approve allowance to lending pool"
+        );
     }
 
     function pause() external onlyOwner whenNotPaused {
@@ -247,9 +250,12 @@ contract GoodGhosting is Ownable, Pausable {
             currentSegment = currentSegment.sub(1);
         }
         if (segmentDeposit[currentSegment] > 0) {
-            segmentDeposit[currentSegment] = segmentDeposit[currentSegment].sub(
-            withdrawAmount
-        );
+            if (segmentDeposit[currentSegment] >= withdrawAmount) {
+                segmentDeposit[currentSegment] = segmentDeposit[currentSegment]
+                    .sub(withdrawAmount);
+            } else {
+                segmentDeposit[currentSegment] = 0;
+            }
         }
 
         uint256 contractBalance = IERC20(daiToken).balanceOf(address(this));
@@ -265,9 +271,11 @@ contract GoodGhosting is Ownable, Pausable {
                 address(this)
             );
         }
-        require(IERC20(daiToken).transfer(msg.sender, withdrawAmount), "Fail to transfer ERC20 tokens on early withdraw");
+        require(
+            IERC20(daiToken).transfer(msg.sender, withdrawAmount),
+            "Fail to transfer ERC20 tokens on early withdraw"
+        );
     }
-
 
     /**
         Reedems funds from external pool and calculates total amount of interest for the game.
@@ -280,7 +288,7 @@ contract GoodGhosting is Ownable, Pausable {
         // aave has 1:1 peg for tokens and atokens
         // there is no redeem function in v2 it is replaced by withdraw in v2
         // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
-        lendingPool.withdraw(address(daiToken), uint(-1), address(this));
+        lendingPool.withdraw(address(daiToken), uint256(-1), address(this));
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
         totalGameInterest = totalBalance.sub(totalGamePrincipal);
@@ -293,7 +301,10 @@ contract GoodGhosting is Ownable, Pausable {
         emit WinnersAnnouncement(winners);
 
         if (winners.length == 0) {
-            require(IERC20(daiToken).transfer(owner(), totalGameInterest), "Fail to transfer ER20 tokens to owner");
+            require(
+                IERC20(daiToken).transfer(owner(), totalGameInterest),
+                "Fail to transfer ER20 tokens to owner"
+            );
         }
     }
 
@@ -320,7 +331,10 @@ contract GoodGhosting is Ownable, Pausable {
             redeemFromExternalPool();
         }
 
-        require(IERC20(daiToken).transfer(msg.sender, payout), "Fail to transfer ERC20 tokens on withdraw");
+        require(
+            IERC20(daiToken).transfer(msg.sender, payout),
+            "Fail to transfer ERC20 tokens on withdraw"
+        );
     }
 
     function makeDeposit() external whenNotPaused {

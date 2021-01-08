@@ -537,6 +537,8 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("transfers principal to the user in case no one wins", async () => {
+            const incompleteSegment = segmentCount - 1;
+            const amountPaidInGame = web3.utils.toBN(segmentPayment * incompleteSegment);
             await joinGamePaySegmentsAndIncomplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const result = await goodGhosting.withdraw({ from: player1 });
@@ -544,7 +546,7 @@ contract("GoodGhosting", (accounts) => {
             truffleAssert.eventEmitted(
                 result,
                 "Withdrawal",
-                (ev) => ev.player === player1,
+                (ev) => ev.player === player1 && web3.utils.toBN(ev.amount).eq(amountPaidInGame),
                 "Withdrawal event should be emitted when user tries to withdraw their principal",
             );
         })

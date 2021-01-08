@@ -68,7 +68,7 @@ contract("GoodGhosting", (accounts) => {
             }
         });
 
-        it("runs the game - all players don not complete the game after joining", async () => {
+        it("runs the game - all players do not complete the game after joining", async () => {
             // only depositing funds for the 1st payment window and running a loop to finish the game without any deposits
             await timeMachine.advanceTime(segmentLength);
             await goodGhosting.depositIntoExternalPool({ from: admin });
@@ -85,8 +85,11 @@ contract("GoodGhosting", (accounts) => {
 
         it("redeems funds from external pool", async () => {
             let eventAmount = new BN(0);
+            let interestAmount = new BN(0);
             const result = await goodGhosting.redeemFromExternalPool({ from: admin });
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
+            const adminsDaiBalance = new BN(await token.methods.balanceOf(admin).call({ from: admin }));
+
             console.log("contractsDaiBalance", contractsDaiBalance.toString());
             truffleAssert.eventEmitted(
                 result,
@@ -95,10 +98,10 @@ contract("GoodGhosting", (accounts) => {
                     console.log("totalContractAmount", ev.totalAmount.toString());
                     console.log("totalGamePrincipal", ev.totalGamePrincipal.toString());
                     console.log("totalGameInterest", ev.totalGameInterest.toString());
-                    console.log("interestPerPlayer", ev.totalGameInterest.div(new BN(players.length - 1)).toString());
                     // interest already transferred to the admin
                     eventAmount = new BN(ev.totalGamePrincipal.toString());
-                    return eventAmount.eq(contractsDaiBalance);
+                    interestAmount = new BN(ev.totalGameInterest.toString());
+                    return eventAmount.eq(contractsDaiBalance) && interestAmount.eq(adminsDaiBalance);
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
             );
