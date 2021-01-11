@@ -162,7 +162,7 @@ contract("GoodGhosting", (accounts) => {
                 const result = await goodGhosting.withdraw({ from: player });
                 truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
-                    return ev.player === player && new BN(ev.amount.toString()).gte(playerInfo.amountPaid);
+                    return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid);
                 }, "unable to withdraw amount");
             }
         });
