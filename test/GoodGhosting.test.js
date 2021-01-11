@@ -19,6 +19,7 @@ contract("GoodGhosting", (accounts) => {
     let pap;
     let player1 = accounts[1];
     let player2 = accounts[2];
+    let player3 = accounts[3];
     const weekInSecs = 180;
     const fee = 9; // represents 9%
     const daiDecimals = web3.utils.toBN(1000000000000000000);
@@ -198,6 +199,10 @@ contract("GoodGhosting", (accounts) => {
             await goodGhosting.pause({ from: admin });
             await truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "Pausable: paused");
         });
+
+        it("reverts if user does not approve the contract to spend dai", async () => {
+            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "You need to have allowance to do transfer DAI on the smart contract");
+        })
 
         it("reverts if the user tries to join after the first segment", async () => {
             await timeMachine.advanceTime(weekInSecs);
@@ -530,6 +535,21 @@ contract("GoodGhosting", (accounts) => {
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
         });
+
+        it("transfers principal to the user in case no one wins", async () => {
+            const incompleteSegment = segmentCount - 1;
+            const amountPaidInGame = web3.utils.toBN(segmentPayment * incompleteSegment);
+            await joinGamePaySegmentsAndIncomplete(player1);
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const result = await goodGhosting.withdraw({ from: player1 });
+
+            truffleAssert.eventEmitted(
+                result,
+                "Withdrawal",
+                (ev) => ev.player === player1 && web3.utils.toBN(ev.amount).eq(amountPaidInGame),
+                "Withdrawal event should be emitted when user tries to withdraw their principal",
+            );
+        })
     })
 
     describe("when an user tries to withdraw", async () => {

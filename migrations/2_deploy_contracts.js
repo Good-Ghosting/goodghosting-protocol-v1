@@ -75,7 +75,7 @@ function printSummary(
     console.log(`Segment Length: ${segmentLength} seconds`);
     console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
-    console.log(`Data Provider Address: ${dataProviderAddress}%`);
+    console.log(`Data Provider Address: ${dataProviderAddress}`);
     console.log('\n\nConstructor Arguments ABI-Enconded:')
     console.log(encodedParameters.toString('hex'));
     console.log("\n\n\n\n");

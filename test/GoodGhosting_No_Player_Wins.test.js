@@ -18,12 +18,11 @@ contract("GoodGhosting", (accounts) => {
     let token;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
-    const loser = players[0];
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(segmentPaymentInt)); // equivalent to 10 DAI
     let goodGhosting;
 
-    describe("simulates a full game with 5 players and 4 of them winning the game", async () => {
+    describe("simulates a full game with 5 players and none of them winning the game", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             goodGhosting = await GoodGhosting.deployed();
@@ -43,22 +42,6 @@ contract("GoodGhosting", (accounts) => {
                 const playerBalance = await token.methods.balanceOf(player).call({ from: admin });
                 console.log(`player${i+1}DAIBalance`, web3.utils.fromWei(playerBalance));
             }
-        });
-
-        it("checks if the contract's variables were properly initialized", async () => {
-            const inboundCurrencyResult = await goodGhosting.daiToken.call();
-            const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
-            const lastSegmentResult = await goodGhosting.lastSegment.call();
-            const segmentLengthResult = await goodGhosting.segmentLength.call();
-            const segmentPaymentResult = await goodGhosting.segmentPayment.call();
-            const expectedSegment = new BN(0);
-            const currentSegmentResult = await goodGhosting.getCurrentSegment.call({ from: admin });
-            assert(inboundCurrencyResult === token.options.address, `Inbound currency doesn't match. expected ${token.options.address}; got ${inboundCurrencyResult}`);
-            assert(lendingPoolAddressProviderResult === providersConfigs.lendingPoolAddressProvider, `LendingPoolAddressesProvider doesn't match. expected ${providersConfigs.dataProvider}; got ${lendingPoolAddressProviderResult}`);
-            assert(new BN(lastSegmentResult).eq(new BN(segmentCount)), `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`);
-            assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
-            assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
-            assert(currentSegmentResult.eq(new BN(0)), `should start at segment ${expectedSegment} but started at ${currentSegmentResult.toNumber()} instead.`);
         });
 
         it("players approve DAI to contract and join the game", async () => {
@@ -85,50 +68,28 @@ contract("GoodGhosting", (accounts) => {
             }
         });
 
-        it("runs the game - 'player1' early withdraws and other players complete game successfully", async () => {
-            // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
-            for (let segmentIndex = 1; segmentIndex < segmentCount; segmentIndex++) {
-                await timeMachine.advanceTime(segmentLength);
-                // protocol deposit of the prev. deposit
-                await goodGhosting.depositIntoExternalPool({ from: admin });
-
-                // Player 1 (index 0 - loser), performs an early withdraw on first segment.
-                if (segmentIndex === 1) {
-                    const earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser});
-                    truffleAssert.eventEmitted(
-                        earlyWithdrawResult,
-                        "EarlyWithdrawal",
-                        (ev) => ev.player === loser,
-                        "loser unable to early withdraw from game",
-                    );
-                }
-
-                // j must start at 1 - Player1 (index 0) early withdraw, so won't continue making deposits
-                for (let j = 1; j < players.length; j++) {
-                    const player = players[j];
-                    const depositResult = await goodGhosting.makeDeposit({ from: player });
-                    truffleAssert.eventEmitted(
-                        depositResult,
-                        "Deposit",
-                        (ev) => ev.player === player && ev.segment.toNumber() === segmentIndex,
-                        `player ${j} unable to deposit for segment ${segmentIndex}`,
-                    );
-                }
-            }
-            // accounted for 1st deposit window
-            // the loop will run till segmentCount - 1
-            // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-            // and another segment where the last segment deposit can generate yield
+        it("runs the game - all players do not complete the game after joining", async () => {
+            // only depositing funds for the 1st payment window and running a loop to finish the game without any deposits
             await timeMachine.advanceTime(segmentLength);
             await goodGhosting.depositIntoExternalPool({ from: admin });
+            for (let segmentIndex = 2; segmentIndex < segmentCount; segmentIndex++) {
+                await timeMachine.advanceTime(segmentLength);
+            }
+            // the loop will run till segmentCount - 1
+            // completing the rest of the game
+            await timeMachine.advanceTime(segmentLength);
+            await truffleAssert.reverts(goodGhosting.depositIntoExternalPool({ from: admin }), "No amount from previous segment to deposit into protocol");
             await timeMachine.advanceTime(segmentLength);
         });
 
 
         it("redeems funds from external pool", async () => {
             let eventAmount = new BN(0);
+            let interestAmount = new BN(0);
             const result = await goodGhosting.redeemFromExternalPool({ from: admin });
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
+            const adminsDaiBalance = new BN(await token.methods.balanceOf(admin).call({ from: admin }));
+
             console.log("contractsDaiBalance", contractsDaiBalance.toString());
             truffleAssert.eventEmitted(
                 result,
@@ -137,15 +98,16 @@ contract("GoodGhosting", (accounts) => {
                     console.log("totalContractAmount", ev.totalAmount.toString());
                     console.log("totalGamePrincipal", ev.totalGamePrincipal.toString());
                     console.log("totalGameInterest", ev.totalGameInterest.toString());
-                    console.log("interestPerPlayer", ev.totalGameInterest.div(new BN(players.length - 1)).toString());
-                    eventAmount = new BN(ev.totalAmount.toString());
-                    return eventAmount.eq(contractsDaiBalance);
+                    // interest already transferred to the admin
+                    eventAmount = new BN(ev.totalGamePrincipal.toString());
+                    interestAmount = new BN(ev.totalGameInterest.toString());
+                    return eventAmount.eq(contractsDaiBalance) && interestAmount.eq(adminsDaiBalance);
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
             );
         });
 
-        it("players withdraw from contract", async () => { // having test with only 1 player for now
+        it("players withdraw principal from contract", async () => { // having test with only 1 player for now
             // starts from 1, since player1 (loser), requested an early withdraw
             for (let i = 1; i < players.length; i++) {
                 const player = players[i];

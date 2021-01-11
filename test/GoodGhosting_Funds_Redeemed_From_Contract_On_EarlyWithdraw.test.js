@@ -19,11 +19,12 @@ contract("GoodGhosting", (accounts) => {
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
+    const secondLoser = players[1];
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(segmentPaymentInt)); // equivalent to 10 DAI
     let goodGhosting;
 
-    describe("simulates a full game with 5 players and 4 of them winning the game", async () => {
+    describe("simulates a full game with 5 players and 4 of them winning the game, the loser does an early withdraw where the funds are redeemed directly from the contract", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             goodGhosting = await GoodGhosting.deployed();
@@ -90,8 +91,6 @@ contract("GoodGhosting", (accounts) => {
             for (let segmentIndex = 1; segmentIndex < segmentCount; segmentIndex++) {
                 await timeMachine.advanceTime(segmentLength);
                 // protocol deposit of the prev. deposit
-                await goodGhosting.depositIntoExternalPool({ from: admin });
-
                 // Player 1 (index 0 - loser), performs an early withdraw on first segment.
                 if (segmentIndex === 1) {
                     const earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser});
@@ -103,17 +102,45 @@ contract("GoodGhosting", (accounts) => {
                     );
                 }
 
+                // since funds haven't been deposited to external pool yet so the funds will be redeemed from the contract directly
+                await goodGhosting.depositIntoExternalPool({ from: admin });
+
                 // j must start at 1 - Player1 (index 0) early withdraw, so won't continue making deposits
-                for (let j = 1; j < players.length; j++) {
-                    const player = players[j];
-                    const depositResult = await goodGhosting.makeDeposit({ from: player });
-                    truffleAssert.eventEmitted(
-                        depositResult,
-                        "Deposit",
-                        (ev) => ev.player === player && ev.segment.toNumber() === segmentIndex,
-                        `player ${j} unable to deposit for segment ${segmentIndex}`,
-                    );
+                if (segmentIndex === 1) {
+                    // All players pay for the 1st segment
+                    for (let j = 1; j < players.length; j++) {
+                        const player = players[j];
+                        const depositResult = await goodGhosting.makeDeposit({ from: player });
+                        truffleAssert.eventEmitted(
+                            depositResult,
+                            "Deposit",
+                            (ev) => ev.player === player && ev.segment.toNumber() === segmentIndex,
+                            `player ${j} unable to deposit for segment ${segmentIndex}`,
+                        );
+                    }
+                } else if (segmentIndex > 1) {
+                    // Segment 2 onwards secondLoser withdraws from the game and since segment deposit is < than withdrawn amount the segment deposit is set to 0
+                    if (segmentIndex === 2) {
+                        const earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: secondLoser});
+                        truffleAssert.eventEmitted(
+                            earlyWithdrawResult,
+                            "EarlyWithdrawal",
+                            (ev) => ev.player === secondLoser,
+                            "loser unable to early withdraw from game",
+                        );
+                    }
+                    for (let j = 2; j < players.length; j++) {
+                        const player = players[j];
+                        const depositResult = await goodGhosting.makeDeposit({ from: player });
+                        truffleAssert.eventEmitted(
+                            depositResult,
+                            "Deposit",
+                            (ev) => ev.player === player && ev.segment.toNumber() === segmentIndex,
+                            `player ${j} unable to deposit for segment ${segmentIndex}`,
+                        );
+                    }
                 }
+
             }
             // accounted for 1st deposit window
             // the loop will run till segmentCount - 1
@@ -146,8 +173,8 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("players withdraw from contract", async () => { // having test with only 1 player for now
-            // starts from 1, since player1 (loser), requested an early withdraw
-            for (let i = 1; i < players.length; i++) {
+            // starts from 2, since player1 (loser) and player2 (secondLoser), requested an early withdraw
+            for (let i = 2; i < players.length; i++) {
                 const player = players[i];
                 const result = await goodGhosting.withdraw({ from: player });
                 truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {

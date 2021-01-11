@@ -19,11 +19,12 @@ contract("GoodGhosting", (accounts) => {
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
+    const attacker = accounts[7];
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(segmentPaymentInt)); // equivalent to 10 DAI
     let goodGhosting;
 
-    describe("simulates a full game with 5 players and 4 of them winning the game", async () => {
+    describe("simulates a full game with 5 players and 4 of them winning the game but considering an attacker sends extra funds transferred directly", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             goodGhosting = await GoodGhosting.deployed();
@@ -33,6 +34,7 @@ contract("GoodGhosting", (accounts) => {
             await forceSend.go(token.options.address, { value: web3.utils.toWei("1", "Ether"), from: admin });
             const unlockedBalance = await token.methods.balanceOf(unlockedDaiAccount).call({ from: admin });
             const daiAmount = daiDecimals.mul(new BN(1000)).toString();
+
             console.log("unlockedBalance: ", web3.utils.fromWei(unlockedBalance));
             console.log("daiAmountToTransfer", web3.utils.fromWei(daiAmount));
             for (let i = 0; i < players.length; i++) {
@@ -43,6 +45,10 @@ contract("GoodGhosting", (accounts) => {
                 const playerBalance = await token.methods.balanceOf(player).call({ from: admin });
                 console.log(`player${i+1}DAIBalance`, web3.utils.fromWei(playerBalance));
             }
+            // DAI Transferred to the attacker
+            await token.methods.transfer(attacker, daiAmount).send({ from: unlockedDaiAccount });
+            // DAI Transferred directly to the contract without joining the game
+            await token.methods.transfer(goodGhosting.address, daiAmount).send({ from: unlockedDaiAccount });
         });
 
         it("checks if the contract's variables were properly initialized", async () => {
@@ -129,6 +135,7 @@ contract("GoodGhosting", (accounts) => {
             let eventAmount = new BN(0);
             const result = await goodGhosting.redeemFromExternalPool({ from: admin });
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
+
             console.log("contractsDaiBalance", contractsDaiBalance.toString());
             truffleAssert.eventEmitted(
                 result,
@@ -149,10 +156,13 @@ contract("GoodGhosting", (accounts) => {
             // starts from 1, since player1 (loser), requested an early withdraw
             for (let i = 1; i < players.length; i++) {
                 const player = players[i];
+                const playerInfo = await goodGhosting.players(player, { from: player });
+
+                // const userDaiBalance = new BN(await token.methods.balanceOf(player).call({ from: admin }));
                 const result = await goodGhosting.withdraw({ from: player });
                 truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
-                    return ev.player === player;
+                    return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid);
                 }, "unable to withdraw amount");
             }
         });
