@@ -156,11 +156,13 @@ contract("GoodGhosting", (accounts) => {
             // starts from 1, since player1 (loser), requested an early withdraw
             for (let i = 1; i < players.length; i++) {
                 const player = players[i];
-                const userDaiBalance = new BN(await token.methods.balanceOf(player).call({ from: admin }));
+                const playerInfo = await goodGhosting.players(player, { from: player });
+
+                // const userDaiBalance = new BN(await token.methods.balanceOf(player).call({ from: admin }));
                 const result = await goodGhosting.withdraw({ from: player });
                 truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
-                    return ev.player === player && !new BN(ev.amount.toString()).eq(userDaiBalance);
+                    return ev.player === player && new BN(ev.amount.toString()).gte(playerInfo.amountPaid);
                 }, "unable to withdraw amount");
             }
         });
