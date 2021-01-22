@@ -90,8 +90,6 @@ contract("GoodGhosting", (accounts) => {
             for (let segmentIndex = 1; segmentIndex < segmentCount; segmentIndex++) {
                 await timeMachine.advanceTime(segmentLength);
                 // NO DEPOSIT INTO EXTERNAL POOL
-                // await goodGhosting.depositIntoExternalPool({ from: admin });
-
                 // Player 1 (index 0 - loser), performs an early withdraw on first segment.
                 if (segmentIndex === 1) {
                     const earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser});
@@ -121,7 +119,6 @@ contract("GoodGhosting", (accounts) => {
             // and another segment where the last segment deposit can generate yield
             await timeMachine.advanceTime(segmentLength);
             // NO DEPOSIT INTO EXTERNAL POOL
-            // await goodGhosting.depositIntoExternalPool({ from: admin });
             await timeMachine.advanceTime(segmentLength);
         });
 
