@@ -85,6 +85,25 @@ contract("GoodGhosting", (accounts) => {
         await timeMachine.advanceTime(weekInSecs);
     }
 
+    async function joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player) {
+        await approveDaiToContract(player);
+        await goodGhosting.joinGame({ from: player });
+        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+        for (let index = 1; index < segmentCount; index++) {
+            await timeMachine.advanceTime(weekInSecs);
+            // no protocol deposit of the prev. deposit
+            await approveDaiToContract(player);
+            await goodGhosting.makeDeposit({ from: player });
+        }
+        // accounted for 1st deposit window
+        // the loop will run till segmentCount - 1
+        // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
+        // and another segment where the last segment deposit can generate yield
+        await timeMachine.advanceTime(weekInSecs);
+        // no protocol deposit of the prev. deposit
+        await timeMachine.advanceTime(weekInSecs);
+    }
+
     async function joinGamePaySegmentsAndIncomplete(player) {
         await approveDaiToContract(player);
         await goodGhosting.joinGame({ from: player });
@@ -519,6 +538,21 @@ contract("GoodGhosting", (accounts) => {
             truffleAssert.eventEmitted(result, "WinnersAnnouncement", (ev) => {
                 return ev.winners[0] === player1;
             }, "WinnersAnnouncement event should be emitted when funds are redeemed from external pool");
+        });
+    });
+
+    describe("when an user tries to redeem from the external pool when no external deposits are made", async () => {
+
+        it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
+            await joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player1);
+            const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
+            truffleAssert.eventEmitted(
+                result,
+                "FundsRedeemedFromExternalPool",
+                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
+                "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
+            );
         });
     });
 

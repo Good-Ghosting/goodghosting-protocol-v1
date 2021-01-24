@@ -33,7 +33,7 @@ contract("GoodGhosting", (accounts) => {
             const forceSend = await ForceSend.new();
             await forceSend.go(token.options.address, { value: web3.utils.toWei("1", "Ether"), from: admin });
             const unlockedBalance = await token.methods.balanceOf(unlockedDaiAccount).call({ from: admin });
-            const daiAmount = daiDecimals.mul(new BN(1000)).toString();
+            const daiAmount = segmentPayment.mul(new BN(segmentCount)).toString();
 
             console.log("unlockedBalance: ", web3.utils.fromWei(unlockedBalance));
             console.log("daiAmountToTransfer", web3.utils.fromWei(daiAmount));

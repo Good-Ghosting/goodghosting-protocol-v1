@@ -288,7 +288,9 @@ contract GoodGhosting is Ownable, Pausable {
         // aave has 1:1 peg for tokens and atokens
         // there is no redeem function in v2 it is replaced by withdraw in v2
         // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
-        lendingPool.withdraw(address(daiToken), uint256(-1), address(this));
+        if (adaiToken.balanceOf(address(this)) > 0) {
+           lendingPool.withdraw(address(daiToken), type(uint256).max, address(this));
+        }
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
         totalGameInterest = totalBalance.sub(totalGamePrincipal);
