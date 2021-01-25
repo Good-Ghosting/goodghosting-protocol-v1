@@ -282,7 +282,7 @@ contract GoodGhosting is Ownable, Pausable {
         @dev This method only redeems funds from the external pool, without doing any allocation of balances
              to users. This helps to prevent running out of gas and having funds locked into the external pool.
     */
-    function redeemFromExternalPool() public whenGameIsCompleted {
+    function redeemFromExternalPool() external whenGameIsCompleted {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
         // aave has 1:1 peg for tokens and atokens
