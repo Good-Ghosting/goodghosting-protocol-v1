@@ -12,12 +12,73 @@ How?
 - Players that missed a deposit, still get their principal back but do not earn any interest. 
 - Users can withdraw their principal at any time, if they wish to do so (`earlyWithdraw`)
 
-# Tests 
-To run tests:
-`truffle test`
+# Smart Contract Overview 
+Note: this is outdated. There have been a number of improvements. For instance, users are able to join from segment 0 and we use the 'The Graph' to query the game data.
+![high level diagram](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/smart_contract_overview_11-07-20.png?raw=true)
 
-## Tests forking from Mainnet
-Steps:
+## Example view of the UI
+
+
+# Development
+
+## Development Recommendations
+
+- Try to use well-known patterns and best practices when possible. They help us to decrease the likelihood of introducing vulnerabilities in the code.
+- Try to use declarative names for functions and variables. They increase code readability and maintainability
+- Try to keep test coverage as close as possible to 100%. It helps to make sure the contract does what is supposed to do, according to project specs.
+- Try not to only think about how to make the code work so it meets the project specifications. But, also think about how to break it, how to try to use "out-of-scope" scenarios to exploit the contract's functionality (think as the bad guy). Examples: invalid inputs, calls to functions out of sequence (when they were supposed to follow a specific sequence of calls defined by the state machine), external contract interactions, etc.
+- Try to use security tools (i.e., Slither, MythX, etc.) as part of the development process to help to identify well-known / documented issues. Security should be part of the development routine, and not something to be postponed prior to deploying the contract(s) on mainnet. Exploits, bugs and unknown vulnerable scenarios may happen, but we should make our best effort to have in place a development process that considers security on a daily-basis and fully embracing it while developing.
+
+## Setup
+
+Install Truffle.
+```bash
+npm install -g truffle
+```
+
+Install Ganache for having a local dev Ethereum network.
+```bash
+npm install -g ganache ganache-cli
+```
+
+Create a local `.env` file by copying the sample `.env.sample` file available in the root folder (`cp .env.sample .env`). After your `.env` file is created, edit it with appropriate values for the variables.
+
+
+## Common Development Commands
+
+Compile contracts
+```bash
+truffle compile
+```
+
+Start dev env in one terminal
+```bash
+truffle develop
+```
+
+
+## Maintaining Packages Updated
+
+To check for new packages, install [npm-check-updates](https://www.npmjs.com/package/npm-check-updates): `npm install -g npm-check-updates`.
+
+To check for updates for `ncu`
+To check and update `package.json` file, run `ncu -u`. Once completed, make sure to run `npm install` to update all the packages.
+
+
+
+# Tests
+
+## Unit Tests
+
+**Requirement:** The tests use the file `deploy.config.js` as input to the contract migration. Make sure it is configured.
+
+To run the unit tests: `truffle test`
+
+To run test coverage: `npm run coverage` or `truffle run coverage`
+
+
+## Test with Mainnet fork
+To run the integrated test scenarios forking from Mainnet:
 
 - Configure `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` in your `.env` file with an externally owned account (not smart contract) that holds enough DAI balance on the forked network. To find one, go to the DAI Token explorer (https://ethplorer.io/ or https://etherscan.io/) and get one of the top holders
 
@@ -31,47 +92,37 @@ Steps:
 
 - On another terminal window (from the root of the project directory), run `truffle test --network local-mainnet-fork` or `npm run test:fork:mainnet`
 
-
-# Internals
-
-[Based on Drizzle box](https://www.trufflesuite.com/boxes/drizzle).
-
-## Smart Contract Overview 
-Note: this is outdated. There have been a number of improvements. For instance, users are able to join from segment 0 and we use the 'The Graph' to query the game data.
-![high level diagram](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/smart_contract_overview_11-07-20.png?raw=true)
-
-## Example view of the UI
+## Big Numbers
+* We use `BN.js` for handling Big Numbers
+* Both DAI and aDAI work similarly with `toWei`, i.e. 10**18
 
 
-# Developing
+# Security Tools
+There's a few automated security tools that could be integrated with the development process. Currently, we use [Slither](https://github.com/crytic/slither) to help identify well-known issues via static analysis. Other tools may be added in the near future as part of the continuous improvement process.
 
-Install Truffle.
+## Slither
+Make sure you install Slither by following the instructions available on [Slither's](https://github.com/crytic/slither) github page. Note: it requires Python, so you may need to install it before you're able to use Slither.
+
+Slither can be executed with the following command:
 
 ```bash
-npm install -g truffle
+slither contracts/GoodGhosting.sol --filter-paths "openzeppelin|aave"
 ```
+This commands executes Slither and analyses the file `contracts/GoodGhosting.sol`, ignoring dependency contracts related to "openzeppelin" and "aave".
 
-Install Ganache for having a local dev Ethereum network.
-
+**Note:** You may get an error from Slither mentioning an imported file wasn't found. Example:
 ```bash
-npm install -g ganache ganache-cli
+Error: Source "@openzeppelin/contracts/access/Ownable.sol" not found: File not found.
+ --> contracts/GoodGhosting.sol:5:1:
+  |
+5 | import "@openzeppelin/contracts/access/Ownable.sol";
 ```
 
-Compile contracts
+This happens because Slither can't resolve the `import` in the contract to the `node_modules` folder.
+Using the results from the example above, the `import` command `import "@openzeppelin/contracts/access/Ownable.sol";` should be replaced by `import "node_modules/@openzeppelin/contracts/access/Ownable.sol";`. **PLEASE DO NOT COMMIT THIS CHANGE**. It is only applicable when running Slither.
 
-```bash
-truffle compile
-```
 
-This will pull Solidity compiled 0.5 from DockerHub and compile the smart contracts using Dockerized compiler.
-
-Start dev env in one terminal
-
-```bash
-truffle develop
-```
-
-## Deploying contracts to Ethereum Networks
+# Deploying contracts to Ethereum Networks
 The project uses [Infura](https://infura.io/) to deploy smart contracts to Ethereum networks (testnets and mainnet). What you'll need:
 - SignIn/SignUp at Infura, create a project and get the project id.
 - Your wallet mnemonic (12 words seed).
@@ -188,23 +239,7 @@ Use the following steps to verify the contract on Etherscan:
     7. *Constructor Arguments ABI-Enconded*: Copy/Paste the Constructor Arguments ABI-Enconded available in the deployment log, displayed in the terminal window
 
 
-## Maintaining Packages Updated
-
-To check for new packages, install [npm-check-updates](https://www.npmjs.com/package/npm-check-updates): `npm install -g npm-check-updates`.
-
-To check for updates for `ncu`
-To check and update `package.json` file, run `ncu -u`. Once completed, make sure to run `npm install` to update all the packages.
-
 
 ## Addresses
 
-**Kovan**
-
-* DAI: https://kovan.etherscan.io/address/0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD
-* aDAI: https://kovan.etherscan.io/address/0x58AD4cB396411B691A9AAb6F74545b2C5217FE6a
-* GoodGhosting.sol: https://kovan.etherscan.io/address/0x16D1feaC977dFb79a879BD5e5B7Ed37E81C3D660#code
-
-
-## Using
-* BN.js for handling Bignumbers
-* Both DAI and aDAI work similarily to Wei. ie 10**18 
+DAI and aDAI addresses are configures in the [deploy.config.js][./deploy.config.js] file for supported network.
