@@ -25,6 +25,7 @@
     },
     "homepage": "https://github.com/Good-Ghosting/goodghosting-smart-contracts#readme",
     "dependencies": {
+        "@aave/protocol-v2": "^1.0.1",
         "@openzeppelin/contracts": "^3.3.0",
         "ethereumjs-abi": "^0.6.8",
         "install": "^0.13.0",

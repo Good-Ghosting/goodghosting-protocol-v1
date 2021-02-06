@@ -1,8 +1,10 @@
 const GoodGhosting = artifacts.require("GoodGhosting");
 const ForceSend = artifacts.require("ForceSend");
+const ATokenWrapper = artifacts.require("ATokenWrapper");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
+const aTokenArtifact = require("@aave/protocol-v2/artifacts/contracts/protocol/tokenization/AToken.sol/AToken.json");
 const configs = require("../deploy.config");
 
 contract("GoodGhosting", (accounts) => {
@@ -16,14 +18,14 @@ contract("GoodGhosting", (accounts) => {
     const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, earlyWithdrawFee } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
-    let interestBearingToken;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
-    const attacker = accounts[7];
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(segmentPaymentInt)); // equivalent to 10 DAI
     let goodGhosting;
+    const incentiveInterest = segmentPayment.mul(new BN(segmentCount));
+    const ATOKEN_ADDRESS = "0x028171bCA77440897B824Ca71D1c56caC55b68A3";
 
     describe("simulates a full game with 5 players and 4 of them winning the game but considering an external adai transfer from admin", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
@@ -31,16 +33,24 @@ contract("GoodGhosting", (accounts) => {
             goodGhosting = await GoodGhosting.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
-            const interestBearingTokenAddress = await goodGhosting.adaiToken.call();
-            interestBearingToken = new web3.eth.Contract(daiABI, '0x028171bCA77440897B824Ca71D1c56caC55b68A3');
             const forceSend = await ForceSend.new();
             await forceSend.go(token.options.address, { value: web3.utils.toWei("1", "Ether"), from: admin });
+
+            const interestBearingToken = new web3.eth.Contract(aTokenArtifact.abi, ATOKEN_ADDRESS);
+            const aTokenWrapper = await ATokenWrapper.at(ATOKEN_ADDRESS);
             const unlockedBalance = await token.methods.balanceOf(unlockedDaiAccount).call({ from: admin });
+            const aDaiUnlockedBalance = await interestBearingToken.methods.balanceOf(unlockedDaiAccount).call({ from: admin });
+            const aDaiUnlockedBalanceOnWrapper = await aTokenWrapper.balanceOf(unlockedDaiAccount, { from: admin });
+            const aDaiTotalSupply = await interestBearingToken.methods.totalSupply().call({ from: admin });
             const daiAmount = segmentPayment.mul(new BN(segmentCount)).toString();
 
             console.log("unlockedBalance: ", web3.utils.fromWei(unlockedBalance));
-
+            console.log("aDaiUnlockedBalance: ", web3.utils.fromWei(aDaiUnlockedBalance));
+            console.log("aDaiUnlockedBalanceOnWrapper: ", web3.utils.fromWei(aDaiUnlockedBalanceOnWrapper));
+            console.log("aDaiTotalSupply: ", web3.utils.fromWei(aDaiTotalSupply));
             console.log("daiAmountToTransfer", web3.utils.fromWei(daiAmount));
+            console.log("incentiveInterest", web3.utils.fromWei(incentiveInterest));
+            
             for (let i = 0; i < players.length; i++) {
                 const player = players[i];
                 await token.methods
@@ -50,8 +60,94 @@ contract("GoodGhosting", (accounts) => {
                 console.log(`player${i+1}DAIBalance`, web3.utils.fromWei(playerBalance));
             }
 
-            // ADAI Transferred to the contract
-            await interestBearingToken.methods.transfer(goodGhosting.address, daiAmount).send({ from: unlockedDaiAccount });
+            const beforeBalance = await aTokenWrapper.balanceOf(goodGhosting.address, { from: unlockedDaiAccount });
+            assert(beforeBalance.eq(new BN(0)));
+            console.log("beforeBalance", beforeBalance.toString());
+            await aTokenWrapper
+                .transfer(goodGhosting.address, incentiveInterest, { from: unlockedDaiAccount });
+            const afterBalance = await aTokenWrapper.balanceOf(goodGhosting.address, { from: unlockedDaiAccount });
+            console.log("afterBalance", web3.utils.fromWei(afterBalance.toString()));
+            assert(afterBalance.eq(new BN(incentiveInterest)));
+
+
+            // console.log('checking if transfer is allowed');
+            // // ADAI Transferred to the contract
+            // let abi =   {
+            //     "constant": true,
+            //     "inputs": [
+            //       {
+            //         "internalType": "address",
+            //         "name": "_user",
+            //         "type": "address"
+            //       },
+            //       {
+            //         "internalType": "uint256",
+            //         "name": "_amount",
+            //         "type": "uint256"
+            //       }
+            //     ],
+            //     "name": "isTransferAllowed",
+            //     "outputs": [
+            //       {
+            //         "internalType": "bool",
+            //         "name": "",
+            //         "type": "bool"
+            //       }
+            //     ],
+            //     "payable": false,
+            //     "stateMutability": "view",
+            //     "type": "function"
+            // };
+            // let functionData = await web3.eth.abi.encodeFunctionCall(abi, [unlockedDaiAccount, daiAmount]);
+            // let allowed = await web3.eth.call({
+            //     from: unlockedDaiAccount,
+            //     to: '0x028171bCA77440897B824Ca71D1c56caC55b68A3',
+            //     data: functionData
+            // });
+            // console.log('allowed', allowed);
+
+
+            // const abi = {
+            //     "inputs": [
+            //       {
+            //         "internalType": "address",
+            //         "name": "recipient",
+            //         "type": "address"
+            //       },
+            //       {
+            //         "internalType": "uint256",
+            //         "name": "amount",
+            //         "type": "uint256"
+            //       }
+            //     ],
+            //     "name": "wrappedTransfer",
+            //     "outputs": [],
+            //     "stateMutability": "nonpayable",
+            //     "type": "function"
+            //   };
+
+            // let functionData = await web3.eth.abi.encodeFunctionCall(abi, [unlockedDaiAccount, daiAmount]);
+            // await web3.eth.sendTransaction({
+            //     from: unlockedDaiAccount,
+            //     to: aTokenWrapper.address,
+            //     data: functionData
+            // }).on('error', (e) => console.log(e));
+
+            // await truffleAssert.passes(interestBearingToken.methods.isTransferAllowed(unlockedDaiAccount, daiAmount).call({ from: admin }));
+            // await debug(interestBearingToken.methods.isTransferAllowed(unlockedDaiAccount, daiAmount).call({ from: admin }));
+            // console.log('transfer allowed', web3.eth.abi.decodeParameter('bool', allowed));
+            // console.log(interestBearingToken);
+            // const aTokenBalance = await aTokenWrapper.wrappedBalanceOf(unlockedDaiAccount, { from: unlockedDaiAccount });
+            // console.log('raw-aTokenBalance', aTokenBalance)
+            // console.log('aTokenBalance', web3.utils.fromWei(aTokenBalance))
+            
+            // await interestBearingToken.methods
+            //     .approve(goodGhosting.address, daiAmount)
+            //     .send({ from: unlockedDaiAccount })
+            // await interestBearingToken.methods
+            //     .transfer(goodGhosting.address, daiAmount)
+            //     .send({ from: unlockedDaiAccount })
+            //     .catch((e) => console.log('e', e));
         });
 
         it("checks if the contract's variables were properly initialized", async () => {
@@ -135,7 +231,7 @@ contract("GoodGhosting", (accounts) => {
 
 
         it("redeems funds from external pool", async () => {
-            let eventAmount = new BN(0);
+            let eventTotalAmount = new BN(0);
             const result = await goodGhosting.redeemFromExternalPool({ from: admin });
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
 
@@ -144,14 +240,27 @@ contract("GoodGhosting", (accounts) => {
                 result,
                 "FundsRedeemedFromExternalPool",
                 (ev) => {
-                    console.log("totalContractAmount", ev.totalAmount.toString());
-                    console.log("totalGamePrincipal", ev.totalGamePrincipal.toString());
-                    console.log("totalGameInterest", ev.totalGameInterest.toString());
-                    console.log("interestPerPlayer", ev.totalGameInterest.div(new BN(players.length - 1)).toString());
-                    eventAmount = new BN(ev.totalAmount.toString());
-                    return eventAmount.eq(contractsDaiBalance);
+                    eventTotalAmount = new BN(ev.totalAmount.toString());
+                    const eventGamePrincipal = new BN(ev.totalGamePrincipal.toString());
+                    const eventGameInterest = new BN(ev.totalGameInterest.toString());
+                    const eventInterestPerPlayer = eventGameInterest.div(new BN(players.length - 1));
+                    const expectedMinimumInterestPerPlayer = incentiveInterest.div(new BN(players.length - 1));
+
+                    console.log(`totalContractAmount: ${web3.utils.fromWei(eventTotalAmount.toString())} | ${eventTotalAmount.toString()} wei`);
+                    console.log(`totalGamePrincipal: ${web3.utils.fromWei(eventGamePrincipal.toString())} | ${eventGamePrincipal.toString()} wei`);
+                    console.log(`totalGameInterest: ${web3.utils.fromWei(eventGameInterest.toString())} | ${eventGameInterest.toString()} wei`);
+                    console.log(`incentiveInterest: ${web3.utils.fromWei(incentiveInterest.toString())} | ${incentiveInterest.toString()} wei`);
+                    console.log(`interestPerPlayer: ${web3.utils.fromWei(eventInterestPerPlayer.toString())} | ${eventInterestPerPlayer.toString()} wei`);
+                    console.log(`incentiveInterestPerPlayer: ${web3.utils.fromWei(expectedMinimumInterestPerPlayer.toString())} | ${expectedMinimumInterestPerPlayer.toString()} wei`);
+
+                    return (
+                        eventTotalAmount.eq(contractsDaiBalance)
+                        && eventGameInterest.gt(incentiveInterest)
+                        && eventInterestPerPlayer.gt(expectedMinimumInterestPerPlayer)
+                        && eventTotalAmount.gt(eventGamePrincipal.add(incentiveInterest))
+                    );
                 },
-                `FundsRedeemedFromExternalPool error - event amount: ${eventAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
+                `FundsRedeemedFromExternalPool error - event amount: ${eventTotalAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
             );
         });
 
