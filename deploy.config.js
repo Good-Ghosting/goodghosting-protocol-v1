@@ -39,6 +39,6 @@ exports.deployConfigs = {
     inboundCurrencySymbol: "dai", // name of the inbound currency symbol. Must be defined in the object {providers.network} above.
     segmentCount: 4, // integer number of segments
     segmentLength: 180, // in seconds
-    segmentPayment: 200, // amount of tokens - i.e. 10 equals to 10 TOKENS (DAI, ETH, etc.);
+    segmentPayment: 10, // amount of tokens - i.e. 10 equals to 10 TOKENS (DAI, ETH, etc.);
     earlyWithdrawFee: 10, // i.e. 10 equals to 10%
 };
