@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./quickswap/IRouter.sol";
+import "./quickswap/IPair.sol";
+
 /**
  * Play the save game.
  *
@@ -28,6 +30,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
 
     // quickswap eouter instance
     IRouter public router;
+    IPair public pair;
 
     uint256 public immutable segmentPayment;
     uint256 public immutable lastSegment;
@@ -89,6 +92,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         IERC20 _inboundCurrency,
         IERC20 _matoken,
         IRouter _router,
+        IPair _pair,
         uint256 _segmentCount,
         uint256 _segmentLength,
         uint256 _segmentPayment,
@@ -105,6 +109,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         daiToken = _inboundCurrency;
         matoken = _matoken;
         router = _router;
+        pair = _pair;
         pairTokens = _pairTokens;
         inversePairTokens = _inversePairTokens;
 
@@ -114,7 +119,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
             _inboundCurrency.approve(address(router), MAX_ALLOWANCE),
             "Fail to approve allowance to lending pool"
         );
-         require(
+        require(
             _matoken.approve(address(router), MAX_ALLOWANCE),
             "Fail to approve allowance to lending pool"
         );
@@ -158,6 +163,36 @@ contract GoodGhostingMatic is Ownable, Pausable {
     }
 
     /**
+        Returns the current slippage rate by querying the quickswap contracts.
+        @dev Note the the resultant amount is multiplied by 10**16 sice solidity does not handle decimal values
+     */
+    function getCurrentSlippage(uint256 _swapAmt, bool reverseSwap)
+        internal
+        view
+        returns (uint256)
+    {
+        // getting the reserve amounts
+        (uint256 reserve0, uint256 reserve1, ) = pair.getReserves();
+        // there is 0.3 % fee charged on each swap hence leaving that amount aside
+        uint256 swapAmtWithFee = _swapAmt.mul(997);
+        // calculate the amount based on reserve amounts and the swap amount including the fee
+        uint256 numerator = reverseSwap
+            ? swapAmtWithFee.mul(reserve0)
+            : swapAmtWithFee.mul(reserve1);
+        uint256 denominator = reverseSwap
+            ? swapAmtWithFee.add(reserve1.mul(1000))
+            : swapAmtWithFee.add(reserve0.mul(1000));
+        uint256 outputAmt = numerator.mul(100000000).div(denominator);
+        // calculating the slippage
+        uint256 midPrice = reverseSwap
+            ? reserve0.mul(100000000).div(reserve1)
+            : reserve1.mul(100000000).div(reserve0);
+        uint256 quote = midPrice.mul(_swapAmt);
+        uint256 slippage = quote.sub(outputAmt).div(quote);
+        return slippage;
+    }
+
+    /**
         Returns the current segment of the game using a 0-based index (returns 0 for the 1st segment ).
         @dev solidity does not return floating point numbers this will always return a whole number
      */
@@ -195,7 +230,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
        Deposits into the protocol can happen at any moment after segment 0 (first deposit window)
        is completed, as long as the game is not completed.
     */
-    function depositIntoExternalPool()
+    function depositIntoExternalPool(uint256 _slippage)
         external
         whenNotPaused
         whenGameIsNotCompleted
@@ -210,18 +245,32 @@ contract GoodGhostingMatic is Ownable, Pausable {
             amount > 0,
             "No amount from previous segment to deposit into protocol"
         );
-        // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
+        uint256 currentSlippage = getCurrentSlippage(amount, false);
+        require(
+            _slippage.mul(10**16) >= currentSlippage,
+            "Can't execute swap due to slippage"
+        ); // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
         segmentDeposit[currentSegment.sub(1)] = 0;
 
         emit FundsDepositedIntoExternalPool(amount);
-        router.swapExactTokensForTokens(amount, 0, pairTokens, address(this), now.add(1200));
+        router.swapExactTokensForTokens(
+            amount,
+            0,
+            pairTokens,
+            address(this),
+            now.add(1200)
+        );
     }
 
     /**
        @dev Allows player to withdraw funds in the middle of the game with an early withdrawal fee deducted from the user's principal.
        earlyWithdrawalFee is set via constructor
     */
-    function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
+    function earlyWithdraw(uint256 _slippage)
+        external
+        whenNotPaused
+        whenGameIsNotCompleted
+    {
         Player storage player = players[msg.sender];
         // Makes sure player didn't withdraw; otherwise, player could withdraw multiple times.
         require(!player.withdrawn, "Player has already withdrawn");
@@ -258,12 +307,28 @@ contract GoodGhostingMatic is Ownable, Pausable {
         // Only withdraw funds from underlying pool if contract doesn't have enough balance to fulfill the early withdraw.
         // there is no redeem function in v2 it is replaced by withdraw in v2
         if (contractBalance < withdrawAmount) {
-            router.swapExactTokensForTokens(withdrawAmount.sub(contractBalance), 0, inversePairTokens, address(this), now.add(1200));
+            require(
+                IERC20(matoken).balanceOf(address(this)) > withdrawAmount,
+                "Not enough matoken balance"
+            );
+            uint256 currentSlippage = getCurrentSlippage(withdrawAmount, true);
+            require(
+                _slippage.mul(10**16) >= currentSlippage,
+                "Can't execute swap due to slippage"
+            );
+            router.swapExactTokensForTokens(
+                withdrawAmount,
+                0,
+                inversePairTokens,
+                address(this),
+                now.add(1200)
+            );
+        } else {
+            require(
+                IERC20(daiToken).transfer(msg.sender, withdrawAmount),
+                "Fail to transfer ERC20 tokens on early withdraw"
+            );
         }
-        require(
-            IERC20(daiToken).transfer(msg.sender, withdrawAmount),
-            "Fail to transfer ERC20 tokens on early withdraw"
-        );
     }
 
     /**
@@ -271,18 +336,39 @@ contract GoodGhostingMatic is Ownable, Pausable {
         @dev This method only redeems funds from the external pool, without doing any allocation of balances
              to users. This helps to prevent running out of gas and having funds locked into the external pool.
     */
-    function redeemFromExternalPool() public whenGameIsCompleted {
+    function redeemFromExternalPool(uint256 _slippage)
+        public
+        whenGameIsCompleted
+    {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
         // aave has 1:1 peg for tokens and atokens
         // there is no redeem function in v2 it is replaced by withdraw in v2
         // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
         if (matoken.balanceOf(address(this)) > 0) {
-              router.swapExactTokensForTokens(matoken.balanceOf(address(this)), 0, inversePairTokens, address(this), now.add(1200));
+            uint256 currentSlippage = getCurrentSlippage(
+                matoken.balanceOf(address(this)),
+                true
+            );
+            require(
+                _slippage.mul(10**16) >= currentSlippage,
+                "Can't execute swap due to slippage"
+            );
+            router.swapExactTokensForTokens(
+                matoken.balanceOf(address(this)),
+                0,
+                inversePairTokens,
+                address(this),
+                now.add(1200)
+            );
         }
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
-        totalGameInterest = totalBalance.sub(totalGamePrincipal);
+        if (totalBalance > totalGamePrincipal) {
+            totalGameInterest = totalBalance.sub(totalGamePrincipal);
+        } else {
+            totalGameInterest = 0;
+        }
 
         emit FundsRedeemedFromExternalPool(
             totalBalance,
@@ -300,7 +386,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
     }
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
-    function withdraw() external {
+    function withdraw(uint256 _slippage) external {
         Player storage player = players[msg.sender];
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
@@ -319,7 +405,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
 
         // First player to withdraw redeems everyone's funds
         if (!redeemed) {
-            redeemFromExternalPool();
+            redeemFromExternalPool(_slippage);
         }
 
         require(
