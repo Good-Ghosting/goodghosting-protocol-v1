@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./quickswap/IRouter.sol";
 import "./quickswap/IPair.sol";
+import "./quickswap/IStake.sol";
 
 /**
  * Play the save game.
@@ -25,12 +26,14 @@ contract GoodGhostingMatic is Ownable, Pausable {
     uint256 public totalGamePrincipal;
 
     // Token that players use to buy in the game - DAI
-    IERC20 public immutable daiToken;
+    IERC20 public immutable mtoken;
     IERC20 public immutable matoken;
+    IERC20 public immutable quick;
 
     // quickswap eouter instance
     IRouter public router;
     IPair public pair;
+    IStake public stake;
 
     uint256 public immutable segmentPayment;
     uint256 public immutable lastSegment;
@@ -47,8 +50,6 @@ contract GoodGhostingMatic is Ownable, Pausable {
     mapping(address => Player) public players;
     // we need to differentiate the deposit amount to aave or any other protocol for each window hence this mapping segment no => total deposit amount for that
     mapping(uint256 => uint256) public segmentDeposit;
-    address[] public pairTokens;
-    address[] public inversePairTokens;
     address[] public iterablePlayers;
     address[] public winners;
 
@@ -85,20 +86,18 @@ contract GoodGhostingMatic is Ownable, Pausable {
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
-        @param _pairTokens [musdc_address, mausdc_address].
-        @param _inversePairTokens [mausdc_address, musdc_address].
      */
     constructor(
         IERC20 _inboundCurrency,
         IERC20 _matoken,
+        IERC20 _quick,
         IRouter _router,
         IPair _pair,
+        IStake _stake,
         uint256 _segmentCount,
         uint256 _segmentLength,
         uint256 _segmentPayment,
-        uint256 _earlyWithdrawalFee,
-        address[] memory _pairTokens,
-        address[] memory _inversePairTokens
+        uint256 _earlyWithdrawalFee
     ) public {
         // Initializes default variables
         firstSegmentStart = block.timestamp; //gets current time
@@ -106,12 +105,12 @@ contract GoodGhostingMatic is Ownable, Pausable {
         segmentLength = _segmentLength;
         segmentPayment = _segmentPayment;
         earlyWithdrawalFee = _earlyWithdrawalFee;
-        daiToken = _inboundCurrency;
+        mtoken = _inboundCurrency;
         matoken = _matoken;
+        quick = _quick;
         router = _router;
         pair = _pair;
-        pairTokens = _pairTokens;
-        inversePairTokens = _inversePairTokens;
+        stake = _stake;
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 MAX_ALLOWANCE = 2**256 - 1;
@@ -121,6 +120,11 @@ contract GoodGhostingMatic is Ownable, Pausable {
         );
         require(
             _matoken.approve(address(router), MAX_ALLOWANCE),
+            "Fail to approve allowance to lending pool"
+        );
+
+        require(
+            pair.approve(address(stake), MAX_ALLOWANCE),
             "Fail to approve allowance to lending pool"
         );
     }
@@ -138,7 +142,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         // convert DAI to aDAI using the lending pool
         // this doesn't make sense since we are already transferring
         require(
-            daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
+            mtoken.allowance(msg.sender, address(this)) >= segmentPayment,
             "You need to have allowance to do transfer DAI on the smart contract"
         );
 
@@ -157,10 +161,16 @@ contract GoodGhostingMatic is Ownable, Pausable {
         // Re-entrancy: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#re-entrancy
         // Check-Effects-Interactions Pattern: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#use-the-checks-effects-interactions-pattern
         require(
-            daiToken.transferFrom(msg.sender, address(this), segmentPayment),
+            mtoken.transferFrom(msg.sender, address(this), segmentPayment),
             "Transfer failed"
         );
     }
+
+    function getLPTokenAmount(uint256 _mtokenAmount)
+        internal
+        view
+        returns (uint256)
+    {}
 
     /**
         Returns the current slippage rate by querying the quickswap contracts.
@@ -226,7 +236,8 @@ contract GoodGhostingMatic is Ownable, Pausable {
     }
 
     /**
-       @dev Allows anyone to deposit the previous segment funds into the underlying protocol.
+       @dev Allows anyone to deposit the previous segment funds into quickswap in this case the deposit follows this logic
+       Swap half of the mUSDC for maUSDC - Adding liquidity to the pool - Approving the staking contract to spend the mUSDC-maUSDC LP tokens - Stake the mUSDC-maUSDC LP tokens.
        Deposits into the protocol can happen at any moment after segment 0 (first deposit window)
        is completed, as long as the game is not completed.
     */
@@ -253,13 +264,33 @@ contract GoodGhostingMatic is Ownable, Pausable {
         segmentDeposit[currentSegment.sub(1)] = 0;
 
         emit FundsDepositedIntoExternalPool(amount);
+        uint256 musdcSwapAmt = amount.div(2);
+        // swapping half the mtoken for matoken
+        address[] memory pairTokens = new address[](2);
+        pairTokens[0] = address(mtoken);
+        pairTokens[1] = address(matoken);
+
         router.swapExactTokensForTokens(
-            amount,
+            musdcSwapAmt,
             0,
             pairTokens,
             address(this),
             now.add(1200)
         );
+        // adding liquidity to the pool
+        router.addLiquidity(
+            address(mtoken),
+            address(matoken),
+            musdcSwapAmt,
+            musdcSwapAmt,
+            0,
+            0,
+            address(this),
+            now.add(1200)
+        );
+        // staking the lp tokens to earn $QUICK rewards
+        uint256 lpTokenAmount = pair.balanceOf(address(this));
+        stake.stake(lpTokenAmount);
     }
 
     /**
@@ -300,7 +331,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
             }
         }
 
-        uint256 contractBalance = IERC20(daiToken).balanceOf(address(this));
+        uint256 contractBalance = IERC20(mtoken).balanceOf(address(this));
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount);
 
@@ -308,27 +339,33 @@ contract GoodGhostingMatic is Ownable, Pausable {
         // there is no redeem function in v2 it is replaced by withdraw in v2
         if (contractBalance < withdrawAmount) {
             require(
-                IERC20(matoken).balanceOf(address(this)) > withdrawAmount,
+                IERC20(matoken).balanceOf(address(this)) >
+                    withdrawAmount.sub(contractBalance),
                 "Not enough matoken balance"
             );
-            uint256 currentSlippage = getCurrentSlippage(withdrawAmount, true);
+            uint256 currentSlippage = getCurrentSlippage(
+                withdrawAmount.sub(contractBalance),
+                true
+            );
             require(
                 _slippage.mul(10**16) >= currentSlippage,
                 "Can't execute swap due to slippage"
             );
+            address[] memory inversePairTokens = new address[](2);
+            inversePairTokens[0] = address(matoken);
+            inversePairTokens[1] = address(mtoken);
             router.swapExactTokensForTokens(
-                withdrawAmount,
+                withdrawAmount.sub(contractBalance),
                 0,
                 inversePairTokens,
                 address(this),
                 now.add(1200)
             );
-        } else {
-            require(
-                IERC20(daiToken).transfer(msg.sender, withdrawAmount),
-                "Fail to transfer ERC20 tokens on early withdraw"
-            );
         }
+        require(
+            IERC20(mtoken).transfer(msg.sender, withdrawAmount),
+            "Fail to transfer ERC20 tokens on early withdraw"
+        );
     }
 
     /**
@@ -354,6 +391,30 @@ contract GoodGhostingMatic is Ownable, Pausable {
                 _slippage.mul(10**16) >= currentSlippage,
                 "Can't execute swap due to slippage"
             );
+            // claiming rewards and getting back the staked lp tokens
+            stake.exit();
+            // swap the claimed quick rewards with mtoken
+            address[] memory inversePairTokens = new address[](2);
+            inversePairTokens[0] = address(matoken);
+            inversePairTokens[1] = address(mtoken);
+            router.swapExactTokensForTokens(
+                quick.balanceOf(address(this)),
+                0,
+                inversePairTokens,
+                address(this),
+                now.add(1200)
+            );
+            // remove 100% liquidity to get back the deposited mtoken and matoken
+            router.removeLiquidity(
+                address(mtoken),
+                address(matoken),
+                pair.balanceOf(address(this)),
+                0,
+                0,
+                address(this),
+                now.add(1200)
+            );
+            // swapping the matoken for mtoken
             router.swapExactTokensForTokens(
                 matoken.balanceOf(address(this)),
                 0,
@@ -362,7 +423,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
                 now.add(1200)
             );
         }
-        uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
+        uint256 totalBalance = IERC20(mtoken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
         if (totalBalance > totalGamePrincipal) {
             totalGameInterest = totalBalance.sub(totalGamePrincipal);
@@ -379,7 +440,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
 
         if (winners.length == 0) {
             require(
-                IERC20(daiToken).transfer(owner(), totalGameInterest),
+                IERC20(mtoken).transfer(owner(), totalGameInterest),
                 "Fail to transfer ER20 tokens to owner"
             );
         }
@@ -409,7 +470,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         }
 
         require(
-            IERC20(daiToken).transfer(msg.sender, payout),
+            IERC20(mtoken).transfer(msg.sender, payout),
             "Fail to transfer ERC20 tokens on withdraw"
         );
     }
