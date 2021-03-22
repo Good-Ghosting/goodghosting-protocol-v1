@@ -8,4 +8,6 @@ abstract contract IPair {
     function balanceOf(address owner) virtual external view returns (uint);
 
     function approve(address spender, uint value) virtual external returns (bool);
+
+    function totalSupply() virtual external view returns (uint);
 }
