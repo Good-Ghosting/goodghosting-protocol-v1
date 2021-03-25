@@ -10,6 +10,7 @@ import "./quickswap/IRouter.sol";
 import "./quickswap/IPair.sol";
 import "./quickswap/IStake.sol";
 import "./utils/Math.sol";
+
 /**
  * Play the save game.
  *
@@ -30,10 +31,11 @@ contract GoodGhostingMatic is Ownable, Pausable {
     IERC20 public immutable matoken;
     IERC20 public immutable quick;
 
-    // quickswap eouter instance
-    IRouter public router;
-    IPair public pair;
-    IStake public stake;
+    // quickswap router instance
+    IRouter public immutable router;
+    IPair public immutable pair;
+    // this doesn't include the changing stake contracrt when it expires
+    IStake public immutable stake;
 
     uint256 public immutable segmentPayment;
     uint256 public immutable lastSegment;
@@ -82,6 +84,11 @@ contract GoodGhostingMatic is Ownable, Pausable {
     /**
         Creates a new instance of GoodGhosting game
         @param _inboundCurrency Smart contract address of inbound currency used for the game.
+        @param _matoken Matic Token Address.
+        @param _quick Quick Token Address.
+        @param _router quickswap router contract address.
+        @param _pair pool address.
+        @param _stake Stake Contract Address.
         @param _segmentCount Number of segments in the game.
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
@@ -112,20 +119,19 @@ contract GoodGhostingMatic is Ownable, Pausable {
         pair = _pair;
         stake = _stake;
 
-        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 MAX_ALLOWANCE = 2**256 - 1;
         require(
             _inboundCurrency.approve(address(router), MAX_ALLOWANCE),
-            "Fail to approve allowance to lending pool"
+            "Fail to approve allowance to router"
         );
         require(
             _matoken.approve(address(router), MAX_ALLOWANCE),
-            "Fail to approve allowance to lending pool"
+            "Fail to approve allowance to router"
         );
 
         require(
             pair.approve(address(stake), MAX_ALLOWANCE),
-            "Fail to approve allowance to lending pool"
+            "Fail to approve allowance to staking contract"
         );
     }
 
@@ -138,12 +144,10 @@ contract GoodGhostingMatic is Ownable, Pausable {
     }
 
     function _transferDaiToContract() internal {
-        // users pays dai in to the smart contract, which he pre-approved to spend the DAI for him
-        // convert DAI to aDAI using the lending pool
-        // this doesn't make sense since we are already transferring
+        // users pays mtoken in to the smart contract, which he pre-approved to spend the mtoken for them
         require(
             mtoken.allowance(msg.sender, address(this)) >= segmentPayment,
-            "You need to have allowance to do transfer DAI on the smart contract"
+            "You need to have allowance to do transfer mtoken on the smart contract"
         );
 
         uint256 currentSegment = getCurrentSegment();
@@ -165,27 +169,34 @@ contract GoodGhostingMatic is Ownable, Pausable {
             "Transfer failed"
         );
     }
+
     /**
        Returns the LP Token amount based on the tokens deposited in the pool
        Logic Used => https://explorer-mainnet.maticvigil.com/address/0xadbF1854e5883eB8aa7BAf50705338739e558E5b/contracts Line 488 mint() function
     */
-    function getLPTokenAmount(uint256 _mtokenAmount)
+    function getLPTokenAmount(uint256 _mtokenAmount, uint256 _matokenAmount)
         internal
         view
         returns (uint256)
     {
         // getting pool reserves
-        (uint112 _reserve0, uint112 _reserve1,) = pair.getReserves(); // gas savings
+        (uint112 _reserve0, uint112 _reserve1, ) = pair.getReserves(); // gas savings
         // calculating pool token balances excluding the deposits of the user who wants to do an early withdraw
-        // since everytime equal proportion of tokens are deposited hence subtracting with _mtokenAmount in both cases
-        uint balance0ExcludingUserDeposit = mtoken.balanceOf(address(pair)).sub(_mtokenAmount);
-        uint balance1ExcludingUserDeposit = matoken.balanceOf(address(pair)).sub(_mtokenAmount);
+        uint256 balance0ExcludingUserDeposit = mtoken
+            .balanceOf(address(pair))
+            .sub(_mtokenAmount);
+        uint256 balance1ExcludingUserDeposit = matoken
+            .balanceOf(address(pair))
+            .sub(_matokenAmount);
         // calculating liquidity token amount excluding the deposits of the user who wants to do an early withdraw
-        uint amount0 = balance0ExcludingUserDeposit.sub(_reserve0);
-        uint amount1 = balance1ExcludingUserDeposit.sub(_reserve1);
-        uint liquidity = Math.min(amount0.mul(pair.totalSupply()) / _reserve0, amount1.mul(pair.totalSupply()) / _reserve1);
+        uint256 amount0 = balance0ExcludingUserDeposit.sub(_reserve0);
+        uint256 amount1 = balance1ExcludingUserDeposit.sub(_reserve1);
+        uint256 liquidity = Math.min(
+            amount0.mul(pair.totalSupply()) / _reserve0,
+            amount1.mul(pair.totalSupply()) / _reserve1
+        );
         // subtracting the total lp balance with the lp balance excluding users's share to get the lp tokens to burn
-        uint lpTokensToBurn = pair.balanceOf(address(this)).sub(liquidity);
+        uint256 lpTokensToBurn = pair.balanceOf(address(this)).sub(liquidity);
         return lpTokensToBurn;
     }
 
@@ -201,22 +212,23 @@ contract GoodGhostingMatic is Ownable, Pausable {
     {
         // getting the reserve amounts
         (uint256 reserve0, uint256 reserve1, ) = pair.getReserves();
-        // there is 0.3 % fee charged on each swap hence leaving that amount aside
-        uint256 swapAmtWithFee = _swapAmt.mul(997);
-        // calculate the amount based on reserve amounts and the swap amount including the fee
-        uint256 numerator = reverseSwap
-            ? swapAmtWithFee.mul(reserve0)
-            : swapAmtWithFee.mul(reserve1);
-        uint256 denominator = reverseSwap
-            ? swapAmtWithFee.add(reserve1.mul(1000))
-            : swapAmtWithFee.add(reserve0.mul(1000));
-        uint256 outputAmt = numerator.mul(100000000).div(denominator);
+        // getting the output amount the prev. logic for the same wasn't accurate
+        address[] memory path = new address[](2);
+        if (reverseSwap) {
+            path[0] = address(matoken);
+            path[1] = address(mtoken);
+        } else {
+            path[0] = address(mtoken);
+            path[1] = address(matoken);
+        }
+        uint256[] memory outputAmt = router.getAmountsOut(_swapAmt, path);
+
         // calculating the slippage
         uint256 midPrice = reverseSwap
-            ? reserve0.mul(100000000).div(reserve1)
-            : reserve1.mul(100000000).div(reserve0);
+            ? (reserve0.mul(100000000)).div(reserve1)
+            : (reserve1.mul(100000000)).div(reserve0);
         uint256 quote = midPrice.mul(_swapAmt);
-        uint256 slippage = quote.sub(outputAmt).div(quote);
+        uint256 slippage = quote.sub(outputAmt[0]).div(quote);
         return slippage;
     }
 
@@ -276,9 +288,10 @@ contract GoodGhostingMatic is Ownable, Pausable {
         );
         uint256 currentSlippage = getCurrentSlippage(amount, false);
         require(
-            _slippage.mul(10**16) >= currentSlippage,
+            _slippage.mul(10**8) >= currentSlippage,
             "Can't execute swap due to slippage"
-        ); // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
+        );
+        // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
         segmentDeposit[currentSegment.sub(1)] = 0;
 
         emit FundsDepositedIntoExternalPool(amount);
@@ -288,21 +301,22 @@ contract GoodGhostingMatic is Ownable, Pausable {
         pairTokens[0] = address(mtoken);
         pairTokens[1] = address(matoken);
 
-        uint[] memory amounts = router.swapExactTokensForTokens(
+        uint256[] memory amounts = router.swapExactTokensForTokens(
             musdcSwapAmt,
             0,
             pairTokens,
             address(this),
             now.add(1200)
         );
+
         // since in path param we just have the 2 tokens hence checking the only element in the amounts array.
         require(amounts[0] > 0, "Output token amount is 0");
         // adding liquidity to the pool
-        (, , uint liquidity) = router.addLiquidity(
+        (, , uint256 liquidity) = router.addLiquidity(
             address(mtoken),
             address(matoken),
             musdcSwapAmt,
-            musdcSwapAmt,
+            amounts[0],
             0,
             0,
             address(this),
@@ -328,19 +342,14 @@ contract GoodGhostingMatic is Ownable, Pausable {
         Player storage player = players[msg.sender];
         // Makes sure player didn't withdraw; otherwise, player could withdraw multiple times.
         require(!player.withdrawn, "Player has already withdrawn");
-        // since atokenunderlying has 1:1 ratio so we redeem the amount paid by the player
         player.withdrawn = true;
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
-        // So if earlyWithdrawalFee is 10% and deposit amount is 10 dai, player will get 9 dai back, keeping 1 dai in the pool.
+        // So if earlyWithdrawalFee is 10% and deposit amount is 10 musdc, player will get 9 musdc back, keeping 1 dai in the pool.
         uint256 withdrawAmount = player.amountPaid.sub(
             player.amountPaid.mul(earlyWithdrawalFee).div(100)
         );
         // Decreases the totalGamePrincipal on earlyWithdraw
         totalGamePrincipal = totalGamePrincipal.sub(withdrawAmount);
-        // BUG FIX - Deposit External Pool Tx reverted after an early withdraw
-        // Fixed by first checking at what segment early withdraw happens if > 0 then re-assign current segment as -1
-        // Since in deposit external pool the amount is calculated from the segmentDeposit mapping
-        // and the amount is reduced by withdrawAmount
         uint256 currentSegment = getCurrentSegment();
         if (currentSegment > 0) {
             currentSegment = currentSegment.sub(1);
@@ -361,10 +370,20 @@ contract GoodGhostingMatic is Ownable, Pausable {
         // Only withdraw funds from underlying pool if contract doesn't have enough balance to fulfill the early withdraw.
         // there is no redeem function in v2 it is replaced by withdraw in v2
         if (contractBalance < withdrawAmount) {
+            address[] memory path = new address[](2);
+            path[0] = address(mtoken);
+            path[1] = address(matoken);
 
-            uint poolTokensToBurn = getLPTokenAmount(withdrawAmount.sub(contractBalance));
-            // remove 100% liquidity to get back the deposited mtoken and matoken
-            (, uint amountB) = router.removeLiquidity(
+            uint256[] memory outputAmt = router.getAmountsOut(
+                withdrawAmount.sub(contractBalance),
+                path
+            );
+            uint256 poolTokensToBurn = getLPTokenAmount(
+                withdrawAmount.sub(contractBalance),
+                outputAmt[0]
+            );
+            // remove liquidity to get back the deposited mtoken and matoken
+            (, uint256 amountB) = router.removeLiquidity(
                 address(mtoken),
                 address(matoken),
                 poolTokensToBurn,
@@ -374,27 +393,30 @@ contract GoodGhostingMatic is Ownable, Pausable {
                 now.add(1200)
             );
             require(amountB > 0, "matoken amount is 0");
-            uint256 currentSlippage = getCurrentSlippage(
-                amountB,
-                true
-            );
+            uint256 currentSlippage = getCurrentSlippage(amountB, true);
             require(
-                _slippage.mul(10**16) >= currentSlippage,
+                _slippage.mul(10**8) >= currentSlippage,
                 "Can't execute swap due to slippage"
             );
-            // swap the received matoken after removing liquidity
-            address[] memory inversePairTokens = new address[](2);
-            inversePairTokens[0] = address(matoken);
-            inversePairTokens[1] = address(mtoken);
-            uint[] memory amounts = router.swapExactTokensForTokens(
-                amountB,
-                0,
-                inversePairTokens,
-                address(this),
-                now.add(1200)
-            );
-            // since in path param we just have the 2 tokens hence checking the only element in the amounts array.
-            require(amounts[0] > 0, "Output token amount is 0");
+            // after some liquidity is burnt if still the balance is low then only do a reverse swap
+            if (
+                IERC20(mtoken).balanceOf(address(this)) <
+                withdrawAmount.sub(contractBalance)
+            ) {
+                // swap the received matoken after removing liquidity
+                address[] memory inversePairTokens = new address[](2);
+                inversePairTokens[0] = address(matoken);
+                inversePairTokens[1] = address(mtoken);
+                uint256[] memory amounts = router.swapExactTokensForTokens(
+                    amountB,
+                    0,
+                    inversePairTokens,
+                    address(this),
+                    now.add(1200)
+                );
+                // since in path param we just have the 2 tokens hence checking the only element in the amounts array.
+                require(amounts[0] > 0, "Output token amount is 0");
+            }
         }
         require(
             IERC20(mtoken).transfer(msg.sender, withdrawAmount),
@@ -413,16 +435,13 @@ contract GoodGhostingMatic is Ownable, Pausable {
     {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
-        // aave has 1:1 peg for tokens and atokens
-        // there is no redeem function in v2 it is replaced by withdraw in v2
-        // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
         if (matoken.balanceOf(address(this)) > 0) {
             uint256 currentSlippage = getCurrentSlippage(
                 matoken.balanceOf(address(this)),
                 true
             );
             require(
-                _slippage.mul(10**16) >= currentSlippage,
+                _slippage.mul(10**8) >= currentSlippage,
                 "Can't execute swap due to slippage"
             );
             // claiming rewards and getting back the staked lp tokens
@@ -432,7 +451,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
             address[] memory inversePairTokens = new address[](2);
             inversePairTokens[0] = address(quick);
             inversePairTokens[1] = address(mtoken);
-            uint[] memory amounts = router.swapExactTokensForTokens(
+            uint256[] memory amounts = router.swapExactTokensForTokens(
                 quick.balanceOf(address(this)),
                 0,
                 inversePairTokens,
@@ -442,7 +461,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
             // since in path param we just have the 2 tokens hence checking the only element in the amounts array.
             require(amounts[0] > 0, "Output token amount is 0");
             // remove 100% liquidity to get back the deposited mtoken and matoken
-            (uint amountA, uint amountB) = router.removeLiquidity(
+            (uint256 amountA, uint256 amountB) = router.removeLiquidity(
                 address(mtoken),
                 address(matoken),
                 pair.balanceOf(address(this)),

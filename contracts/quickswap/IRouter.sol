@@ -31,4 +31,6 @@ abstract contract IRouter {
         address to,
         uint deadline
     ) external virtual returns (uint amountA, uint amountB);
+
+    function getAmountsOut(uint amountIn, address[] calldata path) external virtual view returns (uint[] memory amounts);
 }
