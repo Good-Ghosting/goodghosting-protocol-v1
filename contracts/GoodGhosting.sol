@@ -104,17 +104,15 @@ contract GoodGhosting is Ownable, Pausable {
         earlyWithdrawalFee = _earlyWithdrawalFee;
         daiToken = _inboundCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
-        AaveProtocolDataProvider dataProvider = AaveProtocolDataProvider(
-            _dataProvider
-        );
+        AaveProtocolDataProvider dataProvider =
+            AaveProtocolDataProvider(_dataProvider);
         // lending pool needs to be approved in v2 since it is the core contract in v2 and not lending pool core
         lendingPool = ILendingPool(
             _lendingPoolAddressProvider.getLendingPool()
         );
         // atoken address in v2 is fetched from data provider contract
-        (address adaiTokenAddress, , ) = dataProvider.getReserveTokensAddresses(
-            address(_inboundCurrency)
-        );
+        (address adaiTokenAddress, , ) =
+            dataProvider.getReserveTokensAddresses(address(_inboundCurrency));
         // require(adaiTokenAddress != address(0), "Aave doesn't support _inboundCurrency");
         adaiToken = AToken(adaiTokenAddress);
 
@@ -124,6 +122,10 @@ contract GoodGhosting is Ownable, Pausable {
             _inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE),
             "Fail to approve allowance to lending pool"
         );
+    }
+
+    function getNumberOfPlayers() public view returns (uint256) {
+        return iterablePlayers.length;
     }
 
     function pause() external onlyOwner whenNotPaused {
@@ -182,12 +184,13 @@ contract GoodGhosting is Ownable, Pausable {
             players[msg.sender].addr != msg.sender,
             "Cannot join the game more than once"
         );
-        Player memory newPlayer = Player({
-            addr: msg.sender,
-            mostRecentSegmentPaid: 0,
-            amountPaid: 0,
-            withdrawn: false
-        });
+        Player memory newPlayer =
+            Player({
+                addr: msg.sender,
+                mostRecentSegmentPaid: 0,
+                amountPaid: 0,
+                withdrawn: false
+            });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
         emit JoinedGame(msg.sender, segmentPayment);
@@ -236,9 +239,10 @@ contract GoodGhosting is Ownable, Pausable {
         player.withdrawn = true;
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
         // So if earlyWithdrawalFee is 10% and deposit amount is 10 dai, player will get 9 dai back, keeping 1 dai in the pool.
-        uint256 withdrawAmount = player.amountPaid.sub(
-            player.amountPaid.mul(earlyWithdrawalFee).div(100)
-        );
+        uint256 withdrawAmount =
+            player.amountPaid.sub(
+                player.amountPaid.mul(earlyWithdrawalFee).div(100)
+            );
         // Decreases the totalGamePrincipal on earlyWithdraw
         totalGamePrincipal = totalGamePrincipal.sub(withdrawAmount);
         // BUG FIX - Deposit External Pool Tx reverted after an early withdraw
@@ -289,7 +293,11 @@ contract GoodGhosting is Ownable, Pausable {
         // there is no redeem function in v2 it is replaced by withdraw in v2
         // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
         if (adaiToken.balanceOf(address(this)) > 0) {
-           lendingPool.withdraw(address(daiToken), type(uint256).max, address(this));
+            lendingPool.withdraw(
+                address(daiToken),
+                type(uint256).max,
+                address(this)
+            );
         }
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
