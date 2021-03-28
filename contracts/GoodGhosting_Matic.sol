@@ -32,10 +32,9 @@ contract GoodGhostingMatic is Ownable, Pausable {
     IERC20 public immutable quick;
 
     // quickswap router instance
-    IRouter public immutable router;
-    IPair public immutable pair;
-    // this doesn't include the changing stake contracrt when it expires
-    IStake public immutable stake;
+    IRouter public router;
+    IPair public pair;
+    IStake public stakingPool;
 
     uint256 public immutable segmentPayment;
     uint256 public immutable lastSegment;
@@ -88,7 +87,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         @param _quick Quick Token Address.
         @param _router quickswap router contract address.
         @param _pair pool address.
-        @param _stake Stake Contract Address.
+        @param _stakingPool Stake Contract Address.
         @param _segmentCount Number of segments in the game.
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
@@ -100,7 +99,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         IERC20 _quick,
         IRouter _router,
         IPair _pair,
-        IStake _stake,
+        IStake _stakingPool,
         uint256 _segmentCount,
         uint256 _segmentLength,
         uint256 _segmentPayment,
@@ -117,7 +116,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         quick = _quick;
         router = _router;
         pair = _pair;
-        stake = _stake;
+        stakingPool = _stakingPool;
 
         uint256 MAX_ALLOWANCE = 2**256 - 1;
         require(
@@ -130,7 +129,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         );
 
         require(
-            pair.approve(address(stake), MAX_ALLOWANCE),
+            pair.approve(address(stakingPool), MAX_ALLOWANCE),
             "Fail to approve allowance to staking contract"
         );
     }
@@ -141,6 +140,18 @@ contract GoodGhostingMatic is Ownable, Pausable {
 
     function unpause() external onlyOwner whenPaused {
         _unpause();
+    }
+    /**
+       The quickswap musdc-mausdc staking have a staking period of 1 week.
+       So to keep staking throught the game duration we need to update the staking contract so exit the position from the expired pool and staking into a new pool.
+    */
+    function updateStakingContract(IStake _stakingPool) external onlyOwner {
+        stakingPool.exit();
+        stakingPool = _stakingPool;
+        // staking the lp tokens to earn $QUICK rewards
+        uint256 lpTokenAmount = pair.balanceOf(address(this));
+        // no return param here
+        stakingPool.stake(lpTokenAmount);
     }
 
     function _transferDaiToContract() internal {
@@ -327,7 +338,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         // staking the lp tokens to earn $QUICK rewards
         uint256 lpTokenAmount = pair.balanceOf(address(this));
         // no return param here
-        stake.stake(lpTokenAmount);
+        stakingPool.stake(lpTokenAmount);
     }
 
     /**
@@ -446,7 +457,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
             );
             // claiming rewards and getting back the staked lp tokens
             // no return param here
-            stake.exit();
+            stakingPool.exit();
             // swap the claimed quick rewards with mtoken
             address[] memory inversePairTokens = new address[](2);
             inversePairTokens[0] = address(quick);
