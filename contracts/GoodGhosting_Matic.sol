@@ -141,11 +141,17 @@ contract GoodGhostingMatic is Ownable, Pausable {
     function unpause() external onlyOwner whenPaused {
         _unpause();
     }
+
     /**
        The quickswap musdc-mausdc staking have a staking period of 1 week.
        So to keep staking throught the game duration we need to update the staking contract so exit the position from the expired pool and staking into a new pool.
     */
     function updateStakingContract(IStake _stakingPool) external onlyOwner {
+        require(address(_stakingPool) != address(0), "Invali Address");
+        require(
+            address(_stakingPool) != address(stakingPool),
+            "Same Staking Pool Address"
+        );
         stakingPool.exit();
         stakingPool = _stakingPool;
         // staking the lp tokens to earn $QUICK rewards
@@ -182,6 +188,20 @@ contract GoodGhostingMatic is Ownable, Pausable {
     }
 
     /**
+       Returns the min. output amount based on the slippage passed so basic formula input amount * (1- sliipage / 100)
+    */
+    function getMinOutputAmount(uint256 amount, uint256 slippage)
+        internal
+        pure
+        returns (uint256)
+    {
+        // multiplying numerator by 10000 since solidity does not handle decimals
+        uint256 outputAmount = amount.mul(uint256(10000).sub(slippage.mul(10000) / uint256(100)));
+        // dividing by 10000
+        return outputAmount / 10000;
+    }
+
+    /**
        Returns the LP Token amount based on the tokens deposited in the pool
        Logic Used => https://explorer-mainnet.maticvigil.com/address/0xadbF1854e5883eB8aa7BAf50705338739e558E5b/contracts Line 488 mint() function
     */
@@ -209,38 +229,6 @@ contract GoodGhostingMatic is Ownable, Pausable {
         // subtracting the total lp balance with the lp balance excluding users's share to get the lp tokens to burn
         uint256 lpTokensToBurn = pair.balanceOf(address(this)).sub(liquidity);
         return lpTokensToBurn;
-    }
-
-    /**
-        Returns the current slippage rate by querying the quickswap contracts.
-        @dev Note the the resultant amount is multiplied by 10**16 sice solidity does not handle decimal values
-        Logic Used => Uniswap SDK https://github.com/Uniswap/uniswap-v2-sdk/blob/0db1207e6ca0dc138eaa8a8f40011723db7e9756/src/entities/pair.ts#L97  &  https://github.com/Uniswap/uniswap-v2-sdk/blob/0db1207e6ca0dc138eaa8a8f40011723db7e9756/src/entities/trade.ts#L28
-     */
-    function getCurrentSlippage(uint256 _swapAmt, bool reverseSwap)
-        internal
-        view
-        returns (uint256)
-    {
-        // getting the reserve amounts
-        (uint256 reserve0, uint256 reserve1, ) = pair.getReserves();
-        // getting the output amount the prev. logic for the same wasn't accurate
-        address[] memory path = new address[](2);
-        if (reverseSwap) {
-            path[0] = address(matoken);
-            path[1] = address(mtoken);
-        } else {
-            path[0] = address(mtoken);
-            path[1] = address(matoken);
-        }
-        uint256[] memory outputAmt = router.getAmountsOut(_swapAmt, path);
-
-        // calculating the slippage
-        uint256 midPrice = reverseSwap
-            ? (reserve0.mul(100000000)).div(reserve1)
-            : (reserve1.mul(100000000)).div(reserve0);
-        uint256 quote = midPrice.mul(_swapAmt);
-        uint256 slippage = quote.sub(outputAmt[0]).div(quote);
-        return slippage;
     }
 
     /**
@@ -297,11 +285,6 @@ contract GoodGhostingMatic is Ownable, Pausable {
             amount > 0,
             "No amount from previous segment to deposit into protocol"
         );
-        uint256 currentSlippage = getCurrentSlippage(amount, false);
-        require(
-            _slippage.mul(10**8) >= currentSlippage,
-            "Can't execute swap due to slippage"
-        );
         // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
         segmentDeposit[currentSegment.sub(1)] = 0;
 
@@ -311,10 +294,12 @@ contract GoodGhostingMatic is Ownable, Pausable {
         address[] memory pairTokens = new address[](2);
         pairTokens[0] = address(mtoken);
         pairTokens[1] = address(matoken);
-
+        
+        // getting the minAmount with slippage in consideration
+        uint256 minAmount = getMinOutputAmount(musdcSwapAmt, _slippage);
         uint256[] memory amounts = router.swapExactTokensForTokens(
             musdcSwapAmt,
-            0,
+            minAmount,
             pairTokens,
             address(this),
             now.add(1200)
@@ -404,11 +389,6 @@ contract GoodGhostingMatic is Ownable, Pausable {
                 now.add(1200)
             );
             require(amountB > 0, "matoken amount is 0");
-            uint256 currentSlippage = getCurrentSlippage(amountB, true);
-            require(
-                _slippage.mul(10**8) >= currentSlippage,
-                "Can't execute swap due to slippage"
-            );
             // after some liquidity is burnt if still the balance is low then only do a reverse swap
             if (
                 IERC20(mtoken).balanceOf(address(this)) <
@@ -418,9 +398,12 @@ contract GoodGhostingMatic is Ownable, Pausable {
                 address[] memory inversePairTokens = new address[](2);
                 inversePairTokens[0] = address(matoken);
                 inversePairTokens[1] = address(mtoken);
+
+                // getting the minAmount with slippage in consideration
+                uint256 minAmount = getMinOutputAmount(amountB, _slippage);
                 uint256[] memory amounts = router.swapExactTokensForTokens(
                     amountB,
-                    0,
+                    minAmount,
                     inversePairTokens,
                     address(this),
                     now.add(1200)
@@ -447,14 +430,6 @@ contract GoodGhostingMatic is Ownable, Pausable {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
         if (matoken.balanceOf(address(this)) > 0) {
-            uint256 currentSlippage = getCurrentSlippage(
-                matoken.balanceOf(address(this)),
-                true
-            );
-            require(
-                _slippage.mul(10**8) >= currentSlippage,
-                "Can't execute swap due to slippage"
-            );
             // claiming rewards and getting back the staked lp tokens
             // no return param here
             stakingPool.exit();
@@ -462,9 +437,15 @@ contract GoodGhostingMatic is Ownable, Pausable {
             address[] memory inversePairTokens = new address[](2);
             inversePairTokens[0] = address(quick);
             inversePairTokens[1] = address(mtoken);
+
+            // getting the minAmount with slippage in consideration
+            uint256 minAmount = getMinOutputAmount(
+                quick.balanceOf(address(this)),
+                _slippage
+            );
             uint256[] memory amounts = router.swapExactTokensForTokens(
                 quick.balanceOf(address(this)),
-                0,
+                minAmount,
                 inversePairTokens,
                 address(this),
                 now.add(1200)
@@ -485,9 +466,15 @@ contract GoodGhostingMatic is Ownable, Pausable {
             require(amountB > 0, "matoken amount is 0");
             // swapping the matoken for mtoken
             inversePairTokens[0] = address(matoken);
+
+            // getting the minAmount with slippage in consideration
+            minAmount = getMinOutputAmount(
+                matoken.balanceOf(address(this)),
+                _slippage
+            );
             amounts = router.swapExactTokensForTokens(
                 matoken.balanceOf(address(this)),
-                0,
+                minAmount,
                 inversePairTokens,
                 address(this),
                 now.add(1200)
