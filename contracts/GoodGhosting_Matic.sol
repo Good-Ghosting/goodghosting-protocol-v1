@@ -196,9 +196,10 @@ contract GoodGhostingMatic is Ownable, Pausable {
         returns (uint256)
     {
         // multiplying numerator by 10000 since solidity does not handle decimals
-        uint256 outputAmount = amount.mul(uint256(10000).sub(slippage.mul(10000) / uint256(100)));
+        uint256 delta = uint256(10000).sub(slippage.mul(10000).div(uint256(100)));
+        uint256 outputAmount = amount.mul(delta);
         // dividing by 10000
-        return outputAmount / 10000;
+        return outputAmount.div(uint256(10000));
     }
 
     /**
@@ -294,7 +295,7 @@ contract GoodGhostingMatic is Ownable, Pausable {
         address[] memory pairTokens = new address[](2);
         pairTokens[0] = address(mtoken);
         pairTokens[1] = address(matoken);
-        
+
         // getting the minAmount with slippage in consideration
         uint256 minAmount = getMinOutputAmount(musdcSwapAmt, _slippage);
         uint256[] memory amounts = router.swapExactTokensForTokens(
