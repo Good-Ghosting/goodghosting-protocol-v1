@@ -25,6 +25,10 @@ contract GoodGhosting is Ownable, Pausable {
     //  total principal amount
     uint256 public totalGamePrincipal;
 
+    uint256 public adminFee;
+
+    bool public adminWithdraw;
+
     // Token that players use to buy in the game - DAI
     IERC20 public immutable daiToken;
     // Pointer to aDAI
@@ -38,6 +42,7 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable firstSegmentStart;
     uint256 public immutable segmentLength;
     uint256 public immutable earlyWithdrawalFee;
+    uint256 public immutable customFee;
 
     struct Player {
         address addr;
@@ -85,6 +90,7 @@ contract GoodGhosting is Ownable, Pausable {
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
+        customFee
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
      */
     constructor(
@@ -94,6 +100,7 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _segmentLength,
         uint256 _segmentPayment,
         uint256 _earlyWithdrawalFee,
+        uint256 _customFee,
         address _dataProvider
     ) public {
         // Initializes default variables
@@ -102,6 +109,7 @@ contract GoodGhosting is Ownable, Pausable {
         segmentLength = _segmentLength;
         segmentPayment = _segmentPayment;
         earlyWithdrawalFee = _earlyWithdrawalFee;
+        customFee = _customFee;
         daiToken = _inboundCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
         AaveProtocolDataProvider dataProvider =
@@ -134,6 +142,15 @@ contract GoodGhosting is Ownable, Pausable {
 
     function unpause() external onlyOwner whenPaused {
         _unpause();
+    }
+
+    function adminFeeWithdraw() external onlyOwner {
+        require(!adminWithdraw, "Game creator has already withdrawn");
+        adminWithdraw = true;
+        require(
+        IERC20(daiToken).transfer(owner(), adminFee),
+        "Fail to transfer ER20 tokens to game creator"
+         );
     }
 
     function _transferDaiToContract() internal {
@@ -301,7 +318,16 @@ contract GoodGhosting is Ownable, Pausable {
         }
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
-        totalGameInterest = totalBalance.sub(totalGamePrincipal);
+        uint grossInterest = totalBalance.sub(totalGamePrincipal);
+        // deduction of a fee % usually 1 % as part of pool fees.
+        uint _adminFee = (grossInterest.mul(customFee)).div(100);
+        totalGameInterest = grossInterest.sub(adminFee);
+
+        if (winners.length == 0) {
+            adminFee = totalGameInterest;
+        } else {
+            adminFee = _adminFee;
+        }
 
         emit FundsRedeemedFromExternalPool(
             totalBalance,
@@ -309,13 +335,6 @@ contract GoodGhosting is Ownable, Pausable {
             totalGameInterest
         );
         emit WinnersAnnouncement(winners);
-
-        if (winners.length == 0) {
-            require(
-                IERC20(daiToken).transfer(owner(), totalGameInterest),
-                "Fail to transfer ER20 tokens to owner"
-            );
-        }
     }
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
@@ -331,7 +350,7 @@ contract GoodGhosting is Ownable, Pausable {
             // If we're in this block then the user is a winner
             // only add interest if there are winners
             if (winners.length > 0) {
-                payout = payout.add(totalGameInterest / winners.length);
+                payout = payout.add(totalGameInterest.div(winners.length));
             }
         }
         emit Withdrawal(msg.sender, payout);

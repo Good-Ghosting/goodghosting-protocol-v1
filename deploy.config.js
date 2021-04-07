@@ -41,4 +41,5 @@ exports.deployConfigs = {
     segmentLength: 180, // in seconds
     segmentPayment: 10, // amount of tokens - i.e. 10 equals to 10 TOKENS (DAI, ETH, etc.);
     earlyWithdrawFee: 10, // i.e. 10 equals to 10%
+    customFee: 5
 };

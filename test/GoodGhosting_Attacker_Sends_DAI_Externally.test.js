@@ -146,7 +146,8 @@ contract("GoodGhosting", (accounts) => {
                     console.log("totalGameInterest", ev.totalGameInterest.toString());
                     console.log("interestPerPlayer", ev.totalGameInterest.div(new BN(players.length - 1)).toString());
                     eventAmount = new BN(ev.totalAmount.toString());
-                    return eventAmount.eq(contractsDaiBalance);
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest)).div(new BN('100'));
+                    return eventAmount.eq(contractsDaiBalance) && adminFee.lt(ev.totalGameInterest);
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
             );
