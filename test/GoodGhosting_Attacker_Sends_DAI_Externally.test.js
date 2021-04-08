@@ -167,5 +167,16 @@ contract("GoodGhosting", (accounts) => {
                 }, "unable to withdraw amount");
             }
         });
+
+        it("admin is able to withdraw the pool fee collected", async () => {
+            const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+            truffleAssert.eventEmitted(
+                result,
+                "AdminWithdrawal",
+                (ev) => {
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
+                    return adminFee.lte(ev.amount);
+                })
+        })
     });
 });

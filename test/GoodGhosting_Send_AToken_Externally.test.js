@@ -172,12 +172,15 @@ contract("GoodGhosting", (accounts) => {
                     console.log(`incentiveInterest: ${web3.utils.fromWei(incentiveInterest.toString())} | ${incentiveInterest.toString()} wei`);
                     console.log(`interestPerPlayer: ${web3.utils.fromWei(eventInterestPerPlayer.toString())} | ${eventInterestPerPlayer.toString()} wei`);
                     console.log(`incentiveInterestPerPlayer: ${web3.utils.fromWei(expectedMinimumInterestPerPlayer.toString())} | ${expectedMinimumInterestPerPlayer.toString()} wei`);
-
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
                     return (
                         eventTotalAmount.eq(contractsDaiBalance)
-                        && eventGameInterest.gt(incentiveInterest)
-                        && eventInterestPerPlayer.gt(expectedMinimumInterestPerPlayer)
-                        && eventTotalAmount.gt(eventGamePrincipal.add(incentiveInterest))
+                        // shouldn't incentiveInterest be renamed as total amount paid per player as per the definition => segmentPayment.mul(new BN(segmentCount));
+                        && incentiveInterest.gt(eventGameInterest)
+                        // minor diff. of 1 dai
+                        && eventInterestPerPlayer.lte(expectedMinimumInterestPerPlayer)
+                        && eventTotalAmount.gt(eventGamePrincipal.add(eventGameInterest).add(adminFee))
+
                     );
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventTotalAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
@@ -198,5 +201,16 @@ contract("GoodGhosting", (accounts) => {
                 }, "unable to withdraw amount");
             }
         });
+
+        it("admin is able to withdraw the pool fee collected", async () => {
+            const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+            truffleAssert.eventEmitted(
+                result,
+                "AdminWithdrawal",
+                (ev) => {
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
+                    return adminFee.lte(ev.amount);
+                })
+        })
     });
 });

@@ -71,6 +71,7 @@ contract GoodGhosting is Ownable, Pausable {
     );
     event WinnersAnnouncement(address[] winners);
     event EarlyWithdrawal(address indexed player, uint256 amount);
+    event AdminWithdrawal(address indexed admin, uint256 totalGameInterest, uint256 amount);
 
     modifier whenGameIsCompleted() {
         require(isGameCompleted(), "Game is not completed");
@@ -144,13 +145,17 @@ contract GoodGhosting is Ownable, Pausable {
         _unpause();
     }
 
-    function adminFeeWithdraw() external onlyOwner {
-        require(!adminWithdraw, "Game creator has already withdrawn");
+    /**
+       Allowing the admin to withdraw the pool fees
+    */
+    function adminFeeWithdraw() external onlyOwner whenGameIsCompleted {
+        require(!adminWithdraw, "Admin has already withdrawn");
         adminWithdraw = true;
         require(
         IERC20(daiToken).transfer(owner(), adminFee),
-        "Fail to transfer ER20 tokens to game creator"
+        "Fail to transfer ER20 tokens to admin"
          );
+        emit AdminWithdrawal(owner(), totalGameInterest, adminFee);
     }
 
     function _transferDaiToContract() internal {
@@ -312,7 +317,7 @@ contract GoodGhosting is Ownable, Pausable {
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
                 address(daiToken),
-                type(uint256).max,
+                adaiToken.balanceOf(address(this)),
                 address(this)
             );
         }
@@ -321,10 +326,10 @@ contract GoodGhosting is Ownable, Pausable {
         uint grossInterest = totalBalance.sub(totalGamePrincipal);
         // deduction of a fee % usually 1 % as part of pool fees.
         uint _adminFee = (grossInterest.mul(customFee)).div(100);
-        totalGameInterest = grossInterest.sub(adminFee);
+        totalGameInterest = grossInterest.sub(_adminFee);
 
         if (winners.length == 0) {
-            adminFee = totalGameInterest;
+            adminFee = grossInterest;
         } else {
             adminFee = _adminFee;
         }
