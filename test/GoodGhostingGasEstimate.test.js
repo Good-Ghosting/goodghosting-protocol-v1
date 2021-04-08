@@ -168,6 +168,7 @@ contract("GoodGhosting", (accounts) => {
                     const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
                     return adminFee.lte(ev.amount);
                 })
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
         })
     });
 });
