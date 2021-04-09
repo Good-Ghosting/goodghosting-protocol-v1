@@ -108,8 +108,8 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _customFee,
         address _dataProvider
     ) public {
-        require(_customFee <= 100);
-        require(_earlyWithdrawalFee <= 100);
+        require(_customFee <= 20);
+        require(_earlyWithdrawalFee <= 10);
         require(_earlyWithdrawalFee > 0);
         // Initializes default variables
         firstSegmentStart = block.timestamp; //gets current time
