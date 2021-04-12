@@ -157,7 +157,7 @@ contract("GoodGhosting", (accounts) => {
             }
         });
 
-        it("admin is able to withdraw the pool fee collected", async () => {
+        it("reverts if admin tries to withdraw fee collected since interest generated is 0", async () => {
             // due to no external deposit no interest is generated, hence thee fees is 0
             await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
         })

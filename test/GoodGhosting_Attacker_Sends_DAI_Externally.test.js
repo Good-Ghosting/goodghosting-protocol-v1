@@ -169,19 +169,15 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("admin is able to withdraw the pool fee collected", async () => {
-            if (configs.deployConfigs.customFee !== 0) {
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin });
-                truffleAssert.eventEmitted(
-                    result,
-                    "AdminWithdrawal",
-                    (ev) => {
-                        const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
-                        return adminFee.lte(ev.amount);
-                    })
-                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
-            } else {
-                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
-            }
-        })
+            const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+            truffleAssert.eventEmitted(
+                result,
+                "AdminWithdrawal",
+                (ev) => {
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
+                    return adminFee.lte(ev.adminFeeAmount);
+                })
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
+    })
     });
 });

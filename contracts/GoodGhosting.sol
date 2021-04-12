@@ -25,7 +25,7 @@ contract GoodGhosting is Ownable, Pausable {
     //  total principal amount
     uint256 public totalGamePrincipal;
 
-    uint256 public adminFee;
+    uint256 public adminFeeAmount;
 
     bool public adminWithdraw;
 
@@ -74,7 +74,7 @@ contract GoodGhosting is Ownable, Pausable {
     event AdminWithdrawal(
         address indexed admin,
         uint256 totalGameInterest,
-        uint256 amount
+        uint256 adminFeeAmount
     );
 
     modifier whenGameIsCompleted() {
@@ -159,13 +159,13 @@ contract GoodGhosting is Ownable, Pausable {
     */
     function adminFeeWithdraw() external onlyOwner whenGameIsCompleted {
         require(!adminWithdraw, "Admin has already withdrawn");
-        require(adminFee > 0, "No Fees Earned");
+        require(adminFeeAmount > 0, "No Fees Earned");
         adminWithdraw = true;
+        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
         require(
-            IERC20(daiToken).transfer(owner(), adminFee),
+            IERC20(daiToken).transfer(owner(), adminFeeAmount),
             "Fail to transfer ER20 tokens to admin"
         );
-        emit AdminWithdrawal(owner(), totalGameInterest, adminFee);
     }
 
     function _transferDaiToContract() internal {
@@ -333,19 +333,19 @@ contract GoodGhosting is Ownable, Pausable {
         // recording principal amount separately since adai balance will have interest has well
         uint256 grossInterest = totalBalance.sub(totalGamePrincipal);
         // deduction of a fee % usually 1 % as part of pool fees.
-        uint256 _adminFee;
+        uint256 _adminFeeAmount;
         if (customFee > 0) {
-            _adminFee = (grossInterest.mul(customFee)).div(100);
-            totalGameInterest = grossInterest.sub(_adminFee);
+            _adminFeeAmount = (grossInterest.mul(customFee)).div(100);
+            totalGameInterest = grossInterest.sub(_adminFeeAmount);
         } else {
-            _adminFee = 0;
+            _adminFeeAmount = 0;
             totalGameInterest = grossInterest;
         }
 
         if (winners.length == 0) {
-            adminFee = grossInterest;
+            adminFeeAmount = grossInterest;
         } else {
-            adminFee = _adminFee;
+            adminFeeAmount = _adminFeeAmount;
         }
 
         emit FundsRedeemedFromExternalPool(
