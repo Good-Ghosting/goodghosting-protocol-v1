@@ -22,6 +22,7 @@ contract("GoodGhosting", (accounts) => {
     let player3 = accounts[3];
     const weekInSecs = 180;
     const fee = 9; // represents 9%
+    const adminFee = 5; // represents 5%
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(10)); // equivalent to 10 DAI
     const segmentCount = 6;
@@ -45,6 +46,7 @@ contract("GoodGhosting", (accounts) => {
             segmentLength,
             segmentPayment,
             fee,
+            adminFee,
             pap.address,
             { from: admin },
         );
@@ -150,6 +152,57 @@ contract("GoodGhosting", (accounts) => {
             const usersDaiBalance = await token.balanceOf(player1);
             // BN.gte => greater than or equals (see https://github.com/indutny/bn.js/)
             assert(usersDaiBalance.div(daiDecimals).gte(new BN(1000)), `Player1 balance should be greater than or equal to 100 DAI at start - current balance: ${usersDaiBalance}`);
+        });
+
+        it("reverts if the contract is deployed with 0% early withdraw fee", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                0,
+                adminFee,
+                pap.address,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with early withdraw fee more than 10%", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                15,
+                adminFee,
+                pap.address,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with admin fee more than 20%", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                30,
+                pap.address,
+                { from: admin },
+            ));
         });
     });
 
@@ -639,10 +692,13 @@ contract("GoodGhosting", (accounts) => {
             const player2PreWithdrawBalance = await token.balanceOf(player2);
             await goodGhosting.withdraw({ from: player2 });
             const player2PostWithdrawBalance = await token.balanceOf(player2);
+            const totalGameInterest = await goodGhosting.totalGameInterest.call();
+            const adminFeeAmount = (new BN(adminFee).mul(totalGameInterest)).div(new BN('100'));
+            const withdrawalValue = player2PostWithdrawBalance.sub(player2PreWithdrawBalance)
 
-            const withdrawalValue = player2PostWithdrawBalance.sub(player2PreWithdrawBalance);
             const userDeposit = segmentPayment.mul(web3.utils.toBN(segmentCount));
-            assert(withdrawalValue.eq(userDeposit.add(toWad(1000))));
+            // taking in account the pool fees 5%
+            assert(withdrawalValue.lte(userDeposit.add(toWad(1000)).sub(adminFeeAmount)));
         });
 
         it("emits Withdrawal event when user withdraws", async () => { // having test with only 1 player for now
@@ -654,6 +710,70 @@ contract("GoodGhosting", (accounts) => {
             }, "unable to withdraw amount");
         });
     });
+
+    describe("when admin tries to withdraw the fee amount when admin fee is non 0", async () => {
+        it ("reverts if admin tries to withdraw fees again", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            //generating mock interest
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            await goodGhosting.adminFeeWithdraw({ from: admin });
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
+        })
+
+        it ("reverts when there is no interest generated", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
+        })
+
+        it ("admin is able to withdraw fee amount", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            //generating mock interest
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+            truffleAssert.eventEmitted(
+                result,
+                "AdminWithdrawal",
+                (ev) => {
+                    const adminFeeAmount = (new BN(adminFee).mul(ev.totalGameInterest).div(new BN('100')));
+                    return adminFeeAmount.lte(ev.adminFeeAmount);
+                })
+        })
+    })
+
+    describe("when admin tries to withdraw the fee amount when admin fee is 0", async () => {
+        it ("reverts when there is no interest generated", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            await pap.setUnderlyingAssetAddress(token.address);
+            goodGhosting = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                { from: admin },
+            );
+            await joinGamePaySegmentsAndComplete(player1);
+             //generating mock interest
+             await mintTokensFor(goodGhosting.address);
+             await mintTokensFor(admin);
+             await token.approve(pap.address, toWad(1000), { from: admin });
+             await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+             await goodGhosting.redeemFromExternalPool({ from: player1 });
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
+        })
+    })
 
     describe("as a Pausable contract", async () => {
         describe("checks Pausable access control", async () => {

@@ -88,7 +88,6 @@ contract("GoodGhosting", (accounts) => {
             let interestAmount = new BN(0);
             const result = await goodGhosting.redeemFromExternalPool({ from: admin });
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
-            const adminsDaiBalance = new BN(await token.methods.balanceOf(admin).call({ from: admin }));
 
             console.log("contractsDaiBalance", contractsDaiBalance.toString());
             truffleAssert.eventEmitted(
@@ -99,9 +98,8 @@ contract("GoodGhosting", (accounts) => {
                     console.log("totalGamePrincipal", ev.totalGamePrincipal.toString());
                     console.log("totalGameInterest", ev.totalGameInterest.toString());
                     // interest already transferred to the admin
-                    eventAmount = new BN(ev.totalGamePrincipal.toString());
-                    interestAmount = new BN(ev.totalGameInterest.toString());
-                    return eventAmount.eq(contractsDaiBalance) && interestAmount.eq(adminsDaiBalance);
+                    eventAmount = new BN(ev.totalAmount.toString());
+                    return eventAmount.eq(contractsDaiBalance);
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
             );
@@ -118,5 +116,17 @@ contract("GoodGhosting", (accounts) => {
                 }, "unable to withdraw amount");
             }
         });
+
+        it("admin is able to withdraw the pool fee collected", async () => {
+            const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+            truffleAssert.eventEmitted(
+                result,
+                "AdminWithdrawal",
+                (ev) => {
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
+                    return adminFee.lte(ev.adminFeeAmount);
+                })
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
+    })
     });
 });

@@ -23,10 +23,14 @@ contract("GoodGhosting", (accounts) => {
     const segmentPayment = daiDecimals.mul(new BN(segmentPaymentInt)); // equivalent to 10 DAI
     let goodGhosting;
 
-    describe("simulates a full game with 5 players and 4 of them winning the game", async () => {
+    describe("simulates a full game with 5 players and 4 of them winning the game and with admin fee % as 0", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
-            goodGhosting = await GoodGhosting.deployed();
+            const poolConfigs = configs.providers[configs.deployConfigs.selectedProvider.toLowerCase()]['mainnet'];
+            const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
+            const dataProviderAddress = poolConfigs.dataProvider;
+            const inboundCurrencyAddress = poolConfigs[configs.deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
+            goodGhosting = await GoodGhosting.new(inboundCurrencyAddress, lendingPoolAddressProvider, 4, 180, segmentPayment, 10, 0, dataProviderAddress);
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
             const forceSend = await ForceSend.new();
@@ -138,8 +142,10 @@ contract("GoodGhosting", (accounts) => {
                     console.log("totalGamePrincipal", ev.totalGamePrincipal.toString());
                     console.log("totalGameInterest", ev.totalGameInterest.toString());
                     console.log("interestPerPlayer", ev.totalGameInterest.div(new BN(players.length - 1)).toString());
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest)).div(new BN('100'));
                     eventAmount = new BN(ev.totalAmount.toString());
-                    return eventAmount.eq(contractsDaiBalance);
+
+                    return eventAmount.eq(contractsDaiBalance) && adminFee.lt(ev.totalGameInterest);
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
             );
@@ -156,5 +162,9 @@ contract("GoodGhosting", (accounts) => {
                 }, "unable to withdraw amount");
             }
         });
+
+        it("admin cannot withdraw with 0% fees", async () => {
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
+        })
     });
 });

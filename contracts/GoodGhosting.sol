@@ -25,6 +25,10 @@ contract GoodGhosting is Ownable, Pausable {
     //  total principal amount
     uint256 public totalGamePrincipal;
 
+    uint256 public adminFeeAmount;
+
+    bool public adminWithdraw;
+
     // Token that players use to buy in the game - DAI
     IERC20 public immutable daiToken;
     // Pointer to aDAI
@@ -38,6 +42,7 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable firstSegmentStart;
     uint256 public immutable segmentLength;
     uint256 public immutable earlyWithdrawalFee;
+    uint256 public immutable customFee;
 
     struct Player {
         address addr;
@@ -66,6 +71,11 @@ contract GoodGhosting is Ownable, Pausable {
     );
     event WinnersAnnouncement(address[] winners);
     event EarlyWithdrawal(address indexed player, uint256 amount);
+    event AdminWithdrawal(
+        address indexed admin,
+        uint256 totalGameInterest,
+        uint256 adminFeeAmount
+    );
 
     modifier whenGameIsCompleted() {
         require(isGameCompleted(), "Game is not completed");
@@ -85,6 +95,7 @@ contract GoodGhosting is Ownable, Pausable {
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
+        customFee
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
      */
     constructor(
@@ -94,25 +105,32 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _segmentLength,
         uint256 _segmentPayment,
         uint256 _earlyWithdrawalFee,
+        uint256 _customFee,
         address _dataProvider
     ) public {
+        require(_customFee <= 20);
+        require(_earlyWithdrawalFee <= 10);
+        require(_earlyWithdrawalFee > 0);
         // Initializes default variables
         firstSegmentStart = block.timestamp; //gets current time
         lastSegment = _segmentCount;
         segmentLength = _segmentLength;
         segmentPayment = _segmentPayment;
         earlyWithdrawalFee = _earlyWithdrawalFee;
+        customFee = _customFee;
         daiToken = _inboundCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
-        AaveProtocolDataProvider dataProvider =
-            AaveProtocolDataProvider(_dataProvider);
+        AaveProtocolDataProvider dataProvider = AaveProtocolDataProvider(
+            _dataProvider
+        );
         // lending pool needs to be approved in v2 since it is the core contract in v2 and not lending pool core
         lendingPool = ILendingPool(
             _lendingPoolAddressProvider.getLendingPool()
         );
         // atoken address in v2 is fetched from data provider contract
-        (address adaiTokenAddress, , ) =
-            dataProvider.getReserveTokensAddresses(address(_inboundCurrency));
+        (address adaiTokenAddress, , ) = dataProvider.getReserveTokensAddresses(
+            address(_inboundCurrency)
+        );
         // require(adaiTokenAddress != address(0), "Aave doesn't support _inboundCurrency");
         adaiToken = AToken(adaiTokenAddress);
 
@@ -134,6 +152,20 @@ contract GoodGhosting is Ownable, Pausable {
 
     function unpause() external onlyOwner whenPaused {
         _unpause();
+    }
+
+    /**
+       Allowing the admin to withdraw the pool fees
+    */
+    function adminFeeWithdraw() external onlyOwner whenGameIsCompleted {
+        require(!adminWithdraw, "Admin has already withdrawn");
+        require(adminFeeAmount > 0, "No Fees Earned");
+        adminWithdraw = true;
+        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
+        require(
+            IERC20(daiToken).transfer(owner(), adminFeeAmount),
+            "Fail to transfer ER20 tokens to admin"
+        );
     }
 
     function _transferDaiToContract() internal {
@@ -184,13 +216,12 @@ contract GoodGhosting is Ownable, Pausable {
             players[msg.sender].addr != msg.sender,
             "Cannot join the game more than once"
         );
-        Player memory newPlayer =
-            Player({
-                addr: msg.sender,
-                mostRecentSegmentPaid: 0,
-                amountPaid: 0,
-                withdrawn: false
-            });
+        Player memory newPlayer = Player({
+            addr: msg.sender,
+            mostRecentSegmentPaid: 0,
+            amountPaid: 0,
+            withdrawn: false
+        });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
         emit JoinedGame(msg.sender, segmentPayment);
@@ -239,10 +270,9 @@ contract GoodGhosting is Ownable, Pausable {
         player.withdrawn = true;
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
         // So if earlyWithdrawalFee is 10% and deposit amount is 10 dai, player will get 9 dai back, keeping 1 dai in the pool.
-        uint256 withdrawAmount =
-            player.amountPaid.sub(
-                player.amountPaid.mul(earlyWithdrawalFee).div(100)
-            );
+        uint256 withdrawAmount = player.amountPaid.sub(
+            player.amountPaid.mul(earlyWithdrawalFee).div(100)
+        );
         // Decreases the totalGamePrincipal on earlyWithdraw
         totalGamePrincipal = totalGamePrincipal.sub(withdrawAmount);
         // BUG FIX - Deposit External Pool Tx reverted after an early withdraw
@@ -295,13 +325,28 @@ contract GoodGhosting is Ownable, Pausable {
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
                 address(daiToken),
-                type(uint256).max,
+                adaiToken.balanceOf(address(this)),
                 address(this)
             );
         }
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
-        totalGameInterest = totalBalance.sub(totalGamePrincipal);
+        uint256 grossInterest = totalBalance.sub(totalGamePrincipal);
+        // deduction of a fee % usually 1 % as part of pool fees.
+        uint256 _adminFeeAmount;
+        if (customFee > 0) {
+            _adminFeeAmount = (grossInterest.mul(customFee)).div(100);
+            totalGameInterest = grossInterest.sub(_adminFeeAmount);
+        } else {
+            _adminFeeAmount = 0;
+            totalGameInterest = grossInterest;
+        }
+
+        if (winners.length == 0) {
+            adminFeeAmount = grossInterest;
+        } else {
+            adminFeeAmount = _adminFeeAmount;
+        }
 
         emit FundsRedeemedFromExternalPool(
             totalBalance,
@@ -309,13 +354,6 @@ contract GoodGhosting is Ownable, Pausable {
             totalGameInterest
         );
         emit WinnersAnnouncement(winners);
-
-        if (winners.length == 0) {
-            require(
-                IERC20(daiToken).transfer(owner(), totalGameInterest),
-                "Fail to transfer ER20 tokens to owner"
-            );
-        }
     }
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
@@ -331,7 +369,7 @@ contract GoodGhosting is Ownable, Pausable {
             // If we're in this block then the user is a winner
             // only add interest if there are winners
             if (winners.length > 0) {
-                payout = payout.add(totalGameInterest / winners.length);
+                payout = payout.add(totalGameInterest.div(winners.length));
             }
         }
         emit Withdrawal(msg.sender, payout);

@@ -33,6 +33,7 @@ function printSummary(
         segmentLength,
         segmentPaymentWei,
         earlyWithdrawFee,
+        customFee,
         dataProviderAddress
     },
     // additional logging info
@@ -51,6 +52,7 @@ function printSummary(
         "uint256", // segmentLength
         "uint256", // segmentPaymentWei
         "uint256", // earlyWithdrawFee
+        "uint256", // customFee
         "address", // dataProviderAddress
     ];
     var parameterValues = [
@@ -60,6 +62,7 @@ function printSummary(
         segmentLength,
         segmentPaymentWei,
         earlyWithdrawFee,
+        customFee,
         dataProviderAddress
     ];
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
@@ -75,6 +78,7 @@ function printSummary(
     console.log(`Segment Length: ${segmentLength} seconds`);
     console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
+    console.log(`Custom Pool Fee: ${customFee}%`);
     console.log(`Data Provider Address: ${dataProviderAddress}`);
     console.log('\n\nConstructor Arguments ABI-Enconded:')
     console.log(encodedParameters.toString('hex'));
@@ -111,6 +115,7 @@ module.exports = function(deployer, network, accounts) {
             deployConfigs.segmentLength,
             segmentPaymentWei,
             deployConfigs.earlyWithdrawFee,
+            deployConfigs.customFee,
             dataProviderAddress
         );
 
@@ -123,6 +128,7 @@ module.exports = function(deployer, network, accounts) {
                 segmentLength: deployConfigs.segmentLength,
                 segmentPaymentWei,
                 earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
+                customFee: deployConfigs.customFee,
                 dataProviderAddress
             },
             {

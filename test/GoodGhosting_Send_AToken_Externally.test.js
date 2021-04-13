@@ -50,7 +50,7 @@ contract("GoodGhosting", (accounts) => {
             console.log("aDaiTotalSupply: ", web3.utils.fromWei(aDaiTotalSupply));
             console.log("daiAmountToTransfer", web3.utils.fromWei(daiAmount));
             console.log("incentiveInterest", web3.utils.fromWei(incentiveInterest));
-            
+
             for (let i = 0; i < players.length; i++) {
                 const player = players[i];
                 await token.methods
@@ -68,86 +68,6 @@ contract("GoodGhosting", (accounts) => {
             const afterBalance = await aTokenWrapper.balanceOf(goodGhosting.address, { from: unlockedDaiAccount });
             console.log("afterBalance", web3.utils.fromWei(afterBalance.toString()));
             assert(afterBalance.eq(new BN(incentiveInterest)));
-
-
-            // console.log('checking if transfer is allowed');
-            // // ADAI Transferred to the contract
-            // let abi =   {
-            //     "constant": true,
-            //     "inputs": [
-            //       {
-            //         "internalType": "address",
-            //         "name": "_user",
-            //         "type": "address"
-            //       },
-            //       {
-            //         "internalType": "uint256",
-            //         "name": "_amount",
-            //         "type": "uint256"
-            //       }
-            //     ],
-            //     "name": "isTransferAllowed",
-            //     "outputs": [
-            //       {
-            //         "internalType": "bool",
-            //         "name": "",
-            //         "type": "bool"
-            //       }
-            //     ],
-            //     "payable": false,
-            //     "stateMutability": "view",
-            //     "type": "function"
-            // };
-            // let functionData = await web3.eth.abi.encodeFunctionCall(abi, [unlockedDaiAccount, daiAmount]);
-            // let allowed = await web3.eth.call({
-            //     from: unlockedDaiAccount,
-            //     to: '0x028171bCA77440897B824Ca71D1c56caC55b68A3',
-            //     data: functionData
-            // });
-            // console.log('allowed', allowed);
-
-
-            // const abi = {
-            //     "inputs": [
-            //       {
-            //         "internalType": "address",
-            //         "name": "recipient",
-            //         "type": "address"
-            //       },
-            //       {
-            //         "internalType": "uint256",
-            //         "name": "amount",
-            //         "type": "uint256"
-            //       }
-            //     ],
-            //     "name": "wrappedTransfer",
-            //     "outputs": [],
-            //     "stateMutability": "nonpayable",
-            //     "type": "function"
-            //   };
-
-            // let functionData = await web3.eth.abi.encodeFunctionCall(abi, [unlockedDaiAccount, daiAmount]);
-            // await web3.eth.sendTransaction({
-            //     from: unlockedDaiAccount,
-            //     to: aTokenWrapper.address,
-            //     data: functionData
-            // }).on('error', (e) => console.log(e));
-
-            // await truffleAssert.passes(interestBearingToken.methods.isTransferAllowed(unlockedDaiAccount, daiAmount).call({ from: admin }));
-            // await debug(interestBearingToken.methods.isTransferAllowed(unlockedDaiAccount, daiAmount).call({ from: admin }));
-            // console.log('transfer allowed', web3.eth.abi.decodeParameter('bool', allowed));
-            // console.log(interestBearingToken);
-            // const aTokenBalance = await aTokenWrapper.wrappedBalanceOf(unlockedDaiAccount, { from: unlockedDaiAccount });
-            // console.log('raw-aTokenBalance', aTokenBalance)
-            // console.log('aTokenBalance', web3.utils.fromWei(aTokenBalance))
-            
-            // await interestBearingToken.methods
-            //     .approve(goodGhosting.address, daiAmount)
-            //     .send({ from: unlockedDaiAccount })
-            // await interestBearingToken.methods
-            //     .transfer(goodGhosting.address, daiAmount)
-            //     .send({ from: unlockedDaiAccount })
-            //     .catch((e) => console.log('e', e));
         });
 
         it("checks if the contract's variables were properly initialized", async () => {
@@ -252,12 +172,12 @@ contract("GoodGhosting", (accounts) => {
                     console.log(`incentiveInterest: ${web3.utils.fromWei(incentiveInterest.toString())} | ${incentiveInterest.toString()} wei`);
                     console.log(`interestPerPlayer: ${web3.utils.fromWei(eventInterestPerPlayer.toString())} | ${eventInterestPerPlayer.toString()} wei`);
                     console.log(`incentiveInterestPerPlayer: ${web3.utils.fromWei(expectedMinimumInterestPerPlayer.toString())} | ${expectedMinimumInterestPerPlayer.toString()} wei`);
-
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
                     return (
+                        // trimmed down the extra checks
                         eventTotalAmount.eq(contractsDaiBalance)
-                        && eventGameInterest.gt(incentiveInterest)
-                        && eventInterestPerPlayer.gt(expectedMinimumInterestPerPlayer)
-                        && eventTotalAmount.gt(eventGamePrincipal.add(incentiveInterest))
+                        && eventTotalAmount.gte(eventGamePrincipal.add(eventGameInterest).add(adminFee))
+
                     );
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventTotalAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
@@ -278,5 +198,21 @@ contract("GoodGhosting", (accounts) => {
                 }, "unable to withdraw amount");
             }
         });
+
+        it("admin is able to withdraw the pool fee collected", async () => {
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+                truffleAssert.eventEmitted(
+                    result,
+                    "AdminWithdrawal",
+                    (ev) => {
+                        const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
+                        return adminFee.lte(ev.adminFeeAmount);
+                    })
+                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
+        })
+
+        it("reverts when admin tries to withdraw fees again", async () => {
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
+    })
     });
 });
