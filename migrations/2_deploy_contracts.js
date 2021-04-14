@@ -116,7 +116,8 @@ module.exports = function(deployer, network, accounts) {
             segmentPaymentWei,
             deployConfigs.earlyWithdrawFee,
             deployConfigs.customFee,
-            dataProviderAddress
+            dataProviderAddress,
+            deployConfigs.merkelroot
         );
 
         // Prints deployment summary

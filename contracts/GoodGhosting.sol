@@ -9,13 +9,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./aave/ILendingPoolAddressesProvider.sol";
 import "./aave/ILendingPool.sol";
 import "./aave/AToken.sol";
+import "./GoodGhostingWhitelisted.sol";
 
 /**
  * Play the save game.
  *
  */
 
-contract GoodGhosting is Ownable, Pausable {
+contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
     using SafeMath for uint256;
 
     // Controls if tokens were redeemed or not from the pool
@@ -101,8 +102,12 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _segmentPayment,
         uint256 _earlyWithdrawalFee,
         uint256 _customFee,
-        address _dataProvider
-    ) public {
+        address _dataProvider,
+        bytes32 merkleRoot_
+    ) GoodGhostingWhitelisted(merkleRoot_) public {
+        require(_customFee <= 20);
+        require(_earlyWithdrawalFee <= 10);
+        require(_earlyWithdrawalFee > 0);
         // Initializes default variables
         firstSegmentStart = block.timestamp; //gets current time
         lastSegment = _segmentCount;
@@ -195,8 +200,11 @@ contract GoodGhosting is Ownable, Pausable {
         return getCurrentSegment() > lastSegment;
     }
 
-    function joinGame() external whenNotPaused {
+    function joinGame(uint256 index, bytes32[] calldata merkleProof) external whenNotPaused {
         require(getCurrentSegment() == 0, "Game has already started");
+        address player = msg.sender;
+        claim(index, player, true, merkleProof);
+        // require(isValidPlayer, "Not whitelisted player");
         require(
             players[msg.sender].addr != msg.sender,
             "Cannot join the game more than once"
