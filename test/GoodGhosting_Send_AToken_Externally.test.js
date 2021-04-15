@@ -184,12 +184,12 @@ contract("GoodGhosting", (accounts) => {
                     console.log(`incentiveInterest: ${web3.utils.fromWei(incentiveInterest.toString())} | ${incentiveInterest.toString()} wei`);
                     console.log(`interestPerPlayer: ${web3.utils.fromWei(eventInterestPerPlayer.toString())} | ${eventInterestPerPlayer.toString()} wei`);
                     console.log(`incentiveInterestPerPlayer: ${web3.utils.fromWei(expectedMinimumInterestPerPlayer.toString())} | ${expectedMinimumInterestPerPlayer.toString()} wei`);
-
+                    const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
                     return (
+                        // trimmed down the extra checks
                         eventTotalAmount.eq(contractsDaiBalance)
-                        && eventGameInterest.gt(incentiveInterest)
-                        && eventInterestPerPlayer.gt(expectedMinimumInterestPerPlayer)
-                        && eventTotalAmount.gt(eventGamePrincipal.add(incentiveInterest))
+                        && eventTotalAmount.gte(eventGamePrincipal.add(eventGameInterest).add(adminFee))
+
                     );
                 },
                 `FundsRedeemedFromExternalPool error - event amount: ${eventTotalAmount.toString()}; expectAmount: ${contractsDaiBalance.toString()}`,
