@@ -31,7 +31,7 @@ contract("GoodGhosting", (accounts) => {
     const segmentPayment = daiDecimals.mul(new BN(segmentPaymentInt)); // equivalent to 10 DAI
     let goodGhosting;
 
-    describe("simulates a full game with 5 players and 4 of them winning the game", async () => {
+    describe("simulates a full game with 5 players and 4 of them winning the game with no external deposits", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             goodGhosting = await GoodGhosting.deployed();
@@ -168,5 +168,10 @@ contract("GoodGhosting", (accounts) => {
                 }, "unable to withdraw amount");
             }
         });
+
+        it("reverts if admin tries to withdraw fee collected since interest generated is 0", async () => {
+            // due to no external deposit no interest is generated, hence thee fees is 0
+            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
+        })
     });
 });
