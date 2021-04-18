@@ -258,8 +258,8 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         segmentDeposit[currentSegment.sub(1)] = 0;
 
         emit FundsDepositedIntoExternalPool(amount);
-
-        lendingPool.deposit(address(daiToken), amount, address(this), 0);
+        // gg refferal code 155
+        lendingPool.deposit(address(daiToken), amount, address(this), 155);
     }
 
     /**
