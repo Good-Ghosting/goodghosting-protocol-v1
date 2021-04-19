@@ -63,7 +63,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 amount
     );
     event Withdrawal(address indexed player, uint256 amount);
-    event FundsDepositedIntoExternalPool(uint256 amount);
+    event FundsDepositedIntoExternalPool(uint256 amount, uint balance);
     event FundsRedeemedFromExternalPool(
         uint256 totalAmount,
         uint256 totalGamePrincipal,
@@ -250,14 +250,21 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             "Cannot deposit into underlying protocol during segment zero"
         );
         uint256 amount = segmentDeposit[currentSegment.sub(1)];
+        // balance safety check
+        uint256 currentBalance = daiToken.balanceOf(address(this));
+        if (amount > currentBalance) {
+            amount = currentBalance;
+        }
         require(
             amount > 0,
             "No amount from previous segment to deposit into protocol"
         );
+
         // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
         segmentDeposit[currentSegment.sub(1)] = 0;
 
-        emit FundsDepositedIntoExternalPool(amount);
+        // require(balance >= amount, "insufficient amount");
+        emit FundsDepositedIntoExternalPool(amount, balance);
         // gg refferal code 155
         lendingPool.deposit(address(daiToken), amount, address(this), 155);
     }
@@ -284,9 +291,10 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         // Since in deposit external pool the amount is calculated from the segmentDeposit mapping
         // and the amount is reduced by withdrawAmount
         uint256 currentSegment = getCurrentSegment();
-        if (currentSegment > 0) {
-            currentSegment = currentSegment.sub(1);
-        }
+        // commented this for now just need to verify with some unit tests once
+        // if (currentSegment > 0) {
+        //     currentSegment = currentSegment.sub(1);
+        // }
         if (segmentDeposit[currentSegment] > 0) {
             if (segmentDeposit[currentSegment] >= withdrawAmount) {
                 segmentDeposit[currentSegment] = segmentDeposit[currentSegment]
