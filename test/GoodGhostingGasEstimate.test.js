@@ -131,8 +131,6 @@ contract("GoodGhosting", (accounts) => {
                         "loser unable to early withdraw from game",
                     );
                 }
-
-
             }
             // accounted for 1st deposit window
             // the loop will run till segmentCount - 1
