@@ -63,7 +63,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 amount
     );
     event Withdrawal(address indexed player, uint256 amount);
-    event FundsDepositedIntoExternalPool(uint256 amount, uint balance);
+    event FundsDepositedIntoExternalPool(uint256 amount);
     event FundsRedeemedFromExternalPool(
         uint256 totalAmount,
         uint256 totalGamePrincipal,
@@ -264,7 +264,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         segmentDeposit[currentSegment.sub(1)] = 0;
 
         // require(balance >= amount, "insufficient amount");
-        emit FundsDepositedIntoExternalPool(amount, balance);
+        emit FundsDepositedIntoExternalPool(amount);
         // gg refferal code 155
         lendingPool.deposit(address(daiToken), amount, address(this), 155);
     }
