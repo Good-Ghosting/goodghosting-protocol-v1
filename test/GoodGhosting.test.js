@@ -6,20 +6,19 @@ const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 // use this for yarn coverage
-// const whitelistedPlayerConfig = [
-//     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } },
-//     { '0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf': { index: 1, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f"] } },
-//     // invalid user
-//     { '0x78863CB2db754Fc45030c4c25faAf757188A0784': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
-// ]
-// use this for truffle test
 const whitelistedPlayerConfig = [
-    { "0xA9B886b5Bb6625ec892fc881d70fB0694F27741E": { index: 1, proof: ["0xed8d2354ffe58cb0b873420be7a917f0e110b4bf73682a7619bac5c3022646ff"] } },
-    { '0x627aEECA39F670Bd3E5842162d77855F0c44d545': { index: 0, proof: ["0xb9457c376ca169d6ac12819b34a68a3685560fb0d918c4760fd3f0c08047b032"] } },
+    { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } },
+    { '0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf': { index: 1, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f"] } },
     // invalid user
-    { '0x821aEa9a577a9b44299B9c15c88cf3087F3b5544': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
-
+    { '0x78863CB2db754Fc45030c4c25faAf757188A0784': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
 ]
+// use this for truffle test
+// const whitelistedPlayerConfig = [
+//     { "0xA9B886b5Bb6625ec892fc881d70fB0694F27741E": { index: 1, proof: ["0xed8d2354ffe58cb0b873420be7a917f0e110b4bf73682a7619bac5c3022646ff"] } },
+//     { '0x627aEECA39F670Bd3E5842162d77855F0c44d545': { index: 0, proof: ["0xb9457c376ca169d6ac12819b34a68a3685560fb0d918c4760fd3f0c08047b032"] } },
+//     // invalid user
+//     { '0x821aEa9a577a9b44299B9c15c88cf3087F3b5544': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
+// ]
 
 contract("GoodGhosting", (accounts) => {
 
@@ -35,9 +34,6 @@ contract("GoodGhosting", (accounts) => {
     let player1 = accounts[1];
     let player2 = accounts[2];
     let player3 = accounts[3];
-    console.log('player1', player1)
-    console.log('player2', player2)
-    console.log('player3', player3)
 
     const weekInSecs = 180;
     const fee = 9; // represents 9%
@@ -55,6 +51,7 @@ contract("GoodGhosting", (accounts) => {
         // so token.balanceOf(address) should be converted with BN
         // and then divided by 10 ** 18
         await mintTokensFor(player1);
+        await mintTokensFor(player2);
         pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
@@ -88,7 +85,6 @@ contract("GoodGhosting", (accounts) => {
     }
 
     async function joinGamePaySegmentsAndComplete(player, index, proof) {
-        console.log('player44', player)
         await approveDaiToContract(player);
         await goodGhosting.joinGame(index, proof, { from: player });
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
@@ -276,8 +272,6 @@ contract("GoodGhosting", (accounts) => {
             async function checksCompletion(expected, errorMsg) {
                 currentSegment = await goodGhosting.getCurrentSegment.call({ from: admin });
                 result = await goodGhosting.isGameCompleted.call({ from: admin });
-                // console.log(`currentSegment: ${currentSegment}`);
-                // console.log(`isGameCompleted: ${result}`);
                 assert(result === expected, errorMsg);
             }
 
@@ -485,6 +479,25 @@ contract("GoodGhosting", (accounts) => {
                 result,
                 "FundsDepositedIntoExternalPool",
                 (ev) => web3.utils.toBN(ev.amount).eq(expectedAmount),
+                "FundsDepositedIntoExternalPool events was not emitted",
+            );
+        });
+
+        it("emits FundsDepositedIntoExternalPool event for a successful deposit when the segment deposit is less than the balance", async () => {
+            // deposits from 2 players
+            const expectedAmount = web3.utils.toBN(segmentPayment*2);
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            const result = await goodGhosting.depositIntoExternalPool({ from: player1 });
+            truffleAssert.eventEmitted(
+                result,
+                "FundsDepositedIntoExternalPool",
+                // accounting for the early withdraw
+                (ev) => web3.utils.toBN(ev.amount).lt(expectedAmount),
                 "FundsDepositedIntoExternalPool events was not emitted",
             );
         });
