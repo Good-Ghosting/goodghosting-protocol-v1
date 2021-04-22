@@ -5,14 +5,14 @@ const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddresses
 const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
-// use this for yarn coverage
+// use this for yarn coverage & merkel root i.e last argument in constructor 0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e
 const whitelistedPlayerConfig = [
     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } },
     { '0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf': { index: 1, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f"] } },
     // invalid user
     { '0x78863CB2db754Fc45030c4c25faAf757188A0784': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
 ]
-// use this for truffle test
+// use this for truffle test & merkel root i.e last argument in constructor 0x0030d30720c3010a0971236f373b7b36415ca3f600a1cdb9a2954052d269ee0d
 // const whitelistedPlayerConfig = [
 //     { "0xA9B886b5Bb6625ec892fc881d70fB0694F27741E": { index: 1, proof: ["0xed8d2354ffe58cb0b873420be7a917f0e110b4bf73682a7619bac5c3022646ff"] } },
 //     { '0x627aEECA39F670Bd3E5842162d77855F0c44d545': { index: 0, proof: ["0xb9457c376ca169d6ac12819b34a68a3685560fb0d918c4760fd3f0c08047b032"] } },
@@ -184,7 +184,7 @@ contract("GoodGhosting", (accounts) => {
                 0,
                 adminFee,
                 pap.address,
-                "0x0030d30720c3010a0971236f373b7b36415ca3f600a1cdb9a2954052d269ee0d",
+                "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e",
                 { from: admin },
             ));
         });
@@ -202,7 +202,7 @@ contract("GoodGhosting", (accounts) => {
                 15,
                 adminFee,
                 pap.address,
-                "0x0030d30720c3010a0971236f373b7b36415ca3f600a1cdb9a2954052d269ee0d",
+                "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e",
                 { from: admin },
             ));
         });
@@ -220,7 +220,7 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 30,
                 pap.address,
-                "0x0030d30720c3010a0971236f373b7b36415ca3f600a1cdb9a2954052d269ee0d",
+                "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e",
                 { from: admin },
             ));
         });
@@ -610,6 +610,32 @@ contract("GoodGhosting", (accounts) => {
                 }
 
             }
+        });
+
+        it("user is able to withdraw in the last segment when 2 players join the game and one of them earlywithdraws when the seegment amount is less than withdraw amount", async () => {
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+
+            // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await goodGhosting.depositIntoExternalPool({ from: player1 });
+                await approveDaiToContract(player1);
+                await goodGhosting.makeDeposit({ from: player1 });
+                // protocol deposit of the prev. deposit
+                await approveDaiToContract(player2);
+                await goodGhosting.makeDeposit({ from: player2 });
+                }
+                const result = await goodGhosting.earlyWithdraw({ from: player1 });
+                const segmentAmount = await goodGhosting.segmentDeposit(segmentCount, { from: player1 })
+                truffleAssert.eventEmitted(
+                    result,
+                    "EarlyWithdrawal",
+                    (ev) => ev.player === player1 && segmentAmount.toString() === '0',
+                    "player unable to withdraw in between the game",
+                );
         });
     });
 
