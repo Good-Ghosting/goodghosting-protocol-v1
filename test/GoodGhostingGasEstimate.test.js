@@ -83,6 +83,14 @@ contract("GoodGhosting", (accounts) => {
                     await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof, { from: player }), "MerkleDistributor: Invalid proof.");
                 } else {
                     const result = await goodGhosting.joinGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof, { from: player });
+                    // player 1 early withdraws in segment 0 and joins again
+                    if (i == 1) {
+                        await goodGhosting.earlyWithdraw({ from: player });
+                        await token.methods
+                            .approve(goodGhosting.address, segmentPayment.mul(new BN(segmentCount)).toString())
+                            .send({ from: player });
+                        await goodGhosting.joinGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof, { from: player });
+                    }
                     let playerEvent = "";
                     let paymentEvent = 0;
                     truffleAssert.eventEmitted(

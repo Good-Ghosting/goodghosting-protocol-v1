@@ -47,6 +47,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
     struct Player {
         address addr;
         bool withdrawn;
+        bool canRejoin;
         uint256 mostRecentSegmentPaid;
         uint256 amountPaid;
     }
@@ -217,14 +218,15 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         claim(index, player, true, merkleProof);
         // require(isValidPlayer, "Not whitelisted player");
         require(
-            players[msg.sender].addr != msg.sender,
+            players[msg.sender].addr != msg.sender || players[msg.sender].canRejoin,
             "Cannot join the game more than once"
         );
         Player memory newPlayer = Player({
             addr: msg.sender,
             mostRecentSegmentPaid: 0,
             amountPaid: 0,
-            withdrawn: false
+            withdrawn: false,
+            canRejoin: false
         });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
@@ -305,6 +307,10 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         }
 
         uint256 contractBalance = IERC20(daiToken).balanceOf(address(this));
+
+        if (currentSegment == 0) {
+            player.canRejoin = true;
+        }
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount);
 

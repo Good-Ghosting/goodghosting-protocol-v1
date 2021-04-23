@@ -580,14 +580,6 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Player already withdraw from game");
         });
 
-        it("reverts if user tries to rejoin game after doing an early withdraw during Segment 0", async () => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.earlyWithdraw({ from: player1 });
-            await approveDaiToContract(player1);
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Cannot join the game more than once");
-        });
-
         it("user is able to withdraw in the last segment", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
@@ -638,6 +630,25 @@ contract("GoodGhosting", (accounts) => {
                 );
         });
     });
+
+    describe("when a player early withdraws in segment 0 they can rejoin", async () => {
+        it("reverts if a user tries to rejoin the game in a latter segment", async() => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await timeMachine.advanceTime(weekInSecs);
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            await approveDaiToContract(player1);
+            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Game has already started");
+        })
+
+        it("user when join the game and does an early withdraw in segment 0 can rejoin", async() => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+        })
+    })
 
     describe("when an user tries to redeem from the external pool", async () => {
         it("reverts if game is not completed", async () => {
