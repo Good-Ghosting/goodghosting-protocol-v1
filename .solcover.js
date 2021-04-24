@@ -1,5 +1,9 @@
 module.exports = {
     copyPackages: ['@openzeppelin/contracts'],
+    providerOptions: {
+        // using a default mnemonic since the join game method has merkel root params
+        mnemonic: 'clutchaptain shoe salt awake harvest setup primary inmate ugly among become'
+      },
     skipFiles: [
         'Migrations.sol',
         'mock/LendingPoolAddressesProviderMock.sol',

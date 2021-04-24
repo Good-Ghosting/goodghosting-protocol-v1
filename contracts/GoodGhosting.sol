@@ -47,6 +47,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
     struct Player {
         address addr;
         bool withdrawn;
+        bool canRejoin;
         uint256 mostRecentSegmentPaid;
         uint256 amountPaid;
     }
@@ -217,14 +218,15 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         claim(index, player, true, merkleProof);
         // require(isValidPlayer, "Not whitelisted player");
         require(
-            players[msg.sender].addr != msg.sender,
+            players[msg.sender].addr != msg.sender || players[msg.sender].canRejoin,
             "Cannot join the game more than once"
         );
         Player memory newPlayer = Player({
             addr: msg.sender,
             mostRecentSegmentPaid: 0,
             amountPaid: 0,
-            withdrawn: false
+            withdrawn: false,
+            canRejoin: false
         });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
@@ -250,16 +252,23 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             "Cannot deposit into underlying protocol during segment zero"
         );
         uint256 amount = segmentDeposit[currentSegment.sub(1)];
+        // balance safety check
+        uint256 currentBalance = daiToken.balanceOf(address(this));
+        if (amount > currentBalance) {
+            amount = currentBalance;
+        }
         require(
             amount > 0,
             "No amount from previous segment to deposit into protocol"
         );
+
         // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
         segmentDeposit[currentSegment.sub(1)] = 0;
 
+        // require(balance >= amount, "insufficient amount");
         emit FundsDepositedIntoExternalPool(amount);
-
-        lendingPool.deposit(address(daiToken), amount, address(this), 0);
+        // gg refferal code 155
+        lendingPool.deposit(address(daiToken), amount, address(this), 155);
     }
 
     /**
@@ -284,9 +293,10 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         // Since in deposit external pool the amount is calculated from the segmentDeposit mapping
         // and the amount is reduced by withdrawAmount
         uint256 currentSegment = getCurrentSegment();
-        if (currentSegment > 0) {
-            currentSegment = currentSegment.sub(1);
-        }
+        // commented this for now just need to verify with some unit tests once
+        // if (currentSegment > 0) {
+        //     currentSegment = currentSegment.sub(1);
+        // }
         if (segmentDeposit[currentSegment] > 0) {
             if (segmentDeposit[currentSegment] >= withdrawAmount) {
                 segmentDeposit[currentSegment] = segmentDeposit[currentSegment]
@@ -297,6 +307,10 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         }
 
         uint256 contractBalance = IERC20(daiToken).balanceOf(address(this));
+
+        if (currentSegment == 0) {
+            player.canRejoin = true;
+        }
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount);
 
@@ -371,7 +385,10 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             // Player is a winner and gets a bonus!
             // No need to worry about if winners.length = 0
             // If we're in this block then the user is a winner
-            payout = payout.add(totalGameInterest.div(winners.length));
+            // only add interest if there are winners
+            if (winners.length > 0) {
+                payout = payout.add(totalGameInterest.div(winners.length));
+            }
         }
         emit Withdrawal(msg.sender, payout);
 

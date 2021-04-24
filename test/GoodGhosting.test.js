@@ -5,13 +5,20 @@ const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddresses
 const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
+// use this for yarn coverage & merkel root i.e last argument in constructor 0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e
 const whitelistedPlayerConfig = [
-    {"0xf17f52151EbEF6C7334FAD080c5704D77216b732": {index: 1, proof: ["0x2882c9f01add5f1c877ca051d110e9e58fbedc3164a1ae605f2fb231e9d9fb70"] }},
-    {'0xC5fdf4076b8F3A5357c5E395ab970B5B54098Fef': {index: 0, proof: ["0x93e8909af44acf5e2128ec9b84e3ba358ce1de36b5c9d6f9c61e14bb89a1d5f2"] }},
+    { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } },
+    { '0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf': { index: 1, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f"] } },
     // invalid user
-    {'0x821aEa9a577a9b44299B9c15c88cf3087F3b5544': {index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc","0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef","0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"]}}
-
+    { '0x78863CB2db754Fc45030c4c25faAf757188A0784': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
 ]
+// use this for truffle test & merkel root i.e last argument in constructor 0x0030d30720c3010a0971236f373b7b36415ca3f600a1cdb9a2954052d269ee0d
+// const whitelistedPlayerConfig = [
+//     { "0xA9B886b5Bb6625ec892fc881d70fB0694F27741E": { index: 1, proof: ["0xed8d2354ffe58cb0b873420be7a917f0e110b4bf73682a7619bac5c3022646ff"] } },
+//     { '0x627aEECA39F670Bd3E5842162d77855F0c44d545': { index: 0, proof: ["0xb9457c376ca169d6ac12819b34a68a3685560fb0d918c4760fd3f0c08047b032"] } },
+//     // invalid user
+//     { '0x821aEa9a577a9b44299B9c15c88cf3087F3b5544': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
+// ]
 
 contract("GoodGhosting", (accounts) => {
 
@@ -27,6 +34,7 @@ contract("GoodGhosting", (accounts) => {
     let player1 = accounts[1];
     let player2 = accounts[2];
     let player3 = accounts[3];
+
     const weekInSecs = 180;
     const fee = 9; // represents 9%
     const adminFee = 5; // represents 5%
@@ -43,6 +51,7 @@ contract("GoodGhosting", (accounts) => {
         // so token.balanceOf(address) should be converted with BN
         // and then divided by 10 ** 18
         await mintTokensFor(player1);
+        await mintTokensFor(player2);
         pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
@@ -55,7 +64,7 @@ contract("GoodGhosting", (accounts) => {
             fee,
             adminFee,
             pap.address,
-            "0xd53ed7372825e2b21778b03e7f08246a9e358bf89416c856ebb4f196fca5e662",
+            "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e",
             { from: admin },
         );
     });
@@ -175,7 +184,7 @@ contract("GoodGhosting", (accounts) => {
                 0,
                 adminFee,
                 pap.address,
-                "0xd53ed7372825e2b21778b03e7f08246a9e358bf89416c856ebb4f196fca5e662",
+                "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e",
                 { from: admin },
             ));
         });
@@ -193,7 +202,7 @@ contract("GoodGhosting", (accounts) => {
                 15,
                 adminFee,
                 pap.address,
-                "0xd53ed7372825e2b21778b03e7f08246a9e358bf89416c856ebb4f196fca5e662",
+                "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e",
                 { from: admin },
             ));
         });
@@ -211,7 +220,7 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 30,
                 pap.address,
-                "0xd566243e283f1357e5e97dd0c9ab0d78177583074b440cb07815e05f615178bf",
+                "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e",
                 { from: admin },
             ));
         });
@@ -263,8 +272,6 @@ contract("GoodGhosting", (accounts) => {
             async function checksCompletion(expected, errorMsg) {
                 currentSegment = await goodGhosting.getCurrentSegment.call({ from: admin });
                 result = await goodGhosting.isGameCompleted.call({ from: admin });
-                // console.log(`currentSegment: ${currentSegment}`);
-                // console.log(`isGameCompleted: ${result}`);
                 assert(result === expected, errorMsg);
             }
 
@@ -293,7 +300,7 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Game has already started");
         });
 
-        it("reverts when a non-whitelisted player tries to join the game", async() => {
+        it("reverts when a non-whitelisted player tries to join the game", async () => {
             await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[2][player3].index, whitelistedPlayerConfig[2][player3].proof, { from: player3 }), "MerkleDistributor: Invalid proof.");
         })
 
@@ -475,6 +482,25 @@ contract("GoodGhosting", (accounts) => {
                 "FundsDepositedIntoExternalPool events was not emitted",
             );
         });
+
+        it("emits FundsDepositedIntoExternalPool event for a successful deposit when the segment deposit is less than the balance", async () => {
+            // deposits from 2 players
+            const expectedAmount = web3.utils.toBN(segmentPayment*2);
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            const result = await goodGhosting.depositIntoExternalPool({ from: player1 });
+            truffleAssert.eventEmitted(
+                result,
+                "FundsDepositedIntoExternalPool",
+                // accounting for the early withdraw
+                (ev) => web3.utils.toBN(ev.amount).lt(expectedAmount),
+                "FundsDepositedIntoExternalPool events was not emitted",
+            );
+        });
     });
 
     describe("when a user withdraws before the end of the game", async () => {
@@ -554,14 +580,82 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Player already withdraw from game");
         });
 
-        it("reverts if user tries to rejoin game after doing an early withdraw during Segment 0", async () => {
+        it("user is able to withdraw in the last segment", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                if (index === segmentCount - 1) {
+                    const result = await goodGhosting.earlyWithdraw({ from: player1 });
+                    truffleAssert.eventEmitted(
+                        result,
+                        "EarlyWithdrawal",
+                        (ev) => ev.player === player1,
+                        "player unable to withdraw in between the game",
+                    );
+                } else {
+                    // protocol deposit of the prev. deposit
+                    await goodGhosting.depositIntoExternalPool({ from: player1 });
+                    await approveDaiToContract(player1);
+                    await goodGhosting.makeDeposit({ from: player1 });
+                }
+
+            }
+        });
+
+        it("user is able to withdraw in the last segment when 2 players join the game and one of them earlywithdraws when the seegment amount is less than withdraw amount", async () => {
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+
+            // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await goodGhosting.depositIntoExternalPool({ from: player1 });
+                await approveDaiToContract(player1);
+                await goodGhosting.makeDeposit({ from: player1 });
+                // protocol deposit of the prev. deposit
+                await approveDaiToContract(player2);
+                await goodGhosting.makeDeposit({ from: player2 });
+                }
+                const result = await goodGhosting.earlyWithdraw({ from: player1 });
+                const segmentAmount = await goodGhosting.segmentDeposit(segmentCount, { from: player1 })
+                truffleAssert.eventEmitted(
+                    result,
+                    "EarlyWithdrawal",
+                    (ev) => ev.player === player1 && segmentAmount.toString() === '0',
+                    "player unable to withdraw in between the game",
+                );
+        });
+    });
+
+    describe("when a player early withdraws in segment 0 they can rejoin", async () => {
+        it("reverts if a user tries to rejoin the game in a latter segment", async() => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await timeMachine.advanceTime(weekInSecs);
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            await approveDaiToContract(player1);
+            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Game has already started");
+        })
+
+        it("reverts if a user tries to rejoin the game in segment 0 without doing an early withdraw", async() => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await approveDaiToContract(player1);
+            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Cannot join the game more than once");
+        })
+
+        it("user when join the game and does an early withdraw in segment 0 can rejoin", async() => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
             await goodGhosting.earlyWithdraw({ from: player1 });
             await approveDaiToContract(player1);
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Cannot join the game more than once");
-        });
-    });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+        })
+    })
 
     describe("when an user tries to redeem from the external pool", async () => {
         it("reverts if game is not completed", async () => {
@@ -582,7 +676,7 @@ contract("GoodGhosting", (accounts) => {
         it("transfer funds to contract then redeems from external pool", async () => {
             const expectedBalance = web3.utils.toBN(segmentPayment * segmentCount);
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
-            await goodGhosting.redeemFromExternalPool({from: player2});
+            await goodGhosting.redeemFromExternalPool({ from: player2 });
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
             // No interest is generated during tests so far, so contract balance must equals the amount deposited.
             assert(expectedBalance.eq(contractsDaiBalance));
@@ -727,7 +821,7 @@ contract("GoodGhosting", (accounts) => {
     });
 
     describe("when admin tries to withdraw the fee amount when admin fee is non 0", async () => {
-        it ("reverts if admin tries to withdraw fees again", async () => {
+        it("reverts if admin tries to withdraw fees again", async () => {
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
             //generating mock interest
             await mintTokensFor(admin);
@@ -739,13 +833,13 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
         })
 
-        it ("reverts when there is no interest generated", async () => {
+        it("reverts when there is no interest generated", async () => {
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
         })
 
-        it ("admin is able to withdraw fee amount", async () => {
+        it("admin is able to withdraw fee amount", async () => {
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
             //generating mock interest
             await mintTokensFor(admin);
@@ -765,7 +859,7 @@ contract("GoodGhosting", (accounts) => {
     })
 
     describe("when admin tries to withdraw the fee amount when admin fee is 0", async () => {
-        it ("reverts when there is no interest generated", async () => {
+        it("reverts when there is no interest generated", async () => {
             pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             await pap.setUnderlyingAssetAddress(token.address);
             goodGhosting = await GoodGhosting.new(
@@ -777,16 +871,16 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 0,
                 pap.address,
-                "0xd53ed7372825e2b21778b03e7f08246a9e358bf89416c856ebb4f196fca5e662",
+                "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e",
                 { from: admin },
             );
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
-             //generating mock interest
-             await mintTokensFor(goodGhosting.address);
-             await mintTokensFor(admin);
-             await token.approve(pap.address, toWad(1000), { from: admin });
-             await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
-             await goodGhosting.redeemFromExternalPool({ from: player1 });
+            //generating mock interest
+            await mintTokensFor(goodGhosting.address);
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
             await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
         })
     })
