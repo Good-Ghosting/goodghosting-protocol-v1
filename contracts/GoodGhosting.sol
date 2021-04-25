@@ -385,10 +385,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             // Player is a winner and gets a bonus!
             // No need to worry about if winners.length = 0
             // If we're in this block then the user is a winner
-            // only add interest if there are winners
-            if (winners.length > 0) {
-                payout = payout.add(totalGameInterest.div(winners.length));
-            }
+            payout = payout.add(totalGameInterest.div(winners.length));
         }
         emit Withdrawal(msg.sender, payout);
 
