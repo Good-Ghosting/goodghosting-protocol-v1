@@ -34,7 +34,8 @@ function printSummary(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        dataProviderAddress
+        dataProviderAddress,
+        merkelRoot
     },
     // additional logging info
     {
@@ -54,6 +55,7 @@ function printSummary(
         "uint256", // earlyWithdrawFee
         "uint256", // customFee
         "address", // dataProviderAddress
+        "bytes32" // merkel root
     ];
     var parameterValues = [
         inboundCurrencyAddress,
@@ -63,7 +65,8 @@ function printSummary(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        dataProviderAddress
+        dataProviderAddress,
+        merkelRoot
     ];
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
 
@@ -80,6 +83,7 @@ function printSummary(
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
     console.log(`Custom Pool Fee: ${customFee}%`);
     console.log(`Data Provider Address: ${dataProviderAddress}`);
+    console.log(`Merkel Root: ${merkelRoot}`);
     console.log('\n\nConstructor Arguments ABI-Enconded:')
     console.log(encodedParameters.toString('hex'));
     console.log("\n\n\n\n");
@@ -130,7 +134,8 @@ module.exports = function(deployer, network, accounts) {
                 segmentPaymentWei,
                 earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
                 customFee: deployConfigs.customFee,
-                dataProviderAddress
+                dataProviderAddress,
+                merkelRoot: deployConfigs.merkelroot
             },
             {
                 networkName,
