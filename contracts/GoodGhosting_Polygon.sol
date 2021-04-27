@@ -2,8 +2,6 @@
 
 pragma solidity 0.6.11;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./aave/ILendingPoolAddressesProvider.sol";
@@ -19,7 +17,7 @@ import "./GoodGhosting.sol";
  *
  */
 
-contract GoodGhosting_Polygon is Ownable, Pausable, GoodGhosting {
+contract GoodGhosting_Polygon is GoodGhosting {
     IncentiveController public incentiveController;
     IRouter public router;
     IERC20 public immutable matic;
@@ -35,6 +33,11 @@ contract GoodGhosting_Polygon is Ownable, Pausable, GoodGhosting {
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
         customFee
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
+        @param merkleRoot_ merkel root to verify players on chain to allow only whitelisted users join.
+        @param _incentiveController $matic reward claim contract.
+        @param _router quickswap router address.
+        @param _matic matic token address.
+        @param _quick quick token address.
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -45,11 +48,11 @@ contract GoodGhosting_Polygon is Ownable, Pausable, GoodGhosting {
         uint256 _earlyWithdrawalFee,
         uint256 _customFee,
         address _dataProvider,
+        bytes32 merkleRoot_,
         address _incentiveController,
         IRouter _router,
         IERC20 _matic,
-        IERC20 _quick,
-        bytes32 merkleRoot_
+        IERC20 _quick
     )
         public
         GoodGhosting(
@@ -85,7 +88,7 @@ contract GoodGhosting_Polygon is Ownable, Pausable, GoodGhosting {
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
                 address(daiToken),
-                adaiToken.balanceOf(address(this)),
+                type(uint256).max,
                 address(this)
             );
             address[] memory assets = new address[](1);

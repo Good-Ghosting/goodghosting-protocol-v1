@@ -98,6 +98,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
         customFee
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
+        @param merkleRoot_ merkel root to verify players on chain to allow only whitelisted users join.
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -343,7 +344,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
                 address(daiToken),
-                adaiToken.balanceOf(address(this)),
+                type(uint256).max,
                 address(this)
             );
         }
