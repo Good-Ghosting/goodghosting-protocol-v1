@@ -8,11 +8,11 @@ How?
 - This DAI is transferred into the smart contract
 - DAI is converted to aDAI. In other words: deposited into Aave where it accrues interest for the savings pool.
 - To stay in the game, players must deposit before the end of each segment (via `makeDeposit`)
-- At the end of the game, the earned interest is split amongst all players who made every deposit. Aka: the winners. 
-- Players that missed a deposit, still get their principal back but do not earn any interest. 
+- At the end of the game, the earned interest is split amongst all players who made every deposit. Aka: the winners.
+- Players that missed a deposit, still get their principal back but do not earn any interest.
 - Users can withdraw their principal at any time, if they wish to do so (`earlyWithdraw`)
 
-# Smart Contract Overview 
+# Smart Contract Overview
 Note: this is outdated. There have been a number of improvements. For instance, users are able to join from segment 0 and we use the 'The Graph' to query the game data.
 ![high level diagram](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/smart_contract_overview_11-07-20.png?raw=true)
 
@@ -65,12 +65,13 @@ To check for updates for `ncu`
 To check and update `package.json` file, run `ncu -u`. Once completed, make sure to run `npm install` to update all the packages.
 
 
-
 # Tests
 
 ## Unit Tests
 
 **Requirement:** The tests use the file `deploy.config.js` as input to the contract migration. Make sure it is configured.
+
+For the current contract version we have whitelisted players with help of merkel root verification on-chain, so the joinGame method takes in player index and merkel proofs hence check the instructions [here](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/test/GoodGhosting.test.js#L8) before the next step.
 
 To run the unit tests: `truffle test`
 
@@ -91,6 +92,13 @@ To run the integrated test scenarios forking from Mainnet:
   `ganache-cli -f https://mainnet.infura.io/v3/{YOUR_INFURA_PROJECT_ID} -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
 
 - On another terminal window (from the root of the project directory), run `truffle test --network local-mainnet-fork` or `npm run test:fork:mainnet`
+
+## Primary Contracts Overview
+* **[GoodGhosting](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting.sol)** is the game contract where whitelisted players cam join the game, make regular deposits and win, the external pool used for generating interest here is [Aave](https://aave.com/).
+
+* **[GoodGhostingWhitelisted](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhostingWhitelisted.sol)** is basically extended by the GoodGhosting and contains all the merkel proof verifying logic, so whenever any player joins the game they are verified based on proof and merkel root inside this contract.
+
+* **[GoodGhosting_Polygon](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting_Polygon.sol)** is just an extension of the GoodGhosting contract compatible with [Polygon](https://polygon.technology/) to generate extra yield from the ongoing [Aave-Polygon Liquidity mining](https://cryptobriefing.com/polygon-launches-40m-liquidity-mining-program-with-aave/) this contract, when the game ends claims $MATIC rewards, to generate extra yield for the winners.
 
 ## Big Numbers
 * We use `BN.js` for handling Big Numbers
@@ -136,6 +144,7 @@ The project uses [Infura](https://infura.io/) to deploy smart contracts to Ether
 - Deploy to kovan: `npm run deploy:kovan`
 - Deploy to ropsten: `npm run deploy:ropsten`
 - Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
+- Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
 
 If the deployment is successful, you should see a deployment log in the terminal window similar to this:
 
@@ -238,8 +247,24 @@ Use the following steps to verify the contract on Etherscan:
     6. *Solidity Contract Code*: Copy/Paste the code from the flattened file (after executing steps 1 and 2 above).
     7. *Constructor Arguments ABI-Enconded*: Copy/Paste the Constructor Arguments ABI-Enconded available in the deployment log, displayed in the terminal window
 
+## Merkel Root Generation
+For deploying current version of the game contracts a merkel root is required, introduced for the purpose of whitelisting users.
+
+Clone this [repository](https://github.com/Good-Ghosting/Whitelisting)
+
+Install Dependencies: `yarn install`
+
+Edit this [file](https://github.com/Good-Ghosting/Whitelisting/blob/master/scripts/example.json) with the addresses you want to whitelist keeping the JSON format same.
+
+Run: `yarn generate-merkle-root:example`
+
+You should see like this
+
+`{"merkleRoot":"0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e","claims":{"0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17":{"index":0,"exists":true,"proof":["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"]},"0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf":{"index":1,"exists":true,"proof":["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f"]}}}`
+
+Replace the merkel root parameter in the [deploy.config.js][./deploy.config.js] file.
 
 
 ## Addresses
 
-DAI and aDAI addresses are configures in the [deploy.config.js][./deploy.config.js] file for supported network.
+DAI and aDAI addresses are configured in the [deploy.config.js][./deploy.config.js] file for the supported network.

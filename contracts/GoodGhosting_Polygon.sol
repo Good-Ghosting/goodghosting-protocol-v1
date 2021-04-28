@@ -21,7 +21,8 @@ contract GoodGhosting_Polygon is GoodGhosting {
     IncentiveController public incentiveController;
     IRouter public router;
     IERC20 public immutable matic;
-    IERC20 public immutable quick;
+    // as discussed the dai apy on polygon is prettu high so the deposit asset will be dai only hence there is a change in route: wmatic -> usdc -> dai
+    IERC20 public immutable usdc;
 
     /**
         Creates a new instance of GoodGhosting game
@@ -37,7 +38,7 @@ contract GoodGhosting_Polygon is GoodGhosting {
         @param _incentiveController $matic reward claim contract.
         @param _router quickswap router address.
         @param _matic matic token address.
-        @param _quick quick token address.
+        @param _usdc usdc token address.
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -52,7 +53,7 @@ contract GoodGhosting_Polygon is GoodGhosting {
         address _incentiveController,
         IRouter _router,
         IERC20 _matic,
-        IERC20 _quick
+        IERC20 _usdc
     )
         public
         GoodGhosting(
@@ -70,7 +71,7 @@ contract GoodGhosting_Polygon is GoodGhosting {
         // initializing incentiveController contract
         incentiveController = IncentiveController(_incentiveController);
         matic = _matic;
-        quick = _quick;
+        usdc = _usdc;
         router = _router;
     }
 
@@ -105,8 +106,9 @@ contract GoodGhosting_Polygon is GoodGhosting {
                     false
                 );
                 address[] memory pairTokens = new address[](3);
+                // route considering dai only as the game asset
                 pairTokens[0] = address(matic);
-                pairTokens[1] = address(quick);
+                pairTokens[1] = address(usdc);
                 pairTokens[2] = address(daiToken);
                 router.swapExactTokensForTokens(
                     amount,
