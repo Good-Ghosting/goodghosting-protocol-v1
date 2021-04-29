@@ -16,7 +16,7 @@ import "./utils/Math.sol";
  *
  */
 
-contract GoodGhostingMatic is Ownable, Pausable {
+contract GoodGhosting_Polygon_Quickswap is Ownable, Pausable {
     using SafeMath for uint256;
 
     // Controls if tokens were redeemed or not from the pool
