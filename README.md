@@ -73,7 +73,7 @@ To check and update `package.json` file, run `ncu -u`. Once completed, make sure
 
 For the current contract version we have whitelisted players with help of merkel root verification on-chain, so the joinGame method takes in player index and merkel proofs hence check the instructions [here](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/test/GoodGhosting.test.js#L8) before the next step.
 
-To run the unit tests: `truffle test`
+To run the unit tests: `truffle test -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become"`
 
 To run test coverage: `npm run coverage` or `truffle run coverage`
 
@@ -81,15 +81,12 @@ To run test coverage: `npm run coverage` or `truffle run coverage`
 ## Test with Mainnet fork
 To run the integrated test scenarios forking from Mainnet:
 
-- Configure `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` in your `.env` file with an externally owned account (not smart contract) that holds enough DAI balance on the forked network. To find one, go to the DAI Token explorer (https://ethplorer.io/ or https://etherscan.io/) and get one of the top holders
+- Configure `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` in your `.env` file with an externally owned account (not smart contract) that holds enough DAI and ADAI balance on the forked network, `0x4a75f0ae51a5d616ada4db52be140d89302aaf78` account holds both assets so this can be used. To find another one, go to the DAI Token explorer (https://ethplorer.io/ or https://etherscan.io/) and get one of the top holders
 
 - On a terminal window, execute `ganache-cli` forking from mainnet. For details, check this [article](https://ethereumdev.io/testing-your-smart-contract-with-existing-protocols-ganache-fork/). Make sure to pass the address defined in the `.env` file in the `--unlock` parameter. The full command should look something like this:
 
   `ganache-cli -f https://cloudflare-eth.com/  -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
 
-  or
-
-  `ganache-cli -f https://mainnet.infura.io/v3/{YOUR_INFURA_PROJECT_ID} -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
 
 - On another terminal window (from the root of the project directory), run `truffle test --network local-mainnet-fork` or `npm run test:fork:mainnet`
 
