@@ -1,4 +1,4 @@
-const GoodGhosting = artifacts.require("GoodGhosting");
+const GoodGhosting = artifacts.require("Flattened_GoodGhosting");
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
