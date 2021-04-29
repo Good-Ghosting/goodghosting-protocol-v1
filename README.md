@@ -73,7 +73,10 @@ To check and update `package.json` file, run `ncu -u`. Once completed, make sure
 
 For the current contract version we have whitelisted players with help of merkel root verification on-chain, so the joinGame method takes in player index and merkel proofs hence check the instructions [here](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/test/GoodGhosting.test.js#L8) before the next step.
 
-To run the unit tests: `truffle test -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become"`
+To run the unit tests use either
+`truffle test -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become"`
+or
+`npm run test`
 
 To run test coverage: `npm run coverage` or `truffle run coverage`
 

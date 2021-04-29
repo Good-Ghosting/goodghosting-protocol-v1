@@ -4,7 +4,7 @@
     "description": "",
     "main": "truffle-config.js",
     "scripts": {
-        "test": "truffle test",
+        "test": "truffle test -m \"clutchaptain shoe salt awake harvest setup primary inmate ugly among become\"",
         "test:fork:mainnet": "truffle test --network local-mainnet-fork",
         "coverage": "truffle run coverage",
         "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",
