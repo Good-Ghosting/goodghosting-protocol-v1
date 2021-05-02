@@ -73,6 +73,12 @@ contract GoodGhosting_Polygon is GoodGhosting {
         matic = _matic;
         usdc = _usdc;
         router = _router;
+        uint256 MAX_ALLOWANCE = 2**256 - 1;
+        // for the swap
+         require(
+            _matic.approve(address(_router), MAX_ALLOWANCE),
+            "Fail to approve allowance to router"
+        );
     }
 
     /**
@@ -102,8 +108,7 @@ contract GoodGhosting_Polygon is GoodGhosting {
                 amount = incentiveController.claimRewards(
                     assets,
                     amount,
-                    address(this),
-                    false
+                    address(this)
                 );
                 address[] memory pairTokens = new address[](3);
                 // route considering dai only as the game asset

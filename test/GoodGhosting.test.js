@@ -654,6 +654,9 @@ contract("GoodGhosting", (accounts) => {
             await goodGhosting.earlyWithdraw({ from: player1 });
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            const numPlayers = await goodGhosting.getNumberOfPlayers();
+            assert(numPlayers.eq(new BN(1)));
+
         })
     })
 

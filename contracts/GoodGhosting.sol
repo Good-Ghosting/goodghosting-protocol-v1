@@ -222,6 +222,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             players[msg.sender].addr != msg.sender || players[msg.sender].canRejoin,
             "Cannot join the game more than once"
         );
+        bool canRejoin = players[msg.sender].canRejoin;
         Player memory newPlayer = Player({
             addr: msg.sender,
             mostRecentSegmentPaid: 0,
@@ -230,7 +231,9 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             canRejoin: false
         });
         players[msg.sender] = newPlayer;
+        if (!canRejoin) {
         iterablePlayers.push(msg.sender);
+        }
         emit JoinedGame(msg.sender, segmentPayment);
 
         // payment for first segment
