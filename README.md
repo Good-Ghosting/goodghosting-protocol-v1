@@ -146,6 +146,13 @@ The project uses [Infura](https://infura.io/) to deploy smart contracts to Ether
 - Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
 - Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
 
+In case you experience a deployment error similar to
+```sh
+Error: PollingBlockTracker - encountered an error while attempting to update latest block:
+Error: ESOCKETTIMEDOUT
+```
+try switching the INFURA url from `https` to `wss` and increasing the configs `networkCheckTimeout` and/or `timeoutBlocks` in [truffle-config.js](./truffle-config.js). See more details in this [issue thread](https://github.com/trufflesuite/truffle/issues/3356).
+
 If the deployment is successful, you should see a deployment log in the terminal window similar to this:
 
 ```
@@ -241,11 +248,12 @@ Use the following steps to verify the contract on Etherscan:
 4. Access the option to "Verify and Publish" the contract on Etherscan and enter the required parameters as below:
     1. *Contract Address*: get the address of the deployed contract from the deployment log, displayed in the terminal window
     2. *Compiler Type*: Select the option "Solidity (Single File)"
-    3. *Compiler Version*: Check the version used by the repo on (truffle-config file)[./truffle-config.js]. Select the same config
+    3. *Compiler Version*: Check the version used by the repo on [truffle-config file](./truffle-config.js). Select the same config
     4. *Open Source License*: Choose the license. You can use "No licence (None)" if not sure about which one to use
     5. *Optimization*: Check is optimization is used by the repo on (truffle-config file)[./truffle-config.js]. Select the same config
     6. *Solidity Contract Code*: Copy/Paste the code from the flattened file (after executing steps 1 and 2 above).
     7. *Constructor Arguments ABI-Enconded*: Copy/Paste the Constructor Arguments ABI-Enconded available in the deployment log, displayed in the terminal window
+    8. *Misc Settings*: Make sure the configs available here, specially _Runs (Optimizer)_ is the same as the configs set in the [truffle-config file]()./truffle-config.js).
 
 ## Merkel Root Generation
 For deploying current version of the game contracts a merkel root is required, introduced for the purpose of whitelisting users.
