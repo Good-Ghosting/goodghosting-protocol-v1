@@ -8,7 +8,6 @@ interface IncentiveController {
   function claimRewards(
     address[] calldata assets,
     uint256 amount,
-    address to,
-    bool stake
-  ) external returns (uint256);
+    address to
+    ) external returns (uint256);
 }

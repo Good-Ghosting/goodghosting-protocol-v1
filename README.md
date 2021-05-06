@@ -90,6 +90,9 @@ To run the integrated test scenarios forking from Mainnet:
 
   `ganache-cli -f https://cloudflare-eth.com/  -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
 
+  or
+
+  `ganache-cli -f https://mainnet.infura.io/v3/{YOUR_INFURA_PROJECT_ID} -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
 
 - On another terminal window (from the root of the project directory), run `truffle test --network local-mainnet-fork` or `npm run test:fork:mainnet`
 
