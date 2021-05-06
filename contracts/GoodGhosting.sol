@@ -232,7 +232,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         });
         players[msg.sender] = newPlayer;
         if (!canRejoin) {
-        iterablePlayers.push(msg.sender);
+            iterablePlayers.push(msg.sender);
         }
         emit JoinedGame(msg.sender, segmentPayment);
 
