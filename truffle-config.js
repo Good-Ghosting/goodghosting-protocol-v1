@@ -54,13 +54,14 @@ module.exports = {
         },
         polygon: {
             provider: () => new HDWalletProvider(
-                process.env.POLYGON_MNEMONIC,
-                'https://rpc-mainnet.maticvigil.com',
+                process.env.POLYGON_MAINNET_MNEMONIC,
+                process.env.POLYGON_MAINNET_PROVIDER_URL,
                 0, //address_index
                 10, // num_addresses
                 true // shareNonce
             ),
             network_id: 137, // Polygon mainnet id
+            networkCheckTimeout: 60000,
             //gas: 7017622, //
             confirmations: 2, // # of confs to wait between deployments. (default: 0)
             timeoutBlocks: 50, // # of blocks before a deployment times out  (minimum/default: 50)
@@ -73,6 +74,7 @@ module.exports = {
                     process.env.ROPSTEN_PROVIDER_URL,
                 ),
             network_id: 3,       // Ropsten's id
+            networkCheckTimeout: 60000,
             // gas: 4600000,        // Ropsten has a lower block limit than mainnet
             confirmations: 2,    // # of confs to wait between deployments. (default: 0)
             timeoutBlocks: 50,  // # of blocks before a deployment times out  (minimum/default: 50)
@@ -89,6 +91,7 @@ module.exports = {
                 true // shareNonce
             ),
             network_id: 1, // mainnet's id
+            networkCheckTimeout: 60000,
             //gas: 7017622, //
             gasPrice: +process.env.MAINNET_GAS_PRICE || 1000*1000*1000, // default 1 gwei
             confirmations: 2, // # of confs to wait between deployments. (default: 0)
