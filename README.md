@@ -101,7 +101,7 @@ To run the integrated test scenarios forking from Mainnet:
 
 * **[GoodGhostingWhitelisted](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhostingWhitelisted.sol)** is basically extended by the GoodGhosting and contains all the merkel proof verifying logic, so whenever any player joins the game they are verified based on proof and merkel root inside this contract.
 
-* **[GoodGhosting_Polygon](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting_Polygon.sol)** is just an extension of the GoodGhosting contract compatible with [Polygon](https://polygon.technology/) to generate extra yield from the ongoing [Aave-Polygon Liquidity mining](https://cryptobriefing.com/polygon-launches-40m-liquidity-mining-program-with-aave/) this contract, when the game ends claims $MATIC rewards, to generate extra yield for the winners.
+* **[GoodGhostingPolygon](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting_Polygon.sol)** is just an extension of the GoodGhosting contract compatible with [Polygon](https://polygon.technology/) to generate extra yield from the ongoing [Aave-Polygon Liquidity mining](https://cryptobriefing.com/polygon-launches-40m-liquidity-mining-program-with-aave/) this contract, when the game ends claims $MATIC rewards, to generate extra yield for the winners.
 
 ## Big Numbers
 * We use `BN.js` for handling Big Numbers
