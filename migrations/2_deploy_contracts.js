@@ -4,7 +4,7 @@ var abi = require('ethereumjs-abi')
 
 const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
-const GoodGhostingPolygonContract = artifacts.require('GoodGhosting_Polygon');
+const GoodGhostingPolygonContract = artifacts.require('GoodGhostingPolygon');
 const BN = web3.utils.BN;
 const { providers, deployConfigs } = require("../deploy.config");
 

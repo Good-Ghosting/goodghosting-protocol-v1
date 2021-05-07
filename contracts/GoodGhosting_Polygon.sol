@@ -17,7 +17,7 @@ import "./GoodGhosting.sol";
  *
  */
 
-contract GoodGhosting_Polygon is GoodGhosting {
+contract GoodGhostingPolygon is GoodGhosting {
     IncentiveController public incentiveController;
     IRouter public router;
     IERC20 public immutable matic;
@@ -115,13 +115,14 @@ contract GoodGhosting_Polygon is GoodGhosting {
                 pairTokens[0] = address(matic);
                 pairTokens[1] = address(usdc);
                 pairTokens[2] = address(daiToken);
-                router.swapExactTokensForTokens(
+                uint[] memory swapAmounts = router.swapExactTokensForTokens(
                     amount,
                     0,
                     pairTokens,
                     address(this),
                     now.add(1200)
                 );
+                require(swapAmounts.length > 1, "Router.swapExactTokensForTokens: no output token amount returned");
             }
         }
 
