@@ -1,13 +1,14 @@
 /* global artifacts web3 */
 
-var abi = require('ethereumjs-abi')
-
+const abi = require("ethereumjs-abi");
 const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
-const GoodGhostingPolygonContract = artifacts.require('GoodGhosting_Polygon');
+const GoodGhostingPolygonContract = artifacts.require("GoodGhosting_Polygon");
 const BN = web3.utils.BN;
 const { providers, deployConfigs } = require("../deploy.config");
+const runFullGame = require("../post-migrations/FullGameAutomation");
 
+const simulateFullGameAfterDeploy = true;
 
 /** @dev truffle may use network name as "kovan-fork", for example, so we need to get the correct name to be used in the configs */
 function getNetworkName(network) {
@@ -85,8 +86,8 @@ function printSummary(
     console.log(`Custom Pool Fee: ${customFee}%`);
     console.log(`Data Provider Address: ${dataProviderAddress}`);
     console.log(`Merkel Root: ${merkelRoot}`);
-    console.log('\n\nConstructor Arguments ABI-Enconded:')
-    console.log(encodedParameters.toString('hex'));
+    console.log("\n\nConstructor Arguments ABI-Encoded:");
+    console.log(encodedParameters.toString("hex"));
     console.log("\n\n\n\n");
 
 }
@@ -168,8 +169,8 @@ function printSummaryPolygon(
     console.log(`Matic Token: ${wmatic}`);
     console.log(`USDC Token: ${usdc}`);
 
-    console.log('\n\nConstructor Arguments ABI-Enconded:')
-    console.log(encodedParameters.toString('hex'));
+    console.log("\n\nConstructor Arguments ABI-Encoded:");
+    console.log(encodedParameters.toString("hex"));
     console.log("\n\n\n\n");
 
 }
@@ -191,7 +192,7 @@ module.exports = function (deployer, network, accounts) {
         const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
         const dataProviderAddress = poolConfigs.dataProvider;
         await deployer.deploy(SafeMathLib);
-        if (networkName === 'polygon') {
+        if (networkName === "polygon") {
             const incentiveController = poolConfigs.incentiveController;
             const router = poolConfigs.router;
 
@@ -276,6 +277,39 @@ module.exports = function (deployer, network, accounts) {
                     segmentPayment: deployConfigs.segmentPayment,
                 }
             );
+        }
+
+        if (simulateFullGameAfterDeploy) {
+            const constractInstance = await GoodGhostingContract.deployed();
+            const [ admin, ...players ] = accounts;
+            try {
+                await runFullGame(
+                    web3,
+                    constractInstance,
+                    admin,
+                    players,
+                    {
+                        inboundCurrencyAddress,
+                        lendingPoolAddressProvider,
+                        segmentCount: deployConfigs.segmentCount,
+                        segmentLength: deployConfigs.segmentLength,
+                        segmentPaymentWei,
+                        earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
+                        customFee: deployConfigs.customFee,
+                        dataProviderAddress,
+                        merkelRoot: deployConfigs.merkelroot
+                    },
+                    {
+                        networkName,
+                        selectedProvider: deployConfigs.selectedProvider,
+                        inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
+                        segmentPayment: deployConfigs.segmentPayment,
+                    }
+                );
+            }
+            catch (error) {
+                console.log("error during game simulation", error);
+            }
         }
     });
 };
