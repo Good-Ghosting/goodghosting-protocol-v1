@@ -10,7 +10,8 @@
         "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",
         "deploy:kovan": "truffle deploy -f 2 --network kovan --reset",
         "deploy:mainnet": "truffle deploy -f 2 --network mainnet --reset",
-        "deploy:polygon": "truffle deploy -f 2 --network polygon --reset"
+        "deploy:polygon": "truffle deploy -f 2 --network polygon --reset",
+        "deploy:alfajores": "truffle deploy -f 2 --network alfajores --reset"
     },
     "repository": {
         "type": "git",
@@ -27,6 +28,7 @@
     "homepage": "https://github.com/Good-Ghosting/goodghosting-smart-contracts#readme",
     "dependencies": {
         "@aave/protocol-v2": "^1.0.1",
+        "@celo/contractkit": "^1.2.0",
         "@openzeppelin/contracts": "^3.3.0",
         "ethereumjs-abi": "^0.6.8",
         "install": "^0.13.0",

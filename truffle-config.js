@@ -1,5 +1,16 @@
 const HDWalletProvider = require("@truffle/hdwallet-provider");
+const Web3 = require('web3')
+const ContractKit = require('@celo/contractkit')
+const web3 = new Web3('https://alfajores-forno.celo-testnet.org')
+const kit = ContractKit.newKitFromWeb3(web3)
+const getAccount = require('./getAccount').getAccount
 
+async function awaitWrapper(){
+    let account = await getAccount()
+    console.log('account', account)
+    kit.connection.addAccount(account.privateKey)
+}
+awaitWrapper()
 require("dotenv").config();
 
 module.exports = {
@@ -36,6 +47,11 @@ module.exports = {
             port: 8545,
             network_id: "*",
         },
+
+        alfajores: {
+            provider: kit.connection.web3.currentProvider, // CeloProvider
+            network_id: 44787                              // Alfajores network id
+          },
 
         kovan: {
             provider: () => new HDWalletProvider(

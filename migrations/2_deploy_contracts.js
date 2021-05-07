@@ -5,6 +5,8 @@ var abi = require('ethereumjs-abi')
 const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
 const GoodGhostingPolygonContract = artifacts.require('GoodGhosting_Polygon');
+const GoodGhostingCeloContract = artifacts.require('GoodGhosting_Celo');
+
 const BN = web3.utils.BN;
 const { providers, deployConfigs } = require("../deploy.config");
 
@@ -21,6 +23,7 @@ function getNetworkName(network) {
     if (name.includes("ropsten")) return "ropsten";
     if (name.includes("mainnet")) return "mainnet";
     if (name.includes("polygon")) return "polygon";
+    if (name.includes("alfajores")) return "alfajores";
 
     throw new Error(`Unsupported network "${network}"`);
 }
@@ -174,6 +177,73 @@ function printSummaryPolygon(
 
 }
 
+function printSummaryCelo(
+    // contract's constructor parameters
+    {
+        inboundCurrencyAddress,
+        lendingPoolAddressProvider,
+        segmentCount,
+        segmentLength,
+        segmentPaymentWei,
+        earlyWithdrawFee,
+        customFee,
+        lendingPool,
+        merkelRoot
+    },
+    // additional logging info
+    {
+        networkName,
+        selectedProvider,
+        inboundCurrencySymbol,
+        segmentPayment,
+    }
+
+) {
+    var parameterTypes = [
+        "address", // inboundCurrencyAddress
+        "address", // lendingPoolAddressProvider
+        "uint256", // segmentCount
+        "uint256", // segmentLength
+        "uint256", // segmentPaymentWei
+        "uint256", // earlyWithdrawFee
+        "uint256", // customFee
+        "address", // lendingPool
+        "bytes32" // merkel root
+    ];
+    var parameterValues = [
+        inboundCurrencyAddress,
+        lendingPoolAddressProvider,
+        segmentCount,
+        segmentLength,
+        segmentPaymentWei,
+        earlyWithdrawFee,
+        customFee,
+        dataProviderAddress,
+        merkelRoot
+    ];
+    var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
+
+    console.log("\n\n\n----------------------------------------------------");
+    console.log("GoogGhosting deployed with the following arguments:");
+    console.log("----------------------------------------------------\n");
+    console.log(`Network Name: ${networkName}`);
+    console.log(`Lending Pool: ${selectedProvider}`);
+    console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
+    console.log(`Inbound Currency: ${inboundCurrencySymbol} at ${inboundCurrencyAddress}`);
+    console.log(`Segment Count: ${segmentCount}`);
+    console.log(`Segment Length: ${segmentLength} seconds`);
+    console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
+    console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
+    console.log(`Custom Pool Fee: ${customFee}%`);
+    console.log(`Lending Pool Address: ${lendingPool}`);
+    console.log(`Merkel Root: ${merkelRoot}`);
+
+    console.log('\n\nConstructor Arguments ABI-Enconded:')
+    console.log(encodedParameters.toString('hex'));
+    console.log("\n\n\n\n");
+
+}
+
 module.exports = function (deployer, network, accounts) {
     // Injects network name into process .env variable to make accessible on test suite.
     process.env.NETWORK = network;
@@ -232,6 +302,44 @@ module.exports = function (deployer, network, accounts) {
                     router,
                     wmatic,
                     usdc
+                },
+                {
+                    networkName,
+                    selectedProvider: deployConfigs.selectedProvider,
+                    inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
+                    segmentPayment: deployConfigs.segmentPayment,
+                }
+            );
+        } else if (networkName === 'alfajores') {
+            const lendingPool = poolConfigs.lendingPool;
+
+            // Deploys GoodGhostingContract
+            await deployer.link(SafeMathLib, GoodGhostingCeloContract);
+            await deployer.deploy(
+                GoodGhostingCeloContract,
+                inboundCurrencyAddress,
+                lendingPoolAddressProvider,
+                deployConfigs.segmentCount,
+                deployConfigs.segmentLength,
+                segmentPaymentWei,
+                deployConfigs.earlyWithdrawFee,
+                deployConfigs.customFee,
+                lendingPool,
+                deployConfigs.merkelroot
+            );
+
+            // Prints deployment summary
+            printSummaryCelo(
+                {
+                    inboundCurrencyAddress,
+                    lendingPoolAddressProvider,
+                    segmentCount: deployConfigs.segmentCount,
+                    segmentLength: deployConfigs.segmentLength,
+                    segmentPaymentWei,
+                    earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
+                    customFee: deployConfigs.customFee,
+                    lendingPool,
+                    merkelRoot: deployConfigs.merkelroot
                 },
                 {
                     networkName,
