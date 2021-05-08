@@ -10,8 +10,7 @@ function getAccount() {
     return new Promise(resolve => {
         if(fs.existsSync(filePath)){
             fs.readFile(filePath, {encoding: 'utf-8'}, (err, data) => {
-                console.log('data', data)
-                resolve(web3.eth.accounts.privateKeyToAccount(data))
+                resolve(web3.eth.accounts.privateKeyToAccount(data.trim()))
             })
         } else {
             let randomAccount = web3.eth.accounts.create()

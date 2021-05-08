@@ -218,7 +218,7 @@ function printSummaryCelo(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        dataProviderAddress,
+        lendingPool,
         merkelRoot
     ];
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);

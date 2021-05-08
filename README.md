@@ -150,7 +150,7 @@ The project uses [Infura](https://infura.io/) to deploy smart contracts to Ether
 - Deploy to ropsten: `npm run deploy:ropsten`
 - Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
 - Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
-- Deploy to celo (TESTNET): You need to add a .seecret file in root with your private key and then run `npm run deploy:alfajores`
+- Deploy to celo (TESTNET): You need to add a .secret file in root with your private key appended with ```0x``` at the begining and then run `npm run deploy:alfajores`
 
 
 In case you experience a deployment error similar to
