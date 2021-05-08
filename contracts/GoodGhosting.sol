@@ -145,7 +145,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         );
     }
 
-    function getNumberOfPlayers() public view returns (uint256) {
+    function getNumberOfPlayers() external view returns (uint256) {
         return iterablePlayers.length;
     }
 

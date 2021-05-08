@@ -101,7 +101,9 @@ To run the integrated test scenarios forking from Mainnet:
 
 * **[GoodGhostingWhitelisted](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhostingWhitelisted.sol)** is basically extended by the GoodGhosting and contains all the merkel proof verifying logic, so whenever any player joins the game they are verified based on proof and merkel root inside this contract.
 
-* **[GoodGhosting_Polygon](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting_Polygon.sol)** is just an extension of the GoodGhosting contract compatible with [Polygon](https://polygon.technology/) to generate extra yield from the ongoing [Aave-Polygon Liquidity mining](https://cryptobriefing.com/polygon-launches-40m-liquidity-mining-program-with-aave/) this contract, when the game ends claims $MATIC rewards, to generate extra yield for the winners.
+* **[GoodGhostingPolygon](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting_Polygon.sol)** is just an extension of the GoodGhosting contract compatible with [Polygon](https://polygon.technology/) to generate extra yield from the ongoing [Aave-Polygon Liquidity mining](https://cryptobriefing.com/polygon-launches-40m-liquidity-mining-program-with-aave/) this contract, when the game ends claims $MATIC rewards, to generate extra yield for the winners.
+
+* **[GoodGhostingCelo](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/feature/celo/contracts/GoodGhostingCelo.sol)** is just an extension of the GoodGhosting contract compatible with [Celp](https://celo.org/) and uses [Moola](https://moola.market/) to generate extra yield for the winners.
 
 ## Big Numbers
 * We use `BN.js` for handling Big Numbers
@@ -148,6 +150,8 @@ The project uses [Infura](https://infura.io/) to deploy smart contracts to Ether
 - Deploy to ropsten: `npm run deploy:ropsten`
 - Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
 - Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
+- Deploy to celo (TESTNET): You need to add a .seecret file in root with your private key and then run `npm run deploy:alfajores`
+
 
 In case you experience a deployment error similar to
 ```sh

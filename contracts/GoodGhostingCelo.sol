@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./aave/ILendingPoolAddressesProvider.sol";
-import "./moola/ILendingPool.sol";
-import "./moola/AToken.sol";
+import "./moola/MILendingPool.sol";
+import "./moola/MAToken.sol";
 import "./moola/ILendingPoolCore.sol";
 import "./GoodGhostingWhitelisted.sol";
 /**
@@ -16,7 +16,7 @@ import "./GoodGhostingWhitelisted.sol";
  *
  */
 
-contract GoodGhosting_Celo is Ownable, Pausable, GoodGhostingWhitelisted {
+contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
     using SafeMath for uint256;
 
     // Controls if tokens were redeemed or not from the pool
@@ -33,10 +33,10 @@ contract GoodGhosting_Celo is Ownable, Pausable, GoodGhostingWhitelisted {
     // Token that players use to buy in the game - DAI
     IERC20 public immutable daiToken;
     // Pointer to aDAI
-    AToken public immutable adaiToken;
+    MAToken public immutable adaiToken;
     // Which Aave instance we use to swap DAI to interest bearing aDAI
     ILendingPoolAddressesProvider public lendingPoolAddressProvider;
-    ILendingPool public lendingPool;
+    MILendingPool public lendingPool;
 
     uint256 public immutable segmentPayment;
     uint256 public immutable lastSegment;
@@ -107,7 +107,7 @@ contract GoodGhosting_Celo is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 _segmentPayment,
         uint256 _earlyWithdrawalFee,
         uint256 _customFee,
-        ILendingPool _lendingPool,
+        MILendingPool _lendingPool,
         bytes32 merkleRoot_
     ) GoodGhostingWhitelisted(merkleRoot_) public {
         require(_customFee <= 20);
@@ -125,7 +125,7 @@ contract GoodGhosting_Celo is Ownable, Pausable, GoodGhostingWhitelisted {
         lendingPool = _lendingPool;
         address adaiTokenAddress = lendingPoolCore.getReserveATokenAddress(address(_inboundCurrency));
         require(adaiTokenAddress != address(0), "Aave doesn't support _inboundCurrency");
-        adaiToken = AToken(adaiTokenAddress);
+        adaiToken = MAToken(adaiTokenAddress);
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint MAX_ALLOWANCE = 2**256 - 1;
         _inboundCurrency.approve(address(lendingPoolCore), MAX_ALLOWANCE);

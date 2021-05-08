@@ -7,7 +7,6 @@ const getAccount = require('./getAccount').getAccount
 
 async function awaitWrapper(){
     let account = await getAccount()
-    console.log('account', account)
     kit.connection.addAccount(account.privateKey)
 }
 awaitWrapper()
