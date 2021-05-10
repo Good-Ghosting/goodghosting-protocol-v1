@@ -138,10 +138,15 @@ The project uses [Infura](https://infura.io/) to deploy smart contracts to Ether
 - SignIn/SignUp at Infura, create a project and get the project id.
 - Your wallet mnemonic (12 words seed).
 
+The project uses [Matic RPC](https://rpc.maticvigil.com/) to deploy smart contracts to POlygon networks (testnets and mainnet). What you'll need:
+- SignIn/SignUp at Matic RPC, create a project and get the project id.
+- Your wallet mnemonic (12 words seed).
+
+
 **Steps**
 1. Copy [.env.sample](./.env.sample) as an `.env` file. You can run this command in your terminal: `cp .env.sample .env`
 2. Open file `.env`
-3. Insert your Infura's ProjectId and your wallet mnemonic in the file for the desired network
+3. Insert your Infura or Polygon's ProjectId and your wallet mnemonic in the file for the desired network
 4. Open the file [deploy.config.js](./deploy.config.js) and set the desired deployment configs for the contract.
 5. Once you have the `.env` and `deploy.config.js` files properly setup, you can deploy the GoodGhosting contract to the desired network by running one of the following commands:
 - Deploy to kovan: `npm run deploy:kovan`
@@ -154,7 +159,7 @@ In case you experience a deployment error similar to
 Error: PollingBlockTracker - encountered an error while attempting to update latest block:
 Error: ESOCKETTIMEDOUT
 ```
-try switching the INFURA url from `https` to `wss` and increasing the configs `networkCheckTimeout` and/or `timeoutBlocks` in [truffle-config.js](./truffle-config.js). See more details in this [issue thread](https://github.com/trufflesuite/truffle/issues/3356).
+try switching the INFURA (or Polygon) url from `https` to `wss` and increasing the configs `networkCheckTimeout` and/or `timeoutBlocks` in [truffle-config.js](./truffle-config.js). See more details in this [issue thread](https://github.com/trufflesuite/truffle/issues/3356).
 
 If the deployment is successful, you should see a deployment log in the terminal window similar to this:
 
