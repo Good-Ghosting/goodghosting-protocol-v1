@@ -6,3 +6,4 @@ app/src/contracts
 coverage/
 *.env
 !.env.sample
+/.secret

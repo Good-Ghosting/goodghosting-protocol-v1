@@ -28,6 +28,14 @@ exports.providers = {
                 decimals: 18,
             }
         },
+        alfajores: {
+            lendingPoolAddressProvider: "0x6EAE47ccEFF3c3Ac94971704ccd25C7820121483",
+            lendingPool: "0x0886f74eEEc443fBb6907fB5528B57C28E813129",
+            dai: {
+                address: "0x874069fa1eb16d44d622f2e0ca25eea172369bc1",
+                decimals: 18,
+            }
+        },
         ropsten: {
             lendingPoolAddressProvider: "0x1c8756FD2B28e9426CDBDcC7E3c4d64fa9A54728",   /* Note: Ropsten depreciated in Aave v2 */
             dai: {                                                                      /* Note: Ropsten depreciated in Aave v2 */
