@@ -38,7 +38,7 @@ function printSummary(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        dataProviderAddress,
+        aaveContractAddress,
         merkelRoot
     },
     // additional logging info
@@ -50,6 +50,7 @@ function printSummary(
     }
 
 ) {
+    console.log('aaveContractAddress', aaveContractAddress)
     var parameterTypes = [
         "address", // inboundCurrencyAddress
         "address", // lendingPoolAddressProvider
@@ -58,7 +59,7 @@ function printSummary(
         "uint256", // segmentPaymentWei
         "uint256", // earlyWithdrawFee
         "uint256", // customFee
-        "address", // dataProviderAddress
+        "address", // dataProvider/lendingpool address
         "bytes32" // merkel root
     ];
     var parameterValues = [
@@ -69,9 +70,12 @@ function printSummary(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        dataProviderAddress,
+        aaveContractAddress,
         merkelRoot
     ];
+    console.log(parameterValues)
+    console.log(parameterTypes)
+
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
 
     console.log("\n\n\n----------------------------------------------------");
@@ -86,7 +90,7 @@ function printSummary(
     console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
     console.log(`Custom Pool Fee: ${customFee}%`);
-    console.log(`Data Provider Address: ${dataProviderAddress}`);
+    console.log(`Data Provider/Lending Pool Address: ${aaveContractAddress}`);
     console.log(`Merkel Root: ${merkelRoot}`);
     console.log('\n\nConstructor Arguments ABI-Enconded:')
     console.log(encodedParameters.toString('hex'));
@@ -177,73 +181,6 @@ function printSummaryPolygon(
 
 }
 
-function printSummaryCelo(
-    // contract's constructor parameters
-    {
-        inboundCurrencyAddress,
-        lendingPoolAddressProvider,
-        segmentCount,
-        segmentLength,
-        segmentPaymentWei,
-        earlyWithdrawFee,
-        customFee,
-        lendingPool,
-        merkelRoot
-    },
-    // additional logging info
-    {
-        networkName,
-        selectedProvider,
-        inboundCurrencySymbol,
-        segmentPayment,
-    }
-
-) {
-    var parameterTypes = [
-        "address", // inboundCurrencyAddress
-        "address", // lendingPoolAddressProvider
-        "uint256", // segmentCount
-        "uint256", // segmentLength
-        "uint256", // segmentPaymentWei
-        "uint256", // earlyWithdrawFee
-        "uint256", // customFee
-        "address", // lendingPool
-        "bytes32" // merkel root
-    ];
-    var parameterValues = [
-        inboundCurrencyAddress,
-        lendingPoolAddressProvider,
-        segmentCount,
-        segmentLength,
-        segmentPaymentWei,
-        earlyWithdrawFee,
-        customFee,
-        lendingPool,
-        merkelRoot
-    ];
-    var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
-
-    console.log("\n\n\n----------------------------------------------------");
-    console.log("GoogGhosting deployed with the following arguments:");
-    console.log("----------------------------------------------------\n");
-    console.log(`Network Name: ${networkName}`);
-    console.log(`Lending Pool: ${selectedProvider}`);
-    console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
-    console.log(`Inbound Currency: ${inboundCurrencySymbol} at ${inboundCurrencyAddress}`);
-    console.log(`Segment Count: ${segmentCount}`);
-    console.log(`Segment Length: ${segmentLength} seconds`);
-    console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
-    console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
-    console.log(`Custom Pool Fee: ${customFee}%`);
-    console.log(`Lending Pool Address: ${lendingPool}`);
-    console.log(`Merkel Root: ${merkelRoot}`);
-
-    console.log('\n\nConstructor Arguments ABI-Enconded:')
-    console.log(encodedParameters.toString('hex'));
-    console.log("\n\n\n\n");
-
-}
-
 module.exports = function (deployer, network, accounts) {
     // Injects network name into process .env variable to make accessible on test suite.
     process.env.NETWORK = network;
@@ -259,7 +196,7 @@ module.exports = function (deployer, network, accounts) {
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
         const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
-        const dataProviderAddress = poolConfigs.dataProvider;
+        let aaveContractAddress = poolConfigs.dataProvider;
         await deployer.deploy(SafeMathLib);
         if (networkName === 'polygon') {
             const incentiveController = poolConfigs.incentiveController;
@@ -310,60 +247,38 @@ module.exports = function (deployer, network, accounts) {
                     segmentPayment: deployConfigs.segmentPayment,
                 }
             );
-        } else if (networkName === 'alfajores') {
-            const lendingPool = poolConfigs.lendingPool;
-
-            // Deploys GoodGhostingContract
-            await deployer.link(SafeMathLib, GoodGhostingCeloContract);
-            await deployer.deploy(
-                GoodGhostingCeloContract,
-                inboundCurrencyAddress,
-                lendingPoolAddressProvider,
-                deployConfigs.segmentCount,
-                deployConfigs.segmentLength,
-                segmentPaymentWei,
-                deployConfigs.earlyWithdrawFee,
-                deployConfigs.customFee,
-                lendingPool,
-                deployConfigs.merkelroot
-            );
-
-            // Prints deployment summary
-            printSummaryCelo(
-                {
-                    inboundCurrencyAddress,
-                    lendingPoolAddressProvider,
-                    segmentCount: deployConfigs.segmentCount,
-                    segmentLength: deployConfigs.segmentLength,
-                    segmentPaymentWei,
-                    earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
-                    customFee: deployConfigs.customFee,
-                    lendingPool,
-                    merkelRoot: deployConfigs.merkelroot
-                },
-                {
-                    networkName,
-                    selectedProvider: deployConfigs.selectedProvider,
-                    inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
-                    segmentPayment: deployConfigs.segmentPayment,
-                }
-            );
         } else {
             // Deploys GoodGhostingContract
-            await deployer.link(SafeMathLib, GoodGhostingContract);
-            await deployer.deploy(
-                GoodGhostingContract,
-                inboundCurrencyAddress,
-                lendingPoolAddressProvider,
-                deployConfigs.segmentCount,
-                deployConfigs.segmentLength,
-                segmentPaymentWei,
-                deployConfigs.earlyWithdrawFee,
-                deployConfigs.customFee,
-                dataProviderAddress,
-                deployConfigs.merkelroot
-            );
-
+            if (network === 'alfajores') {
+                aaveContractAddress = poolConfigs.lendingPool;
+                // await deployer.link(SafeMathLib, GoodGhostingCeloContract);
+                // await deployer.deploy(
+                //     GoodGhostingCeloContract,
+                //     inboundCurrencyAddress,
+                //     lendingPoolAddressProvider,
+                //     deployConfigs.segmentCount,
+                //     deployConfigs.segmentLength,
+                //     segmentPaymentWei,
+                //     deployConfigs.earlyWithdrawFee,
+                //     deployConfigs.customFee,
+                //     aaveContract,
+                //     deployConfigs.merkelroot
+                // );
+            } else {
+                await deployer.link(SafeMathLib, GoodGhostingContract);
+                await deployer.deploy(
+                    GoodGhostingContract,
+                    inboundCurrencyAddress,
+                    lendingPoolAddressProvider,
+                    deployConfigs.segmentCount,
+                    deployConfigs.segmentLength,
+                    segmentPaymentWei,
+                    deployConfigs.earlyWithdrawFee,
+                    deployConfigs.customFee,
+                    aaveContractAddress,
+                    deployConfigs.merkelroot
+                );
+            }
             // Prints deployment summary
             printSummary(
                 {
@@ -374,7 +289,7 @@ module.exports = function (deployer, network, accounts) {
                     segmentPaymentWei,
                     earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
                     customFee: deployConfigs.customFee,
-                    dataProviderAddress,
+                    aaveContractAddress,
                     merkelRoot: deployConfigs.merkelroot
                 },
                 {

@@ -135,7 +135,7 @@ This happens because Slither can't resolve the `import` in the contract to the `
 Using the results from the example above, the `import` command `import "@openzeppelin/contracts/access/Ownable.sol";` should be replaced by `import "node_modules/@openzeppelin/contracts/access/Ownable.sol";`. **PLEASE DO NOT COMMIT THIS CHANGE**. It is only applicable when running Slither.
 
 
-# Deploying contracts to Ethereum Networks
+# Deploying contracts to Ethereum/L2 Networks
 The project uses [Infura](https://infura.io/) to deploy smart contracts to Ethereum networks (testnets and mainnet). What you'll need:
 - SignIn/SignUp at Infura, create a project and get the project id.
 - Your wallet mnemonic (12 words seed).
@@ -155,7 +155,7 @@ The project uses [Matic RPC](https://rpc.maticvigil.com/) to deploy smart contra
 - Deploy to ropsten: `npm run deploy:ropsten`
 - Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
 - Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
-- Deploy to celo (TESTNET): You need to add a .secret file in root with your private key appended with ```0x``` at the begining and then run `npm run deploy:alfajores`
+- Deploy to celo (TESTNET): Add your private key in the env file at the bottom with ```0x``` at the begining and then run `npm run deploy:alfajores`
 
 
 In case you experience a deployment error similar to
