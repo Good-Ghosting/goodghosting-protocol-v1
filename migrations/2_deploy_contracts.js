@@ -92,8 +92,6 @@ function printSummary(
             usdc
         );
     }
-    console.log(parameterValues);
-    console.log(parameterTypes);
 
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
 
@@ -174,8 +172,6 @@ module.exports = function (deployer, network, accounts) {
                 usdc
             );
         }
-
-        console.log('deployment args', ...deploymentArgs);
 
         // Deploys GoodGhosting contract based on network
         await deployer.deploy(SafeMathLib);
