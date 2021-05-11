@@ -6,6 +6,7 @@
     "scripts": {
         "test": "truffle test -m \"clutchaptain shoe salt awake harvest setup primary inmate ugly among become\"",
         "test:fork:mainnet": "truffle test --network local-mainnet-fork",
+        "test:fork:polygon:vigil": "truffle test --network local-polygon-vigil-fork",
         "coverage": "truffle run coverage",
         "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",
         "deploy:kovan": "truffle deploy -f 2 --network kovan --reset",
