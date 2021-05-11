@@ -108,7 +108,7 @@ function printSummaryPolygon(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        dataProviderAddress,
+        aaveContractAddress,
         merkelRoot,
         incentiveController,
         router,
@@ -147,7 +147,7 @@ function printSummaryPolygon(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        dataProviderAddress,
+        aaveContractAddress,
         merkelRoot,
         incentiveController,
         router,
@@ -168,7 +168,7 @@ function printSummaryPolygon(
     console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
     console.log(`Custom Pool Fee: ${customFee}%`);
-    console.log(`Data Provider Address: ${dataProviderAddress}`);
+    console.log(`Data Provider Address: ${aaveContractAddress}`);
     console.log(`Merkel Root: ${merkelRoot}`);
     console.log(`Incentive Controller: ${incentiveController}`);
     console.log(`Quickswap Router: ${router}`);
@@ -215,7 +215,7 @@ module.exports = function (deployer, network, accounts) {
                 segmentPaymentWei,
                 deployConfigs.earlyWithdrawFee,
                 deployConfigs.customFee,
-                dataProviderAddress,
+                aaveContractAddress,
                 deployConfigs.merkelroot,
                 incentiveController,
                 router,
@@ -233,7 +233,7 @@ module.exports = function (deployer, network, accounts) {
                     segmentPaymentWei,
                     earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
                     customFee: deployConfigs.customFee,
-                    dataProviderAddress,
+                    aaveContractAddress,
                     merkelRoot: deployConfigs.merkelroot,
                     incentiveController,
                     router,

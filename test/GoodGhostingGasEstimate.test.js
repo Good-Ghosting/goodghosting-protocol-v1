@@ -1,4 +1,5 @@
 const GoodGhosting = artifacts.require("GoodGhosting");
+const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
@@ -13,15 +14,23 @@ const whitelistedPlayerConfig = [
     { '0x7C3E8511863daF709bdBe243356f562e227573d4': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
 ]
 
-contract("GoodGhosting", (accounts) => {
+contract("GoodGhostingGasEstimate", (accounts) => {
 
     // Only executes this test file for local network fork
-    if (process.env.NETWORK !== "local-mainnet-fork") return;
+    if (!["local-mainnet-fork", "local-polygon-vigil-fork"].includes(process.env.NETWORK)) return;
 
     global.web3 = web3;
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
-    const providersConfigs = configs.providers.aave.mainnet;
-    const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, earlyWithdrawFee } = configs.deployConfigs;
+    let providersConfigs;
+    let GoodGhostingArtifact;
+    if (process.env.NETWORK === "local-mainnet-fork") {
+        GoodGhostingArtifact = GoodGhosting;
+        providersConfigs     = configs.providers.aave.mainnet;
+    } else {
+        GoodGhostingArtifact = GoodGhostingPolygon;
+        providersConfigs     = configs.providers.aave.polygon;
+    }
+    const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, customFee } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
     let admin = accounts[0];
@@ -34,11 +43,7 @@ contract("GoodGhosting", (accounts) => {
     describe("simulates a full game with 5 players and 4 of them winning the game and with admin fee % as 0", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
-            const poolConfigs = configs.providers[configs.deployConfigs.selectedProvider.toLowerCase()]['mainnet'];
-            const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
-            const dataProviderAddress = poolConfigs.dataProvider;
-            const inboundCurrencyAddress = poolConfigs[configs.deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
-            goodGhosting = await GoodGhosting.new(inboundCurrencyAddress, lendingPoolAddressProvider, 4, 180, segmentPayment, 10, 0, dataProviderAddress, "0xd566243e283f1357e5e97dd0c9ab0d78177583074b440cb07815e05f615178bf");
+            goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
             const forceSend = await ForceSend.new();
@@ -49,8 +54,13 @@ contract("GoodGhosting", (accounts) => {
             console.log("daiAmountToTransfer", web3.utils.fromWei(daiAmount));
             for (let i = 0; i < players.length; i++) {
                 const player = players[i];
+                let transferAmount = daiAmount;
+                if (i === 1) {
+                    // Player 1 needs additional funds to rejoin
+                    transferAmount = new BN(daiAmount).add(segmentPayment).toString();
+                }
                 await token.methods
-                    .transfer(player, daiAmount)
+                    .transfer(player, transferAmount)
                     .send({ from: unlockedDaiAccount });
                 const playerBalance = await token.methods.balanceOf(player).call({ from: admin });
                 console.log(`player${i + 1}DAIBalance`, web3.utils.fromWei(playerBalance));
@@ -184,8 +194,18 @@ contract("GoodGhosting", (accounts) => {
             }
         });
 
-        it("admin cannot withdraw with 0% fees", async () => {
-            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
-        })
+        it("admin withdraws admin fee from contract", async () => {
+            if (!customFee) {
+                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
+            } else {
+                const expectedAmount = new BN(await goodGhosting.adminFeeAmount.call({from: admin}));
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+                truffleAssert.eventEmitted(
+                    result,
+                    "AdminWithdrawal",
+                    (ev) => expectedAmount.eq(ev.adminFeeAmount)
+                );
+            }
+        });
     });
 });

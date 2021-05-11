@@ -82,9 +82,20 @@ To run test coverage: `npm run coverage` or `truffle run coverage`
 
 
 ## Test with Mainnet fork
-To run the integrated test scenarios forking from Mainnet:
+### Setup
+To run the integrated test scenarios forking from Mainnet (Ethereum or Polygon) you'll have to:
+- Configure `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` in your `.env` file with an externally owned account (not smart contract) that holds enough DAI and ADAI balance on the forked network.
 
-- Configure `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` in your `.env` file with an externally owned account (not smart contract) that holds enough DAI and ADAI balance on the forked network, `0x4a75f0ae51a5d616ada4db52be140d89302aaf78` account holds both assets so this can be used. To find another one, go to the DAI Token explorer (https://ethplorer.io/ or https://etherscan.io/) and get one of the top holders
+- Review the deployment configs ([deploy-config.js file](./deploy-config.js)) prior to executing the test on the forked network. Make sure that the `segmentPayment` and `segmentCount` are appropriately configured.
+
+### Balance Requirements
+- The `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` transfers to the players the necessary funds to play the game, so this account needs to have enough balance. Most of the games are played with 5 players. So if `segmentPayment` is `1` and `segmentCount` is `4`, the account `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` must have at least `21 DAI` available in the account: `(players (5) * segmentPayment(1) * segmentCount(4)) + segmentPayment` - the additional `segmentPayment` is needed because there's a scenario where the player rejoins the game, needing extra funds to cover the `earlyWithdrawalFee` charged by the contract.
+- The `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` sends extra AToken to simulate external incentive added to the pool. The amount sent as incentive is equal to `segmentPayment * segmentCount`. So, if `segmentPayment` is `1` and `segmentCount` is `4`, `DAI_ACCOUNT_HOLDER_FORKED_NETWORK` must have a balance of at least `4 aDAI` tokens.
+
+### Steps
+
+#### Ethereum Mainnet
+On Ethereum Mainnet, the account `0x4a75f0ae51a5d616ada4db52be140d89302aaf78` had both assets at the time of writing, so this account is a good candidate to be used. To find another one, go to the DAI Token explorer (https://ethplorer.io/ or https://etherscan.io/) and get one of the top holders.
 
 - On a terminal window, execute `ganache-cli` forking from mainnet. For details, check this [article](https://ethereumdev.io/testing-your-smart-contract-with-existing-protocols-ganache-fork/). Make sure to pass the address defined in the `.env` file in the `--unlock` parameter. The full command should look something like this:
 
@@ -95,6 +106,19 @@ To run the integrated test scenarios forking from Mainnet:
   `ganache-cli -f https://mainnet.infura.io/v3/{YOUR_INFURA_PROJECT_ID} -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
 
 - On another terminal window (from the root of the project directory), run `truffle test --network local-mainnet-fork` or `npm run test:fork:mainnet`
+
+
+#### Polygon
+On Polygon Vigil, the process is similar to Ethereum Mainnet described above, but the commands are slightly different:
+
+- On a terminal window, execute `ganache-cli` forking from mainnet. For details, check this [article](https://ethereumdev.io/testing-your-smart-contract-with-existing-protocols-ganache-fork/). Make sure to pass the address defined in the `.env` file in the `--unlock` parameter. The full command should look something like this:
+  `ganache-cli -f https://matic-mainnet-full-rpc.bwarelabs.com -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
+
+  or
+
+  `ganache-cli -f https://rpc-mainnet.maticvigil.com/v1/{YOUR_POLYGON_PROJECT_ID} -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
+
+- On another terminal window (from the root of the project directory), run `truffle test --network local-polygon-vigil-fork` or `npm run test:fork:polygon:vigil`
 
 ## Primary Contracts Overview
 * **[GoodGhosting](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting.sol)** is the game contract where whitelisted players cam join the game, make regular deposits and win, the external pool used for generating interest here is [Aave](https://aave.com/).
