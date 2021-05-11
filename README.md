@@ -108,7 +108,7 @@ On Ethereum Mainnet, the account `0x4a75f0ae51a5d616ada4db52be140d89302aaf78` ha
 - On another terminal window (from the root of the project directory), run `truffle test --network local-mainnet-fork` or `npm run test:fork:mainnet`
 
 
-#### Ethereum Mainnet
+#### Polygon
 On Polygon Vigil, the process is similar to Ethereum Mainnet described above, but the commands are slightly different:
 
 - On a terminal window, execute `ganache-cli` forking from mainnet. For details, check this [article](https://ethereumdev.io/testing-your-smart-contract-with-existing-protocols-ganache-fork/). Make sure to pass the address defined in the `.env` file in the `--unlock` parameter. The full command should look something like this:

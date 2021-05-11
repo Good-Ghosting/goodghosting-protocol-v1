@@ -30,7 +30,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs     = configs.providers.aave.polygon;
     }
-    const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, customFee } = configs.deployConfigs;
+    const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, earlyWithdrawFee, customFee } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
     let admin = accounts[0];
@@ -43,7 +43,25 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     describe("simulates a full game with 5 players and 4 of them winning the game and with admin fee % as 0", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
-            goodGhosting = await GoodGhostingArtifact.deployed();
+            // overriding deployment to test with 0% custom fees
+            if (process.env.NETWORK === "local-mainnet-fork") {
+                const poolConfigs = configs.providers[configs.deployConfigs.selectedProvider.toLowerCase()]['mainnet'];
+                const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
+                const dataProviderAddress = poolConfigs.dataProvider;
+                const inboundCurrencyAddress = poolConfigs[configs.deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
+                goodGhosting = await GoodGhostingArtifact.new(inboundCurrencyAddress, lendingPoolAddressProvider, segmentCount, segmentLength, segmentPayment, earlyWithdrawFee, 0, dataProviderAddress, configs.deployConfigs.merkelroot);
+            } else {
+                const poolConfigs = configs.providers[configs.deployConfigs.selectedProvider.toLowerCase()]['polygon'];
+                const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
+                const incentiveController = poolConfigs.incentiveController;
+                const router = poolConfigs.router;
+                const usdc = poolConfigs.usdc;
+                const wmatic = poolConfigs.wmatic;
+                const dataProviderAddress = poolConfigs.dataProvider;
+                const inboundCurrencyAddress = poolConfigs[configs.deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
+                goodGhosting = await GoodGhostingArtifact.new(inboundCurrencyAddress, lendingPoolAddressProvider, segmentCount, segmentLength, segmentPayment, earlyWithdrawFee, 0, dataProviderAddress, configs.deployConfigs.merkelroot, incentiveController, router, wmatic, usdc);
+            }
+            // goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
             const forceSend = await ForceSend.new();
@@ -195,17 +213,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("admin withdraws admin fee from contract", async () => {
-            if (!customFee) {
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
-            } else {
-                const expectedAmount = new BN(await goodGhosting.adminFeeAmount.call({from: admin}));
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin });
-                truffleAssert.eventEmitted(
-                    result,
-                    "AdminWithdrawal",
-                    (ev) => expectedAmount.eq(ev.adminFeeAmount)
-                );
-            }
         });
     });
 });
