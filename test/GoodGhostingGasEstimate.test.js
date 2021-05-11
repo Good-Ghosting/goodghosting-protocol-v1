@@ -61,7 +61,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 const inboundCurrencyAddress = poolConfigs[configs.deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
                 goodGhosting = await GoodGhostingArtifact.new(inboundCurrencyAddress, lendingPoolAddressProvider, segmentCount, segmentLength, segmentPayment, earlyWithdrawFee, 0, dataProviderAddress, configs.deployConfigs.merkelroot, incentiveController, router, wmatic, usdc);
             }
-            // goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
             const forceSend = await ForceSend.new();
