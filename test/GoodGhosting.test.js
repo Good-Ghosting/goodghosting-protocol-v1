@@ -24,8 +24,8 @@ contract("GoodGhosting", (accounts) => {
     let merkelRoot;
     let whitelistedPlayerConfig;
 
-    // Only executes this test file for local network fork
-    if (process.env.NETWORK === "local-mainnet-fork") return;
+    // Only executes this test file IF NOT a local network fork
+    if (["local-mainnet-fork", "local-polygon-vigil-fork"].includes(process.env.NETWORK)) return;
 
     if (process.env.NETWORK.toLowerCase().includes("coverage")) {
         whitelistedPlayerConfig = coveragePlayerConfig;

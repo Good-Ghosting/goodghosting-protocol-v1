@@ -37,6 +37,12 @@ module.exports = {
             network_id: "*",
         },
 
+        "local-polygon-vigil-fork": {
+            host: "127.0.0.1",
+            port: 8545,
+            network_id: "*",
+        },
+
         kovan: {
             provider: () => new HDWalletProvider(
                 process.env.KOVAN_MNEMONIC,
