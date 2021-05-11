@@ -127,6 +127,8 @@ On Polygon Vigil, the process is similar to Ethereum Mainnet described above, bu
 
 * **[GoodGhostingPolygon](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting_Polygon.sol)** is just an extension of the GoodGhosting contract compatible with [Polygon](https://polygon.technology/) to generate extra yield from the ongoing [Aave-Polygon Liquidity mining](https://cryptobriefing.com/polygon-launches-40m-liquidity-mining-program-with-aave/) this contract, when the game ends claims $MATIC rewards, to generate extra yield for the winners.
 
+* **[GoodGhostingCelo](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/feature/celo/contracts/GoodGhostingCelo.sol)** is just an extension of the GoodGhosting contract compatible with [Celp](https://celo.org/) and uses [Moola](https://moola.market/) to generate extra yield for the winners.
+
 ## Big Numbers
 * We use `BN.js` for handling Big Numbers
 * Both DAI and aDAI work similarly with `toWei`, i.e. 10**18
@@ -157,7 +159,7 @@ This happens because Slither can't resolve the `import` in the contract to the `
 Using the results from the example above, the `import` command `import "@openzeppelin/contracts/access/Ownable.sol";` should be replaced by `import "node_modules/@openzeppelin/contracts/access/Ownable.sol";`. **PLEASE DO NOT COMMIT THIS CHANGE**. It is only applicable when running Slither.
 
 
-# Deploying contracts to Ethereum Networks
+# Deploying contracts to Ethereum/L2 Networks
 The project uses [Infura](https://infura.io/) to deploy smart contracts to Ethereum networks (testnets and mainnet). What you'll need:
 - SignIn/SignUp at Infura, create a project and get the project id.
 - Your wallet mnemonic (12 words seed).
@@ -177,6 +179,8 @@ The project uses [Matic RPC](https://rpc.maticvigil.com/) to deploy smart contra
 - Deploy to ropsten: `npm run deploy:ropsten`
 - Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
 - Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
+- Deploy to celo (TESTNET): Add your private key in the env file at the bottom with ```0x``` at the begining and then run `npm run deploy:alfajores`
+
 
 In case you experience a deployment error similar to
 ```sh
