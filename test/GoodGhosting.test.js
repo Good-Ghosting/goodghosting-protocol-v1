@@ -21,7 +21,7 @@ const testPlayerConfig = [
 ];
 
 contract("GoodGhosting", (accounts) => {
-    let merkelRoot;
+    let merkleRoot;
     let whitelistedPlayerConfig;
 
     // Only executes this test file IF NOT a local network fork
@@ -29,10 +29,10 @@ contract("GoodGhosting", (accounts) => {
 
     if (process.env.NETWORK.toLowerCase().includes("coverage")) {
         whitelistedPlayerConfig = coveragePlayerConfig;
-        merkelRoot = "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e";
+        merkleRoot = "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e";
     } else {
         whitelistedPlayerConfig = testPlayerConfig;
-        merkelRoot = "0xd53ed7372825e2b21778b03e7f08246a9e358bf89416c856ebb4f196fca5e662";
+        merkleRoot = "0xd53ed7372825e2b21778b03e7f08246a9e358bf89416c856ebb4f196fca5e662";
     }
 
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
@@ -74,7 +74,7 @@ contract("GoodGhosting", (accounts) => {
             fee,
             adminFee,
             pap.address,
-            merkelRoot,
+            merkleRoot,
             { from: admin },
         );
     });
@@ -194,7 +194,7 @@ contract("GoodGhosting", (accounts) => {
                 0,
                 adminFee,
                 pap.address,
-                merkelRoot,
+                merkleRoot,
                 { from: admin },
             ));
         });
@@ -212,7 +212,7 @@ contract("GoodGhosting", (accounts) => {
                 15,
                 adminFee,
                 pap.address,
-                merkelRoot,
+                merkleRoot,
                 { from: admin },
             ));
         });
@@ -230,7 +230,7 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 30,
                 pap.address,
-                merkelRoot,
+                merkleRoot,
                 { from: admin },
             ));
         });
@@ -892,7 +892,7 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 0,
                 pap.address,
-                merkelRoot,
+                merkleRoot,
                 { from: admin },
             );
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
