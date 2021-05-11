@@ -1,12 +1,11 @@
 /* global artifacts web3 */
 
-var abi = require('ethereumjs-abi')
+var abi = require("ethereumjs-abi");
 
 const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
-const GoodGhostingCeloContract = artifacts.require('GoodGhostingCelo');
-
-const GoodGhostingPolygonContract = artifacts.require('GoodGhostingPolygon');
+const GoodGhostingCeloContract = artifacts.require("GoodGhostingCelo");
+const GoodGhostingPolygonContract = artifacts.require("GoodGhostingPolygon");
 const BN = web3.utils.BN;
 const { providers, deployConfigs } = require("../deploy.config");
 
@@ -39,7 +38,11 @@ function printSummary(
         earlyWithdrawFee,
         customFee,
         aaveContractAddress,
-        merkelRoot
+        merkleRoot,
+        incentiveController,
+        router,
+        wmatic,
+        usdc
     },
     // additional logging info
     {
@@ -50,7 +53,8 @@ function printSummary(
     }
 
 ) {
-    console.log('aaveContractAddress', aaveContractAddress)
+    const isPolygon = ["polygon"].includes(networkName.toLowerCase());
+
     var parameterTypes = [
         "address", // inboundCurrencyAddress
         "address", // lendingPoolAddressProvider
@@ -59,8 +63,8 @@ function printSummary(
         "uint256", // segmentPaymentWei
         "uint256", // earlyWithdrawFee
         "uint256", // customFee
-        "address", // dataProvider/lendingpool address
-        "bytes32" // merkel root
+        "address", // dataProvider/lending pool address
+        "bytes32" // merkle root
     ];
     var parameterValues = [
         inboundCurrencyAddress,
@@ -71,10 +75,25 @@ function printSummary(
         earlyWithdrawFee,
         customFee,
         aaveContractAddress,
-        merkelRoot
+        merkleRoot
     ];
-    console.log(parameterValues)
-    console.log(parameterTypes)
+
+    if (isPolygon) {
+        parameterTypes.push(
+            "address", // IncentiveController
+            "address", // QuickSwap router
+            "address", // wmatic token
+            "address" // usdc token
+        );
+        parameterValues.push(
+            incentiveController,
+            router,
+            wmatic,
+            usdc
+        );
+    }
+    console.log(parameterValues);
+    console.log(parameterTypes);
 
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
 
@@ -91,92 +110,15 @@ function printSummary(
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
     console.log(`Custom Pool Fee: ${customFee}%`);
     console.log(`Data Provider/Lending Pool Address: ${aaveContractAddress}`);
-    console.log(`Merkel Root: ${merkelRoot}`);
-    console.log('\n\nConstructor Arguments ABI-Enconded:')
-    console.log(encodedParameters.toString('hex'));
-    console.log("\n\n\n\n");
-
-}
-
-function printSummaryPolygon(
-    // contract's constructor parameters
-    {
-        inboundCurrencyAddress,
-        lendingPoolAddressProvider,
-        segmentCount,
-        segmentLength,
-        segmentPaymentWei,
-        earlyWithdrawFee,
-        customFee,
-        dataProviderAddress,
-        merkelRoot,
-        incentiveController,
-        router,
-        wmatic,
-        usdc
-    },
-    // additional logging info
-    {
-        networkName,
-        selectedProvider,
-        inboundCurrencySymbol,
-        segmentPayment,
+    console.log(`Merkle Root: ${merkleRoot}`);
+    if (isPolygon) {
+        console.log(`Incentive Controller: ${incentiveController}`);
+        console.log(`QuickSwap Router: ${router}`);
+        console.log(`Matic Token: ${wmatic}`);
+        console.log(`USDC Token: ${usdc}`);
     }
-
-) {
-    var parameterTypes = [
-        "address", // inboundCurrencyAddress
-        "address", // lendingPoolAddressProvider
-        "uint256", // segmentCount
-        "uint256", // segmentLength
-        "uint256", // segmentPaymentWei
-        "uint256", // earlyWithdrawFee
-        "uint256", // customFee
-        "address", // dataProviderAddress
-        "bytes32", // merkel root
-        "address", // incentiveController
-        "address", // quickswap router
-        "address", // wmatic token
-        "address" // usdc token
-    ];
-    var parameterValues = [
-        inboundCurrencyAddress,
-        lendingPoolAddressProvider,
-        segmentCount,
-        segmentLength,
-        segmentPaymentWei,
-        earlyWithdrawFee,
-        customFee,
-        dataProviderAddress,
-        merkelRoot,
-        incentiveController,
-        router,
-        wmatic,
-        usdc
-    ];
-    var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
-
-    console.log("\n\n\n----------------------------------------------------");
-    console.log("GoogGhosting deployed with the following arguments:");
-    console.log("----------------------------------------------------\n");
-    console.log(`Network Name: ${networkName}`);
-    console.log(`Lending Pool: ${selectedProvider}`);
-    console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
-    console.log(`Inbound Currency: ${inboundCurrencySymbol} at ${inboundCurrencyAddress}`);
-    console.log(`Segment Count: ${segmentCount}`);
-    console.log(`Segment Length: ${segmentLength} seconds`);
-    console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
-    console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
-    console.log(`Custom Pool Fee: ${customFee}%`);
-    console.log(`Data Provider Address: ${dataProviderAddress}`);
-    console.log(`Merkel Root: ${merkelRoot}`);
-    console.log(`Incentive Controller: ${incentiveController}`);
-    console.log(`Quickswap Router: ${router}`);
-    console.log(`Matic Token: ${wmatic}`);
-    console.log(`USDC Token: ${usdc}`);
-
-    console.log('\n\nConstructor Arguments ABI-Enconded:')
-    console.log(encodedParameters.toString('hex'));
+    console.log("\n\nConstructor Arguments ABI-Encoded:");
+    console.log(encodedParameters.toString("hex"));
     console.log("\n\n\n\n");
 
 }
@@ -196,109 +138,73 @@ module.exports = function (deployer, network, accounts) {
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
         const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
-        let aaveContractAddress = poolConfigs.dataProvider;
-        await deployer.deploy(SafeMathLib);
-        if (networkName === 'polygon') {
-            const incentiveController = poolConfigs.incentiveController;
-            const router = poolConfigs.router;
+        const incentiveController = poolConfigs.incentiveController;
+        const router = poolConfigs.router;
+        const usdc = poolConfigs.usdc;
+        const wmatic = poolConfigs.wmatic;
 
-            const usdc = poolConfigs.usdc;
-            const wmatic = poolConfigs.wmatic;
-            // Deploys GoodGhostingContract
-            await deployer.link(SafeMathLib, GoodGhostingPolygonContract);
-            await deployer.deploy(
-                GoodGhostingPolygonContract,
-                inboundCurrencyAddress,
-                lendingPoolAddressProvider,
-                deployConfigs.segmentCount,
-                deployConfigs.segmentLength,
-                segmentPaymentWei,
-                deployConfigs.earlyWithdrawFee,
-                deployConfigs.customFee,
-                dataProviderAddress,
-                deployConfigs.merkelroot,
+        let aaveContractAddress = poolConfigs.dataProvider;
+        let goodGhostingContract = GoodGhostingContract; // defaults to Ethereum version
+
+        if (networkName === "polygon") {
+            goodGhostingContract = GoodGhostingPolygonContract;
+        } else if (networkName === "alfajores") {
+            aaveContractAddress = poolConfigs.lendingPool;
+            goodGhostingContract = GoodGhostingCeloContract;
+        }
+
+        // Prepares deployment arguments
+        const deploymentArgs = [
+            goodGhostingContract,
+            inboundCurrencyAddress,
+            lendingPoolAddressProvider,
+            deployConfigs.segmentCount,
+            deployConfigs.segmentLength,
+            segmentPaymentWei,
+            deployConfigs.earlyWithdrawFee,
+            deployConfigs.customFee,
+            aaveContractAddress,
+            deployConfigs.merkleroot
+        ];
+        if (networkName === "polygon") {
+            deploymentArgs.push(
                 incentiveController,
                 router,
                 wmatic,
                 usdc
             );
-
-            // Prints polygon deployment summary
-            printSummaryPolygon(
-                {
-                    inboundCurrencyAddress,
-                    lendingPoolAddressProvider,
-                    segmentCount: deployConfigs.segmentCount,
-                    segmentLength: deployConfigs.segmentLength,
-                    segmentPaymentWei,
-                    earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
-                    customFee: deployConfigs.customFee,
-                    dataProviderAddress,
-                    merkelRoot: deployConfigs.merkelroot,
-                    incentiveController,
-                    router,
-                    wmatic,
-                    usdc
-                },
-                {
-                    networkName,
-                    selectedProvider: deployConfigs.selectedProvider,
-                    inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
-                    segmentPayment: deployConfigs.segmentPayment,
-                }
-            );
-        } else {
-            // Deploys GoodGhostingContract
-            if (network === 'alfajores') {
-                aaveContractAddress = poolConfigs.lendingPool;
-                // await deployer.link(SafeMathLib, GoodGhostingCeloContract);
-                // await deployer.deploy(
-                //     GoodGhostingCeloContract,
-                //     inboundCurrencyAddress,
-                //     lendingPoolAddressProvider,
-                //     deployConfigs.segmentCount,
-                //     deployConfigs.segmentLength,
-                //     segmentPaymentWei,
-                //     deployConfigs.earlyWithdrawFee,
-                //     deployConfigs.customFee,
-                //     aaveContract,
-                //     deployConfigs.merkelroot
-                // );
-            } else {
-                await deployer.link(SafeMathLib, GoodGhostingContract);
-                await deployer.deploy(
-                    GoodGhostingContract,
-                    inboundCurrencyAddress,
-                    lendingPoolAddressProvider,
-                    deployConfigs.segmentCount,
-                    deployConfigs.segmentLength,
-                    segmentPaymentWei,
-                    deployConfigs.earlyWithdrawFee,
-                    deployConfigs.customFee,
-                    aaveContractAddress,
-                    deployConfigs.merkelroot
-                );
-            }
-            // Prints deployment summary
-            printSummary(
-                {
-                    inboundCurrencyAddress,
-                    lendingPoolAddressProvider,
-                    segmentCount: deployConfigs.segmentCount,
-                    segmentLength: deployConfigs.segmentLength,
-                    segmentPaymentWei,
-                    earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
-                    customFee: deployConfigs.customFee,
-                    aaveContractAddress,
-                    merkelRoot: deployConfigs.merkelroot
-                },
-                {
-                    networkName,
-                    selectedProvider: deployConfigs.selectedProvider,
-                    inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
-                    segmentPayment: deployConfigs.segmentPayment,
-                }
-            );
         }
+
+        console.log('deployment args', ...deploymentArgs);
+
+        // Deploys GoodGhosting contract based on network
+        await deployer.deploy(SafeMathLib);
+        await deployer.link(SafeMathLib, goodGhostingContract);
+        await deployer.deploy(...deploymentArgs);
+
+        // Prints deployment summary
+        printSummary(
+            {
+                inboundCurrencyAddress,
+                lendingPoolAddressProvider,
+                segmentCount: deployConfigs.segmentCount,
+                segmentLength: deployConfigs.segmentLength,
+                segmentPaymentWei,
+                earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
+                customFee: deployConfigs.customFee,
+                aaveContractAddress,
+                merkleRoot: deployConfigs.merkleroot,
+                incentiveController,
+                router,
+                wmatic,
+                usdc
+            },
+            {
+                networkName,
+                selectedProvider: deployConfigs.selectedProvider,
+                inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
+                segmentPayment: deployConfigs.segmentPayment,
+            }
+        );
     });
 };
