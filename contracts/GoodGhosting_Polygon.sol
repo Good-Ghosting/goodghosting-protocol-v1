@@ -79,11 +79,11 @@ contract GoodGhostingPolygon is GoodGhosting {
             "Fail to transfer ER20 tokens to admin"
         );
         if (rewardsPerPlayer == 0) {
-        uint balance = IERC20(matic).balanceOf(address(this));
-        require(
-            IERC20(matic).transfer(msg.sender, balance),
-            "Fail to transfer ERC20 tokens on withdraw"
-        );
+            uint balance = IERC20(matic).balanceOf(address(this));
+            require(
+                IERC20(matic).transfer(msg.sender, balance),
+                "Fail to transfer ERC20 tokens on withdraw"
+            );
         }
     }
 
@@ -94,11 +94,13 @@ contract GoodGhostingPolygon is GoodGhosting {
         player.withdrawn = true;
 
         uint256 payout = player.amountPaid;
+        uint256 playerReward = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
             // No need to worry about if winners.length = 0
             // If we're in this block then the user is a winner
             payout = payout.add(totalGameInterest.div(winners.length));
+            playerReward = rewardsPerPlayer;
         }
         emit Withdrawal(msg.sender, payout);
 
@@ -111,14 +113,12 @@ contract GoodGhostingPolygon is GoodGhosting {
             IERC20(daiToken).transfer(msg.sender, payout),
             "Fail to transfer ERC20 tokens on withdraw"
         );
-        // doing the transfer in the end as per the checks and effects pattern
-        if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
-        if (rewardsPerPlayer > 0) {
-        require(
-            IERC20(matic).transfer(msg.sender, rewardsPerPlayer),
-            "Fail to transfer ERC20 tokens on withdraw"
-        );
-        }
+
+        if (playerReward > 0) {
+            require(
+                IERC20(matic).transfer(msg.sender, playerReward),
+                "Fail to transfer ERC20 rewards on withdraw"
+            );
         }
     }
 
