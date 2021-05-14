@@ -71,7 +71,7 @@ To check and update `package.json` file, run `ncu -u`. Once completed, make sure
 
 **Requirement:** The tests use the file `deploy.config.js` as input to the contract migration. Make sure it is configured.
 
-For the current contract version we have whitelisted players with help of merkel root verification on-chain, so the joinGame method takes in player index and merkel proofs hence check the instructions [here](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/test/GoodGhosting.test.js#L8) before the next step.
+For the current contract version we have whitelisted players with help of merkle root verification on-chain, so the joinGame method takes in player index and merkle proofs hence check the instructions [here](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/test/GoodGhosting.test.js#L8) before the next step.
 
 To run the unit tests use either
 `truffle test -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become"`
@@ -123,7 +123,7 @@ On Polygon Vigil, the process is similar to Ethereum Mainnet described above, bu
 ## Primary Contracts Overview
 * **[GoodGhosting](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting.sol)** is the game contract where whitelisted players cam join the game, make regular deposits and win, the external pool used for generating interest here is [Aave](https://aave.com/).
 
-* **[GoodGhostingWhitelisted](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhostingWhitelisted.sol)** is basically extended by the GoodGhosting and contains all the merkel proof verifying logic, so whenever any player joins the game they are verified based on proof and merkel root inside this contract.
+* **[GoodGhostingWhitelisted](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhostingWhitelisted.sol)** is basically extended by the GoodGhosting and contains all the merkle proof verifying logic, so whenever any player joins the game they are verified based on proof and merkle root inside this contract.
 
 * **[GoodGhostingPolygon](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting_Polygon.sol)** is just an extension of the GoodGhosting contract compatible with [Polygon](https://polygon.technology/) to generate extra yield from the ongoing [Aave-Polygon Liquidity mining](https://cryptobriefing.com/polygon-launches-40m-liquidity-mining-program-with-aave/) this contract, when the game ends claims $MATIC rewards, to generate extra yield for the winners.
 
@@ -159,7 +159,7 @@ This happens because Slither can't resolve the `import` in the contract to the `
 Using the results from the example above, the `import` command `import "@openzeppelin/contracts/access/Ownable.sol";` should be replaced by `import "node_modules/@openzeppelin/contracts/access/Ownable.sol";`. **PLEASE DO NOT COMMIT THIS CHANGE**. It is only applicable when running Slither.
 
 
-# Deploying contracts to Ethereum/L2 Networks
+# Contract Deployment
 The project uses [Infura](https://infura.io/) to deploy smart contracts to Ethereum networks (testnets and mainnet). What you'll need:
 - SignIn/SignUp at Infura, create a project and get the project id.
 - Your wallet mnemonic (12 words seed).
@@ -169,25 +169,31 @@ The project uses [Matic RPC](https://rpc.maticvigil.com/) to deploy smart contra
 - Your wallet mnemonic (12 words seed).
 
 
-**Steps**
+**Setup**
 1. Copy [.env.sample](./.env.sample) as an `.env` file. You can run this command in your terminal: `cp .env.sample .env`
 2. Open file `.env`
-3. Insert your Infura or Polygon's ProjectId and your wallet mnemonic in the file for the desired network
+3. Insert your Infura or Polygon's ProjectId and your wallet mnemonic in the file for the desired network.
+    - Note: If deploying to Celo networks (mainnet or testnets), add your private key in the appropriate config key with ```0x``` at the beginning
 4. Open the file [deploy.config.js](./deploy.config.js) and set the desired deployment configs for the contract.
-5. Once you have the `.env` and `deploy.config.js` files properly setup, you can deploy the GoodGhosting contract to the desired network by running one of the following commands:
-- Deploy to kovan: `npm run deploy:kovan`
-- Deploy to ropsten: `npm run deploy:ropsten`
-- Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
-- Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
-- Deploy to celo (TESTNET): Add your private key in the env file at the bottom with ```0x``` at the begining and then run `npm run deploy:alfajores`
+5. Once you have the `.env` and `deploy.config.js` files properly setup, you can deploy the GoodGhosting contract to the desired network by choosing one of the 02 options:
+    - Deployment with manual contract verification: used for verifying contracts on block explorers like [Etherscan](https://etherscan.io), [MaticVigil Block Explorer](https://explorer-mainnet.maticvigil.com/), [Celo Block Explorer](https://explorer.celo.org/) (including their testnets block explorers)
+    - Deployment with automatic contract verification on [sourcify.dev](https://sourcify.dev): used for verifying contracts with [sourcify.dev](https://sourcify.dev), where contracts' source code and metadata are stored on [IPFS](https://ipfs.io/)
 
-
-In case you experience a deployment error similar to
+In either method, in case you experience a deployment error similar to
 ```sh
 Error: PollingBlockTracker - encountered an error while attempting to update latest block:
 Error: ESOCKETTIMEDOUT
 ```
 try switching the INFURA (or Polygon) url from `https` to `wss` and increasing the configs `networkCheckTimeout` and/or `timeoutBlocks` in [truffle-config.js](./truffle-config.js). See more details in this [issue thread](https://github.com/trufflesuite/truffle/issues/3356).
+
+
+## Deploying Contracts and Manually Verifying on Block Explorers
+These are the commands that can be used to deploy (deployment ONLY) the contracts to the appropriate network:
+- Deploy to kovan: `npm run deploy:kovan`
+- Deploy to ropsten: `npm run deploy:ropsten`
+- Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
+- Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
+- Deploy to Celo Alfajores testnet: `npm run deploy:alfajores`
 
 If the deployment is successful, you should see a deployment log in the terminal window similar to this:
 
@@ -274,25 +280,124 @@ Summary
 > Final cost:          0.05565018 ETH
 ```
 
-## Verifying contracts on Etherscan
-Use the following steps to verify the contract on Etherscan:
+### Manually Verifying Contracts on Block Explorers
+#### Etherscan and Polygon Matic
+Use the following steps to verify the contract on Etherscan or Polygon Matic:
 
 1. Flatten the GoogGhosting contract. If using VSCode, you can use the extension (Solidity Contract Flattener)[https://marketplace.visualstudio.com/items?itemName=tintinweb.vscode-solidity-flattener]
 2. In the new flattened file, delete all references to "// SPDX-License-Identifier: MIT". Tip: Use the "find and replace" option on your code editor, by finding by the value "// SPDX-License-Identifier: MIT" and replacing by an empty string (empty value in the "replace" field)
-3. Access the deployed contract address on Etherscan. Make sure to use the appropriate Etherscan version that matches the network where the contract is deployed to
+3. Access the deployed contract address on the block explorer. Make sure to use the appropriate Etherscan version that matches the network where the contract is deployed to (mainnet or testnets)
     1. The address of the deployed contract is available in the deployment log, displayed in the terminal window
-4. Access the option to "Verify and Publish" the contract on Etherscan and enter the required parameters as below:
+4. Access the option to "Verify and Publish" the contract on the block explorer and enter the required parameters as below:
     1. *Contract Address*: get the address of the deployed contract from the deployment log, displayed in the terminal window
     2. *Compiler Type*: Select the option "Solidity (Single File)"
     3. *Compiler Version*: Check the version used by the repo on [truffle-config file](./truffle-config.js). Select the same config
-    4. *Open Source License*: Choose the license. You can use "No licence (None)" if not sure about which one to use
-    5. *Optimization*: Check is optimization is used by the repo on (truffle-config file)[./truffle-config.js]. Select the same config
+    4. *Open Source License*: Choose the license. Use "No licence (None)" if not sure about which one to use
+    5. *Optimization*: Check if optimization is used by the repo on (truffle-config file)[./truffle-config.js]. Select the same config
     6. *Solidity Contract Code*: Copy/Paste the code from the flattened file (after executing steps 1 and 2 above).
     7. *Constructor Arguments ABI-Enconded*: Copy/Paste the Constructor Arguments ABI-Enconded available in the deployment log, displayed in the terminal window
     8. *Misc Settings*: Make sure the configs available here, specially _Runs (Optimizer)_ is the same as the configs set in the [truffle-config file]()./truffle-config.js).
 
-## Merkel Root Generation
-For deploying current version of the game contracts a merkel root is required, introduced for the purpose of whitelisting users.
+
+## Deploying Contracts to Mainnets/Testnets and Automatically Verifying Contracts on [sourcify.dev](https://sourcify.dev)
+
+These are the commands that can be used to deploy and automatically verify the contracts on the appropriate network using [sourcify.dev](https://sourcify.dev):
+- Deploy and Verify on kovan: `npm run deploy:verify:kovan`
+- Deploy and Verify on ropsten: `npm run deploy:verify:ropsten`
+- Deploy and Verify on mainnet (PRODUCTION): `npm run deploy:verify:mainnet`
+- Deploy and Verify on polygon (PRODUCTION): `npm run deploy:verify:polygon`
+- Deploy and Verify on Celo Alfajores testnet: `npm run deploy:verify:alfajores`
+
+If the verification and deployment is successful, you should see a deployment log in the terminal window similar to the sample below. Note that, for simplicity, the sample below "hides" a bunch of the logs displayed in the terminal window:
+
+```sh
+> truffle compile --all && npm run ipfs && truffle deploy -f 2 --network kovan --reset
+
+
+Compiling your contracts...
+===========================
+> Compiling ./contracts/GoodGhosting.sol
+
+...
+
+> Compiled successfully using:
+   - solc: 0.6.11+commit.5ef660b1.Emscripten.clang
+
+
+> goodghosting-smart-contracts@1.0.0 ipfs
+> node --no-warnings ./scripts/ipfs.js
+
+Uploading sources & metadata to IPFS (Infura Gateway)...
+========================================================
+
+...
+
+GoodGhosting
+------------
+metadata: QmW9k2sQ9iKX2xEkkQqG7Wk2rb75W7rcDVdi6A6wW4gAJa
+source: QmP6dgQnF16wcw5vrC5V4WrQo5Hx73ac5gZMuay1Bn29fK
+
+...
+
+Finished.
+
+...
+
+Starting migrations...
+======================
+> Network name:    'kovan'
+> Network id:      42
+> Block gas limit: 12499988 (0xbebc14)
+
+
+2_deploy_contracts.js
+=====================
+
+   Replacing 'SafeMath'
+   --------------------
+   
+   ...
+
+   Replacing 'GoodGhosting'
+   ------------------------
+
+   ...
+
+
+----------------------------------------------------
+GoogGhosting deployed with the following arguments:
+----------------------------------------------------
+
+Network Name: kovan
+Lending Pool: aave
+Lending Pool Address Provider: 0x88757f2f99175387ab4c6a4b3067c77a695b0349
+Inbound Currency: dai at 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD
+Segment Count: 3
+Segment Length: 86400 seconds
+Segment Payment: 1 dai (1000000000000000000 wei)
+Early Withdrawal Fee: 1%
+Custom Pool Fee: 0%
+Data Provider/Lending Pool Address: 0x3c73a5e5785cac854d468f727c606c07488a29d6
+Merkle Root: 0x5abc53e710e8b8803671e65139073bd91d4c96f8d3cd2b9e8fbee9423ce964be
+
+
+Constructor Arguments ABI-Encoded:
+000000000000000000000000ff795577d9ac8bd7d90ee22b6c1703490b6512fd00000000000000000000000088757f2f99175387ab4c6a4b3067c77a695b0349000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000de0b6b3a7640000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000003c73a5e5785cac854d468f727c606c07488a29d65abc53e710e8b8803671e65139073bd91d4c96f8d3cd2b9e8fbee9423ce964be
+
+
+   > Saving artifacts
+   -------------------------------------
+   > Total cost:          0.05464962 ETH
+
+
+Summary
+=======
+> Total deployments:   2
+> Final cost:          0.05464962 ETH
+```
+
+# Merkle Root Generation
+For deploying current version of the game contracts a merkle root is required, introduced for the purpose of whitelisting users.
 
 Clone this [repository](https://github.com/Good-Ghosting/Whitelisting)
 
@@ -306,9 +411,9 @@ You should see like this
 
 `{"merkleRoot":"0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e","claims":{"0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17":{"index":0,"exists":true,"proof":["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"]},"0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf":{"index":1,"exists":true,"proof":["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f"]}}}`
 
-Replace the merkel root parameter in the [deploy.config.js][./deploy.config.js] file.
+Replace the merkle root parameter in the [deploy.config.js][./deploy.config.js] file.
 
 
-## Addresses
+# Addresses
 
 DAI and aDAI addresses are configured in the [deploy.config.js][./deploy.config.js] file for the supported network.
