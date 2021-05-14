@@ -33,6 +33,7 @@ contract("GoodGhosting_No_External_Pool_Deposit", (accounts) => {
     const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, earlyWithdrawFee } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
+    let rewardToken;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
@@ -170,10 +171,17 @@ contract("GoodGhosting_No_External_Pool_Deposit", (accounts) => {
             for (let i = 1; i < players.length - 1; i++) {
                 const player = players[i];
                 const result = await goodGhosting.withdraw({ from: player });
-                truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
+
+                truffleAssert.eventEmitted(result, "Withdrawal", async (ev) => {
                     console.log(`player${i+1} withdraw amount: ${ev.amount.toString()}`);
                     const eventAmount = new BN(ev.amount.toString());
-                    return ev.player === player && playerPayment.eq(eventAmount);
+                    if (GoodGhostingArtifact === GoodGhostingPolygon) {
+                        rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
+                        const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
+                        return ev.player === player && playerPayment.eq(eventAmount) && playersMaticBalance.eq(new BN(0));
+                    } else {
+                        return ev.player === player && playerPayment.eq(eventAmount);
+                    }
                 }, "unable to withdraw amount");
             }
         });

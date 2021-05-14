@@ -34,6 +34,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
     const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, customFee } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
+    let rewardToken;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
@@ -182,11 +183,18 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 const player = players[i];
                 const playerInfo = await goodGhosting.players(player, { from: player });
 
-                // const userDaiBalance = new BN(await token.methods.balanceOf(player).call({ from: admin }));
                 const result = await goodGhosting.withdraw({ from: player });
-                truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
+
+                truffleAssert.eventEmitted(result, "Withdrawal", async (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
-                    return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid);
+                    if (GoodGhostingArtifact === GoodGhostingPolygon) {
+                        rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
+
+                        const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
+                        return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid) && playersMaticBalance.gt(new BN(0));
+                    } else {
+                        return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid);
+                    }
                 }, "unable to withdraw amount");
             }
         });
@@ -196,13 +204,25 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
             } else {
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
-                truffleAssert.eventEmitted(
-                    result,
-                    "AdminWithdrawal",
-                    (ev) => {
-                        const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
-                        return adminFee.lte(ev.adminFeeAmount);
-                    });
+                if (GoodGhostingArtifact === GoodGhostingPolygon) {
+                    rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
+                    const adminMaticBalance = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
+                    truffleAssert.eventEmitted(
+                        result,
+                        "AdminWithdrawal",
+                        (ev) => {
+                            const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
+                                return adminFee.lte(ev.adminFeeAmount) && adminMaticBalance.eq(new BN(0));
+                        });
+                } else {
+                    truffleAssert.eventEmitted(
+                        result,
+                        "AdminWithdrawal",
+                        (ev) => {
+                            const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
+                                return adminFee.lte(ev.adminFeeAmount);
+                        });
+                }
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
             }
         });
