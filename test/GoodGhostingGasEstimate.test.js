@@ -44,6 +44,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     describe("simulates a full game with 5 players and 4 of them winning the game and with admin fee % as 0", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
+            rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
             goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
@@ -191,7 +192,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 truffleAssert.eventEmitted(result, "Withdrawal", async (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
                     if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                        rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
                         const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
                         return ev.player === player && playersMaticBalance.gt(new BN(0));
                     } else {
@@ -208,7 +208,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 const expectedAmount = new BN(await goodGhosting.adminFeeAmount.call({from: admin}));
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
                 if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                    rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
                     const adminMaticBalance = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
 
                     truffleAssert.eventEmitted(
@@ -216,14 +215,14 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         "AdminWithdrawal",
                         (ev) => {
                             return expectedAmount.eq(ev.adminFeeAmount) && adminMaticBalance.eq(new BN(0));
-                        })
+                        });
                 } else {
                     truffleAssert.eventEmitted(
                         result,
                         "AdminWithdrawal",
                         (ev) => {
                             return expectedAmount.eq(ev.adminFeeAmount);
-                        })
+                        });
                 }
 
             }

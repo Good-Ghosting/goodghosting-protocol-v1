@@ -47,6 +47,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
     describe("simulates a full game with 5 players and 4 of them winning the game but considering an attacker sends extra funds transferred directly", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
+            rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
             goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
@@ -188,8 +189,6 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 truffleAssert.eventEmitted(result, "Withdrawal", async (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
                     if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                        rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
-
                         const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
                         return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid) && playersMaticBalance.gt(new BN(0));
                     } else {
@@ -205,14 +204,13 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
             } else {
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
                 if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                    rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
                     const adminMaticBalance = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
                     truffleAssert.eventEmitted(
                         result,
                         "AdminWithdrawal",
                         (ev) => {
                             const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
-                                return adminFee.lte(ev.adminFeeAmount) && adminMaticBalance.eq(new BN(0));
+                            return adminFee.lte(ev.adminFeeAmount) && adminMaticBalance.eq(new BN(0));
                         });
                 } else {
                     truffleAssert.eventEmitted(
@@ -220,7 +218,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                         "AdminWithdrawal",
                         (ev) => {
                             const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
-                                return adminFee.lte(ev.adminFeeAmount);
+                            return adminFee.lte(ev.adminFeeAmount);
                         });
                 }
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
