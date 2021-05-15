@@ -8,7 +8,6 @@ import "./aave/ILendingPoolAddressesProvider.sol";
 import "./aave/ILendingPool.sol";
 import "./aave/AToken.sol";
 import "./aave/IncentiveController.sol";
-import "./quickswap/IRouter.sol";
 import "./GoodGhostingWhitelisted.sol";
 import "./GoodGhosting.sol";
 
@@ -19,10 +18,8 @@ import "./GoodGhosting.sol";
 
 contract GoodGhostingPolygon is GoodGhosting {
     IncentiveController public incentiveController;
-    IRouter public router;
     IERC20 public immutable matic;
-    // as discussed the dai apy on polygon is prettu high so the deposit asset will be dai only hence there is a change in route: wmatic -> usdc -> dai
-    IERC20 public immutable usdc;
+    uint public rewardsPerPlayer;
 
     /**
         Creates a new instance of GoodGhosting game
@@ -36,9 +33,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
         @param merkleRoot_ merkel root to verify players on chain to allow only whitelisted users join.
         @param _incentiveController $matic reward claim contract.
-        @param _router quickswap router address.
         @param _matic matic token address.
-        @param _usdc usdc token address.
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -51,9 +46,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         address _dataProvider,
         bytes32 merkleRoot_,
         address _incentiveController,
-        IRouter _router,
-        IERC20 _matic,
-        IERC20 _usdc
+        IERC20 _matic
     )
         public
         GoodGhosting(
@@ -71,14 +64,62 @@ contract GoodGhostingPolygon is GoodGhosting {
         // initializing incentiveController contract
         incentiveController = IncentiveController(_incentiveController);
         matic = _matic;
-        usdc = _usdc;
-        router = _router;
-        uint256 MAX_ALLOWANCE = 2**256 - 1;
-        // for the swap
-         require(
-            _matic.approve(address(_router), MAX_ALLOWANCE),
-            "Fail to approve allowance to router"
+    }
+
+    /**
+       Allowing the admin to withdraw the pool fees
+    */
+    function adminFeeWithdraw() external override  onlyOwner whenGameIsCompleted {
+        require(!adminWithdraw, "Admin has already withdrawn");
+        require(adminFeeAmount > 0, "No Fees Earned");
+        adminWithdraw = true;
+        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
+        require(
+            IERC20(daiToken).transfer(owner(), adminFeeAmount),
+            "Fail to transfer ER20 tokens to admin"
         );
+        if (rewardsPerPlayer == 0) {
+            uint balance = IERC20(matic).balanceOf(address(this));
+            require(
+                IERC20(matic).transfer(msg.sender, balance),
+                "Fail to transfer ERC20 tokens on withdraw"
+            );
+        }
+    }
+
+    // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
+    function withdraw() public override {
+        Player storage player = players[msg.sender];
+        require(!player.withdrawn, "Player has already withdrawn");
+        player.withdrawn = true;
+
+        uint256 payout = player.amountPaid;
+        uint256 playerReward = 0;
+        if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
+            // Player is a winner and gets a bonus!
+            // No need to worry about if winners.length = 0
+            // If we're in this block then the user is a winner
+            payout = payout.add(totalGameInterest.div(winners.length));
+            playerReward = rewardsPerPlayer;
+        }
+        emit Withdrawal(msg.sender, payout);
+
+        // First player to withdraw redeems everyone's funds
+        if (!redeemed) {
+            redeemFromExternalPool();
+        }
+
+        require(
+            IERC20(daiToken).transfer(msg.sender, payout),
+            "Fail to transfer ERC20 tokens on withdraw"
+        );
+
+        if (playerReward > 0) {
+            require(
+                IERC20(matic).transfer(msg.sender, playerReward),
+                "Fail to transfer ERC20 rewards on withdraw"
+            );
+        }
     }
 
     /**
@@ -92,6 +133,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         // aave has 1:1 peg for tokens and atokens
         // there is no redeem function in v2 it is replaced by withdraw in v2
         // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
+        uint256 amount;
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
                 address(daiToken),
@@ -100,7 +142,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             );
             address[] memory assets = new address[](1);
             assets[0] = address(adaiToken);
-            uint256 amount = incentiveController.getRewardsBalance(
+            amount = incentiveController.getRewardsBalance(
                 assets,
                 address(this)
             );
@@ -110,19 +152,6 @@ contract GoodGhostingPolygon is GoodGhosting {
                     amount,
                     address(this)
                 );
-                address[] memory pairTokens = new address[](3);
-                // route considering dai only as the game asset
-                pairTokens[0] = address(matic);
-                pairTokens[1] = address(usdc);
-                pairTokens[2] = address(daiToken);
-                uint[] memory swapAmounts = router.swapExactTokensForTokens(
-                    amount,
-                    0,
-                    pairTokens,
-                    address(this),
-                    now.add(1200)
-                );
-                require(swapAmounts.length > 1, "Router.swapExactTokensForTokens: no output token amount returned");
             }
         }
 
@@ -140,8 +169,10 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
 
         if (winners.length == 0) {
+            rewardsPerPlayer = 0;
             adminFeeAmount = grossInterest;
         } else {
+            rewardsPerPlayer = amount.div(winners.length);
             adminFeeAmount = _adminFeeAmount;
         }
 

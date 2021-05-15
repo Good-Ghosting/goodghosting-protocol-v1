@@ -160,7 +160,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
     /**
        Allowing the admin to withdraw the pool fees
     */
-    function adminFeeWithdraw() external onlyOwner whenGameIsCompleted {
+    function adminFeeWithdraw() external virtual  onlyOwner whenGameIsCompleted {
         require(!adminWithdraw, "Admin has already withdrawn");
         require(adminFeeAmount > 0, "No Fees Earned");
         adminWithdraw = true;
@@ -379,7 +379,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
     }
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
-    function withdraw() external {
+    function withdraw() external virtual {
         Player storage player = players[msg.sender];
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;

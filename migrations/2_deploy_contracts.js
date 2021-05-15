@@ -40,9 +40,7 @@ function printSummary(
         aaveContractAddress,
         merkleRoot,
         incentiveController,
-        router,
-        wmatic,
-        usdc
+        wmatic
     },
     // additional logging info
     {
@@ -81,15 +79,11 @@ function printSummary(
     if (isPolygon) {
         parameterTypes.push(
             "address", // IncentiveController
-            "address", // QuickSwap router
-            "address", // wmatic token
-            "address" // usdc token
+            "address" // wmatic token
         );
         parameterValues.push(
             incentiveController,
-            router,
-            wmatic,
-            usdc
+            wmatic
         );
     }
 
@@ -111,9 +105,7 @@ function printSummary(
     console.log(`Merkle Root: ${merkleRoot}`);
     if (isPolygon) {
         console.log(`Incentive Controller: ${incentiveController}`);
-        console.log(`QuickSwap Router: ${router}`);
         console.log(`Matic Token: ${wmatic}`);
-        console.log(`USDC Token: ${usdc}`);
     }
     console.log("\n\nConstructor Arguments ABI-Encoded:");
     console.log(encodedParameters.toString("hex"));
@@ -137,8 +129,6 @@ module.exports = function (deployer, network, accounts) {
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
         const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
         const incentiveController = poolConfigs.incentiveController;
-        const router = poolConfigs.router;
-        const usdc = poolConfigs.usdc;
         const wmatic = poolConfigs.wmatic;
 
         let aaveContractAddress = poolConfigs.dataProvider;
@@ -167,9 +157,7 @@ module.exports = function (deployer, network, accounts) {
         if (networkName === "polygon") {
             deploymentArgs.push(
                 incentiveController,
-                router,
-                wmatic,
-                usdc
+                wmatic
             );
         }
 
@@ -191,9 +179,7 @@ module.exports = function (deployer, network, accounts) {
                 aaveContractAddress,
                 merkleRoot: deployConfigs.merkleroot,
                 incentiveController,
-                router,
-                wmatic,
-                usdc
+                wmatic
             },
             {
                 networkName,
