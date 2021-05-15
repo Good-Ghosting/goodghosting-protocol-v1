@@ -133,12 +133,16 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             // starts from 1, since player1 (loser), requested an early withdraw
             for (let i = 1; i < players.length - 1; i++) {
                 const player = players[i];
+                let playerMaticBalanceBeforeWithdraw;
+                if (GoodGhostingArtifact === GoodGhostingPolygon) {
+                    playerMaticBalanceBeforeWithdraw = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
+                }
                 const result = await goodGhosting.withdraw({ from: player });
                 truffleAssert.eventEmitted(result, "Withdrawal", async (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
                     if (GoodGhostingArtifact === GoodGhostingPolygon) {
                         const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
-                        return ev.player === player && playersMaticBalance.eq(new BN(0));
+                        return ev.player === player && playersMaticBalance.eq(playerMaticBalanceBeforeWithdraw);
                     } else {
                         return ev.player === player;
                     }

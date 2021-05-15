@@ -183,14 +183,17 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
             for (let i = 1; i < players.length - 1; i++) {
                 const player = players[i];
                 const playerInfo = await goodGhosting.players(player, { from: player });
-
+                let playerMaticBalanceBeforeWithdraw;
+                if (GoodGhostingArtifact === GoodGhostingPolygon) {
+                    playerMaticBalanceBeforeWithdraw = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
+                }
                 const result = await goodGhosting.withdraw({ from: player });
 
                 truffleAssert.eventEmitted(result, "Withdrawal", async (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
                     if (GoodGhostingArtifact === GoodGhostingPolygon) {
                         const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
-                        return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid) && playersMaticBalance.gt(new BN(0));
+                        return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid) && playersMaticBalance.gt(playerMaticBalanceBeforeWithdraw);
                     } else {
                         return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid);
                     }

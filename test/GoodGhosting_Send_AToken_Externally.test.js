@@ -216,13 +216,16 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                 const player = players[i];
                 const playerInfo = await goodGhosting.players(player, { from: player });
 
-                // const userDaiBalance = new BN(await token.methods.balanceOf(player).call({ from: admin }));
+                let playerMaticBalanceBeforeWithdraw;
+                if (GoodGhostingArtifact === GoodGhostingPolygon) {
+                    playerMaticBalanceBeforeWithdraw = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
+                }
                 const result = await goodGhosting.withdraw({ from: player });
                 truffleAssert.eventEmitted(result, "Withdrawal", async (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
                     if (GoodGhostingArtifact === GoodGhostingPolygon) {
                         const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
-                        return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid) && playersMaticBalance.gt(new BN(0));
+                        return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid) && playersMaticBalance.gt(playerMaticBalanceBeforeWithdraw);
                     } else {
                         return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid);
                     }
