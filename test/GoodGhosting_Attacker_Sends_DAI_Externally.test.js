@@ -202,6 +202,10 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
             if (!customFee) {
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
             } else {
+                let adminMaticBalanceBeforeWithdraw;
+                if (GoodGhostingArtifact === GoodGhostingPolygon) {
+                    adminMaticBalanceBeforeWithdraw = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
+                }
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
                 if (GoodGhostingArtifact === GoodGhostingPolygon) {
                     const adminMaticBalance = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
@@ -210,7 +214,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                         "AdminWithdrawal",
                         (ev) => {
                             const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
-                            return adminFee.lte(ev.adminFeeAmount) && adminMaticBalance.eq(new BN(0));
+                            return adminFee.lte(ev.adminFeeAmount) && adminMaticBalance.eq(adminMaticBalanceBeforeWithdraw);
                         });
                 } else {
                     truffleAssert.eventEmitted(

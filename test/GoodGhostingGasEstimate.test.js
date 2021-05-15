@@ -206,6 +206,10 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
             } else {
                 const expectedAmount = new BN(await goodGhosting.adminFeeAmount.call({from: admin}));
+                let adminMaticBalanceBeforeWithdraw;
+                if (GoodGhostingArtifact === GoodGhostingPolygon) {
+                    adminMaticBalanceBeforeWithdraw = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
+                }
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
                 if (GoodGhostingArtifact === GoodGhostingPolygon) {
                     const adminMaticBalance = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
@@ -214,7 +218,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         result,
                         "AdminWithdrawal",
                         (ev) => {
-                            return expectedAmount.eq(ev.adminFeeAmount) && adminMaticBalance.eq(new BN(0));
+                            return expectedAmount.eq(ev.adminFeeAmount) && adminMaticBalance.eq(adminMaticBalanceBeforeWithdraw);
                         });
                 } else {
                     truffleAssert.eventEmitted(

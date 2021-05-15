@@ -44,6 +44,7 @@ contract("GoodGhosting_No_External_Pool_Deposit", (accounts) => {
     describe("simulates a full game with 5 players and 4 of them winning the game with no external deposits", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
+            rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
             goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
@@ -176,7 +177,6 @@ contract("GoodGhosting_No_External_Pool_Deposit", (accounts) => {
                     console.log(`player${i+1} withdraw amount: ${ev.amount.toString()}`);
                     const eventAmount = new BN(ev.amount.toString());
                     if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                        rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
                         const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
                         return ev.player === player && playerPayment.eq(eventAmount) && playersMaticBalance.eq(new BN(0));
                     } else {
