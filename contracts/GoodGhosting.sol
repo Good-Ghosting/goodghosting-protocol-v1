@@ -161,10 +161,12 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
        Allowing the admin to withdraw the pool fees
     */
     function adminFeeWithdraw() external virtual  onlyOwner whenGameIsCompleted {
+        require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
         require(adminFeeAmount > 0, "No Fees Earned");
         adminWithdraw = true;
         emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
+
         require(
             IERC20(daiToken).transfer(owner(), adminFeeAmount),
             "Fail to transfer ER20 tokens to admin"

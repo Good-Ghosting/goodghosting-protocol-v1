@@ -147,6 +147,7 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
        Allowing the admin to withdraw the pool fees
     */
     function adminFeeWithdraw() external onlyOwner whenGameIsCompleted {
+        require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
         require(adminFeeAmount > 0, "No Fees Earned");
         adminWithdraw = true;
