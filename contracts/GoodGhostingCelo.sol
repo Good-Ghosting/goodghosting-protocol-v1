@@ -275,7 +275,7 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
             player.amountPaid.mul(earlyWithdrawalFee).div(100)
         );
         // Decreases the totalGamePrincipal on earlyWithdraw
-        totalGamePrincipal = totalGamePrincipal.sub(withdrawAmount);
+        totalGamePrincipal = totalGamePrincipal.sub(player.amountPaid);
         // BUG FIX - Deposit External Pool Tx reverted after an early withdraw
         // Fixed by first checking at what segment early withdraw happens if > 0 then re-assign current segment as -1
         // Since in deposit external pool the amount is calculated from the segmentDeposit mapping
