@@ -2,6 +2,10 @@
 const IERC20 = artifacts.require("IERC20");
 const ERC20Mintable = artifacts.require("MockERC20Mintable");
 const GoodGhosting = artifacts.require("GoodGhosting");
+const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
+
+const IncentiveControllerMock = artifacts.require("IncentiveControllerMock");
+
 const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddressesProviderMock");
 const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
@@ -42,6 +46,7 @@ contract("GoodGhosting", (accounts) => {
     let aToken;
     let goodGhosting;
     let pap;
+    let incentiveController;
     let player1 = accounts[1];
     let player2 = accounts[2];
     let player3 = accounts[3];
@@ -66,18 +71,37 @@ contract("GoodGhosting", (accounts) => {
         pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
-        goodGhosting = await GoodGhosting.new(
-            token.address,
-            pap.address,
-            segmentCount,
-            segmentLength,
-            segmentPayment,
-            fee,
-            adminFee,
-            pap.address,
-            merkleRoot,
-            { from: admin },
-        );
+        if (process.env.TYPE === "mainnet-unit") {
+            goodGhosting = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                pap.address,
+                merkleRoot,
+                { from: admin },
+            );
+        } else if (process.env.TYPE === "polygon-unit") {
+            incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+
+            goodGhosting = await GoodGhostingPolygon.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                pap.address,
+                merkleRoot,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+        }
     });
 
     async function mintTokensFor(player) {
@@ -186,54 +210,113 @@ contract("GoodGhosting", (accounts) => {
             pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhosting.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                0,
-                adminFee,
-                pap.address,
-                merkleRoot,
-                { from: admin },
-            ));
+
+            if (process.env.TYPE === "mainnet-unit") {
+                await truffleAssert.reverts(GoodGhosting.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    0,
+                    adminFee,
+                    pap.address,
+                    merkleRoot,
+                    { from: admin },
+                ));
+            } else if (process.env.TYPE === "polygon-unit") {
+                incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+
+                await truffleAssert.reverts(GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    0,
+                    adminFee,
+                    pap.address,
+                    merkleRoot,
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                ));
+            }
+
         });
 
         it("reverts if the contract is deployed with early withdraw fee more than 10%", async () => {
             pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhosting.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                15,
-                adminFee,
-                pap.address,
-                merkleRoot,
-                { from: admin },
-            ));
+            if (process.env.TYPE === "mainnet-unit") {
+                await truffleAssert.reverts(GoodGhosting.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    15,
+                    adminFee,
+                    pap.address,
+                    merkleRoot,
+                    { from: admin },
+                ));
+            } else if (process.env.TYPE === "polygon-unit") {
+                incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+
+                await truffleAssert.reverts(GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    15,
+                    adminFee,
+                    pap.address,
+                    merkleRoot,
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                ));
+            }
         });
 
         it("reverts if the contract is deployed with admin fee more than 20%", async () => {
             pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhosting.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                fee,
-                30,
-                pap.address,
-                merkleRoot,
-                { from: admin },
-            ));
+            if (process.env.TYPE === "mainnet-unit") {
+                await truffleAssert.reverts(GoodGhosting.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    30,
+                    pap.address,
+                    merkleRoot,
+                    { from: admin },
+                ));
+            } else if (process.env.TYPE === "polygon-unit") {
+                incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+
+                await truffleAssert.reverts(GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    30,
+                    pap.address,
+                    merkleRoot,
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                ));
+            }
         });
     });
 
@@ -985,12 +1068,12 @@ contract("GoodGhosting", (accounts) => {
                 await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
                 await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
-    
+
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
                 const grossInterest = contractBalance.sub(totalGamePrincipal);
                 const expectedAdminFee = grossInterest.mul(new BN(adminFee)).div(new BN(100));
-    
+
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
                 truffleAssert.eventEmitted(
                     result,
@@ -1013,7 +1096,7 @@ contract("GoodGhosting", (accounts) => {
                 await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
                 await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
-    
+
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
                 const grossInterest = contractBalance.sub(totalGamePrincipal);
@@ -1025,7 +1108,7 @@ contract("GoodGhosting", (accounts) => {
                 console.log(grossInterest.toString());
                 console.log(gameInterest.toString());
                 console.log(expectedAdminFee.toString());
-    
+
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
                 truffleAssert.eventEmitted(
                     result,
@@ -1042,18 +1125,39 @@ contract("GoodGhosting", (accounts) => {
         it("reverts when there is no interest generated", async () => {
             pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             await pap.setUnderlyingAssetAddress(token.address);
-            goodGhosting = await GoodGhosting.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                fee,
-                0,
-                pap.address,
-                merkleRoot,
-                { from: admin },
-            );
+            if (process.env.TYPE === "mainnet-unit") {
+                goodGhosting = await GoodGhosting.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    0,
+                    pap.address,
+                    merkleRoot,
+                    { from: admin },
+                );
+            } else if (process.env.TYPE === "polygon-unit") {
+                incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+
+                goodGhosting = await GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    0,
+                    pap.address,
+                    merkleRoot,
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                );
+            }
+
+
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
             //generating mock interest
             await mintTokensFor(goodGhosting.address);

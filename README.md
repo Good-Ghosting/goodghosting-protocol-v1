@@ -69,7 +69,8 @@ To check and update `package.json` file, run `ncu -u`. Once completed, make sure
 
 ## Unit Tests
 
-**Requirement:** The tests use the file `deploy.config.js` as input to the contract migration. Make sure it is configured.
+**Requirement:** The tests use the file `deploy.config.js` as input to the contract migration. Make sure it is configured and also make sure to set which cotract the unit test is entitled set ```TYPE``` in .env current options are  ```"polygon-unit"``` and ```mainnet-unit``` and this env var needs to be set for both coverage and unit test.
+
 
 For the current contract version we have whitelisted players with help of merkle root verification on-chain, so the joinGame method takes in player index and merkle proofs hence check the instructions [here](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/test/GoodGhosting.test.js#L8) before the next step.
 
@@ -355,7 +356,7 @@ Starting migrations...
 
    Replacing 'SafeMath'
    --------------------
-   
+
    ...
 
    Replacing 'GoodGhosting'
