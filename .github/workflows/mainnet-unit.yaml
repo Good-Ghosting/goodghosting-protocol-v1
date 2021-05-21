@@ -1,4 +1,4 @@
-name: Units Tests & Coverage
+name: Mainnet Units Tests & Coverage
 
 on:
   push:
@@ -10,6 +10,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    env:
+      TYPE: 'mainnet-unit'
 
     strategy:
       matrix:
