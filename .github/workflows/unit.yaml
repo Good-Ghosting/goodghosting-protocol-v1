@@ -1,4 +1,4 @@
-name: Mainnet Units Tests & Coverage
+name: Mainnet and Polygon Contract Units Tests & Coverage
 
 on:
   push:
@@ -10,8 +10,6 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    env:
-      TYPE: 'mainnet-unit'
 
     strategy:
       matrix:
