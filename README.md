@@ -355,7 +355,7 @@ Starting migrations...
 
    Replacing 'SafeMath'
    --------------------
-   
+
    ...
 
    Replacing 'GoodGhosting'

@@ -76,11 +76,6 @@ contract GoodGhostingPolygon is GoodGhosting {
         adminWithdraw = true;
         emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
 
-        // If admin withdraws fees prior to players, redeems everyone's funds from pool
-        if (!redeemed) {
-            redeemFromExternalPool();
-        }
-
         require(
             IERC20(daiToken).transfer(owner(), adminFeeAmount),
             "Fail to transfer ER20 tokens to admin"

@@ -71,7 +71,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 totalGameInterest
     );
     event WinnersAnnouncement(address[] winners);
-    event EarlyWithdrawal(address indexed player, uint256 amount);
+    event EarlyWithdrawal(address indexed player, uint256 amount, uint256 totalGamePrincipal);
     event AdminWithdrawal(
         address indexed admin,
         uint256 totalGameInterest,
@@ -318,7 +318,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             player.canRejoin = true;
         }
 
-        emit EarlyWithdrawal(msg.sender, withdrawAmount);
+        emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
 
         // Only withdraw funds from underlying pool if contract doesn't have enough balance to fulfill the early withdraw.
         // there is no redeem function in v2 it is replaced by withdraw in v2
