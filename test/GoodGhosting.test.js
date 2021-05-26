@@ -106,12 +106,6 @@ contract("GoodGhosting", (accounts) => {
             await approveDaiToContract(player);
             await goodGhosting.makeDeposit({ from: player });
         }
-        const totalWinners = await goodGhosting.winners.length;
-        if (totalWinners > 0) {
-            const latestWinner = await goodGhosting.winners(new BN(totalWinners).sub(new BN(1)));
-            assert(latestWinner === player);
-        }
-
         // accounted for 1st deposit window
         // the loop will run till segmentCount - 1
         // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
@@ -120,8 +114,6 @@ contract("GoodGhosting", (accounts) => {
 
         await goodGhosting.depositIntoExternalPool({ from: player1 });
         await timeMachine.advanceTime(weekInSecs);
-        await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player }), " Deposit available only between segment 1 and segment n-1 (penultimate)");
-
     }
 
     async function joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player, index, proof) {
@@ -403,11 +395,21 @@ contract("GoodGhosting", (accounts) => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
             const playerInfo = await goodGhosting.players(player1);
+        });
+
+        it("verifies the player info stored in the contract after user rejoins after an early withdraw", async() => {
+            await approveDaiToContract(player1);
+            const playerAllowance = await token.allowance(player1, goodGhosting.address);
+            assert(playerAllowance.gte(segmentPayment));
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            const playerInfo = await goodGhosting.players(player1);
             assert(playerInfo.mostRecentSegmentPaid.eq(new BN(0)));
             assert(playerInfo.amountPaid.eq(segmentPayment));
             assert(playerInfo.canRejoin ===  false);
             assert(playerInfo.withdrawn ===  false);
-
         });
 
         it("does not increase the number of players when a user rejoins the game on segment 0 after an early withdrawal", async() => {
@@ -736,6 +738,29 @@ contract("GoodGhosting", (accounts) => {
                 (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
+        });
+
+        it("makes sure that the winner array contains the player address that makes the last segment deposit", async() => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                // protocol deposit of the prev. deposit
+                await goodGhosting.depositIntoExternalPool({ from: player1 });
+                await approveDaiToContract(player1);
+                await goodGhosting.makeDeposit({ from: player1 });
+            }
+            const totalWinners = await goodGhosting.winners.length;
+            if (totalWinners > 0) {
+                const latestWinner = await goodGhosting.winners(new BN(totalWinners).sub(new BN(1)));
+                assert(latestWinner === player);
+            }
+        });
+
+        it("reverts if players try to deposit after the game ends", async() => {
+            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), " Deposit available only between segment 1 and segment n-1 (penultimate)");
         });
 
         it("emits WinnersAnnouncement event when redeem is successful", async () => { // having test with only 1 player for now
