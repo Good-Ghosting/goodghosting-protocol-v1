@@ -394,7 +394,6 @@ contract("GoodGhosting", (accounts) => {
             await goodGhosting.earlyWithdraw({ from: player1 });
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            const playerInfo = await goodGhosting.players(player1);
         });
 
         it("verifies the player info stored in the contract after user rejoins after an early withdraw", async() => {
