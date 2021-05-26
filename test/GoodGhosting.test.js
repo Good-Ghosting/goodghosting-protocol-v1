@@ -498,6 +498,41 @@ contract("GoodGhosting", (accounts) => {
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
             assert(expectedBalance.eq(contractsDaiBalance), "Contract balance should increase when user deposits");
         });
+
+        it("makes sure the total principal amount increases", async() => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await approveDaiToContract(player1);
+            const principalBeforeDeposit = await goodGhosting.totalGamePrincipal();
+            await goodGhosting.makeDeposit({ from: player1 });
+            const principalaAfterDeposit = await goodGhosting.totalGamePrincipal();
+            const difference = principalaAfterDeposit.sub(principalBeforeDeposit);
+            assert(difference.eq(segmentPayment));
+        });
+
+        it("makes sure the total segment amount is updated", async() => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await approveDaiToContract(player1);
+            await goodGhosting.makeDeposit({ from: player1 });
+            const totalSegmentAmountAfterDeposit = await goodGhosting.segmentDeposit(1);
+            assert(totalSegmentAmountAfterDeposit.eq(segmentPayment));
+        });
+
+        it("makes sure the player info stored in contract is updated", async() => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await approveDaiToContract(player1);
+            await goodGhosting.makeDeposit({ from: player1 });
+            const playerInfo = await goodGhosting.players(player1);
+            assert(playerInfo.mostRecentSegmentPaid.eq(new BN(1)));
+            assert(playerInfo.amountPaid.eq(segmentPayment.mul(new BN(2))));
+            assert(playerInfo.canRejoin ===  false);
+            assert(playerInfo.withdrawn ===  false);
+        });
     });
 
     describe("when depositing funds into external pool ", async () => {
