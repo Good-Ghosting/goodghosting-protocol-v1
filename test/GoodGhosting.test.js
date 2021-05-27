@@ -775,21 +775,9 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("makes sure that the winner array contains the player address that makes the last segment deposit", async() => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
-            for (let index = 1; index < segmentCount; index++) {
-                await timeMachine.advanceTime(weekInSecs);
-                // protocol deposit of the prev. deposit
-                await goodGhosting.depositIntoExternalPool({ from: player1 });
-                await approveDaiToContract(player1);
-                await goodGhosting.makeDeposit({ from: player1 });
-            }
-            const totalWinners = await goodGhosting.winners.length;
-            if (totalWinners > 0) {
-                const latestWinner = await goodGhosting.winners(new BN(totalWinners).sub(new BN(1)));
-                assert(latestWinner === player);
-            }
+            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                const winner = await goodGhosting.winners(new BN(0));
+                assert(winner === player1);
         });
 
         it("reverts if players try to deposit after the game ends", async() => {
