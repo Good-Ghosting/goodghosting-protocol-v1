@@ -338,6 +338,19 @@ contract("GoodGhosting", (accounts) => {
             const storedPlayer2 = await goodGhosting.iterablePlayers.call(1);
             assert(storedPlayer1 === player1);
             assert(storedPlayer2 === player2);
+
+            // Checks player's info stored in the struct.
+            const playerInfo1 = await goodGhosting.players(player1);
+            assert(playerInfo1.mostRecentSegmentPaid.eq(new BN(0)));
+            assert(playerInfo1.amountPaid.eq(segmentPayment));
+            assert(playerInfo1.canRejoin ===  false);
+            assert(playerInfo1.withdrawn ===  false);
+
+            const playerInfo2 = await goodGhosting.players(player1);
+            assert(playerInfo2.mostRecentSegmentPaid.eq(new BN(0)));
+            assert(playerInfo2.amountPaid.eq(segmentPayment));
+            assert(playerInfo2.canRejoin ===  false);
+            assert(playerInfo2.withdrawn ===  false);
         });
 
         it("transfers the first payment to the contract", async () => {
@@ -369,8 +382,8 @@ contract("GoodGhosting", (accounts) => {
     });
 
 
-    describe("when a player early withdraws in segment 0", async () => {
-        it("reverts if the same user tries to rejoin the game in a latter segment", async() => {
+    describe("when a player tries to rejoin", async () => {
+        it("reverts if user tries to rejoin the game after segment 0", async() => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
             await timeMachine.advanceTime(weekInSecs);
@@ -453,6 +466,20 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Deposit available only between segment 1 and segment n-1 (penultimate)");
         });
 
+        it("reverts if user is making a deposit after game ends", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            // Advances to last segment
+            await timeMachine.advanceTime(weekInSecs * (segmentCount + 1));
+            await approveDaiToContract(player1);
+            await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Deposit available only between segment 1 and segment n-1 (penultimate)");
+        });
+
+        it("reverts if players try to deposit after the game ends", async() => {
+            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), " Deposit available only between segment 1 and segment n-1 (penultimate)");
+        });
+
         it("reverts if user is making a duplicated deposit for the same segment", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
@@ -506,8 +533,8 @@ contract("GoodGhosting", (accounts) => {
             await approveDaiToContract(player1);
             const principalBeforeDeposit = await goodGhosting.totalGamePrincipal();
             await goodGhosting.makeDeposit({ from: player1 });
-            const principalaAfterDeposit = await goodGhosting.totalGamePrincipal();
-            const difference = principalaAfterDeposit.sub(principalBeforeDeposit);
+            const principalAfterDeposit = await goodGhosting.totalGamePrincipal();
+            const difference = principalAfterDeposit.sub(principalBeforeDeposit);
             assert(difference.eq(segmentPayment));
         });
 
@@ -532,6 +559,12 @@ contract("GoodGhosting", (accounts) => {
             assert(playerInfo.amountPaid.eq(segmentPayment.mul(new BN(2))));
             assert(playerInfo.canRejoin ===  false);
             assert(playerInfo.withdrawn ===  false);
+        });
+
+        it("makes sure that the winner array contains the player address that makes the last segment deposit", async() => {
+            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            const winner = await goodGhosting.winners(new BN(0));
+            assert(winner === player1);
         });
     });
 
@@ -772,17 +805,6 @@ contract("GoodGhosting", (accounts) => {
                 (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
-        });
-
-        it("makes sure that the winner array contains the player address that makes the last segment deposit", async() => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
-                const winner = await goodGhosting.winners(new BN(0));
-                assert(winner === player1);
-        });
-
-        it("reverts if players try to deposit after the game ends", async() => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
-            await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), " Deposit available only between segment 1 and segment n-1 (penultimate)");
         });
 
         it("emits WinnersAnnouncement event when redeem is successful", async () => { // having test with only 1 player for now
