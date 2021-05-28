@@ -623,6 +623,29 @@ contract("GoodGhosting", (accounts) => {
             );
         });
 
+        it("make sure if any segment funds are not deposited, the future external deposits take that amount into account as we;;", async() => {
+            const expectedAmount = web3.utils.toBN(segmentPayment*4);
+
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.makeDeposit({from: player1});
+            await goodGhosting.makeDeposit({from: player2});
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            const result =await goodGhosting.depositIntoExternalPool({ from: player1 });
+            truffleAssert.eventEmitted(
+                result,
+                "FundsDepositedIntoExternalPool",
+                // accounting for the early withdraw
+                (ev) => web3.utils.toBN(ev.amount).eq(expectedAmount),
+                "FundsDepositedIntoExternalPool events was not emitted",
+            );
+        });
+
         it("emits FundsDepositedIntoExternalPool event for a successful deposit when the segment deposit is less than the balance", async () => {
             // deposits from 2 players
             const expectedAmount = web3.utils.toBN(segmentPayment*2);
