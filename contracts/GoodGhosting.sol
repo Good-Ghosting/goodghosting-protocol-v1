@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
+
+   // SPDX-License-Identifier: UNLICENSED
 
 pragma solidity 0.6.11;
 
@@ -257,7 +258,13 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             currentSegment > 0,
             "Cannot deposit into underlying protocol during segment zero"
         );
-        uint256 amount = segmentDeposit[currentSegment.sub(1)];
+        uint256 amount;
+        for (uint i = 0; i <= currentSegment.sub(1); i++) {
+            if (segmentDeposit[i] > 0) {
+               amount = amount.add(segmentDeposit[i]);
+               segmentDeposit[i] = 0;
+            }
+        }
         // balance safety check
         uint256 currentBalance = daiToken.balanceOf(address(this));
         if (amount > currentBalance) {
@@ -267,9 +274,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             amount > 0,
             "No amount from previous segment to deposit into protocol"
         );
-
-        // Sets deposited amount for previous segment to 0, avoiding double deposits into the protocol using funds from the current segment
-        segmentDeposit[currentSegment.sub(1)] = 0;
 
         // require(balance >= amount, "insufficient amount");
         emit FundsDepositedIntoExternalPool(amount);
@@ -299,10 +303,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         // Since in deposit external pool the amount is calculated from the segmentDeposit mapping
         // and the amount is reduced by withdrawAmount
         uint256 currentSegment = getCurrentSegment();
-        // commented this for now just need to verify with some unit tests once
-        // if (currentSegment > 0) {
-        //     currentSegment = currentSegment.sub(1);
-        // }
+
         if (segmentDeposit[currentSegment] > 0) {
             if (segmentDeposit[currentSegment] >= withdrawAmount) {
                 segmentDeposit[currentSegment] = segmentDeposit[currentSegment]
