@@ -623,7 +623,7 @@ contract("GoodGhosting", (accounts) => {
             );
         });
 
-        it("make sure if any segment funds are not deposited, the future external deposits take that amount into account as we;;", async() => {
+        it("make sure if any segment funds are not deposited, the future external deposits take that amount into account as well", async() => {
             const expectedAmount = web3.utils.toBN(segmentPayment*4);
 
             await approveDaiToContract(player1);
@@ -642,6 +642,28 @@ contract("GoodGhosting", (accounts) => {
                 "FundsDepositedIntoExternalPool",
                 // accounting for the early withdraw
                 (ev) => web3.utils.toBN(ev.amount).eq(expectedAmount),
+                "FundsDepositedIntoExternalPool events was not emitted",
+            );
+        });
+
+        it("make sure if any segment funds are not deposited, the future external deposits take any early withdraws that happen into account too", async() => {
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.makeDeposit({from: player1});
+            await goodGhosting.earlyWithdraw({from: player2});
+            await timeMachine.advanceTimeAndBlock(weekInSecs);
+            const contractBalance = await token.balanceOf(goodGhosting.address);
+            const result = await goodGhosting.depositIntoExternalPool({ from: player1 });
+            truffleAssert.eventEmitted(
+                result,
+                "FundsDepositedIntoExternalPool",
+                // accounting for the early withdraw
+                (ev) => web3.utils.toBN(ev.amount).eq(contractBalance),
                 "FundsDepositedIntoExternalPool events was not emitted",
             );
         });
