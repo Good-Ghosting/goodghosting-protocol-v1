@@ -268,6 +268,7 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
     */
     function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
         Player storage player = players[msg.sender];
+        require(player.amountPaid > 0, "Player does not exist");
         // Makes sure player didn't withdraw; otherwise, player could withdraw multiple times.
         require(!player.withdrawn, "Player has already withdrawn");
         // since atokenunderlying has 1:1 ratio so we redeem the amount paid by the player
@@ -360,6 +361,7 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
     function withdraw() external {
         Player storage player = players[msg.sender];
+        require(player.amountPaid > 0, "Player does not exist");
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
 

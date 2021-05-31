@@ -21,6 +21,13 @@ contract GoodGhostingPolygon is GoodGhosting {
     IERC20 public immutable matic;
     uint public rewardsPerPlayer;
 
+    event FundsRedeemedFromExternalPool(
+        uint256 totalAmount,
+        uint256 totalGamePrincipal,
+        uint256 totalGameInterest,
+        uint256 rewards
+    );
+
     /**
         Creates a new instance of GoodGhosting game
         @param _inboundCurrency Smart contract address of inbound currency used for the game.
@@ -92,6 +99,7 @@ contract GoodGhostingPolygon is GoodGhosting {
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
     function withdraw() external override {
         Player storage player = players[msg.sender];
+        require(player.amountPaid > 0, "Player does not exist");
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
 
@@ -181,7 +189,8 @@ contract GoodGhostingPolygon is GoodGhosting {
         emit FundsRedeemedFromExternalPool(
             totalBalance,
             totalGamePrincipal,
-            totalGameInterest
+            totalGameInterest,
+            amount
         );
         emit WinnersAnnouncement(winners);
     }

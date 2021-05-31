@@ -844,11 +844,12 @@ contract("GoodGhosting", (accounts) => {
         it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const totalPrincipal = web3.utils.toBN(segmentPayment * segmentCount);
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
             truffleAssert.eventEmitted(
                 result,
                 "FundsRedeemedFromExternalPool",
-                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
+                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)) && new BN(ev.totalGamePrincipal).eq(totalPrincipal),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
         });
@@ -915,6 +916,34 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.withdraw({ from: player1 }), "Player has already withdrawn");
         });
 
+        it("reverts if user tries to withdraw before the game ends", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await truffleAssert.reverts(goodGhosting.withdraw({ from: player1 }), "Game is not completed");
+        });
+
+        it("reverts if a non-player tries to withdraw", async () => {
+            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            await truffleAssert.reverts(goodGhosting.withdraw({ from: accounts[9] }), "Player does not exist");
+        });
+
+        it("reverts if a player tries withdraw after doing an early withdraw", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.earlyWithdraw({from: player1});
+            await advanceToEndOfGame();
+            await truffleAssert.reverts(goodGhosting.withdraw({ from: player1 }), "Player has already withdrawn");
+        });
+
+        it("user is able to withdraw when the contract is paused", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await advanceToEndOfGame();
+            await goodGhosting.pause({ from: admin });
+            await goodGhosting.withdraw({ from: player1 });
+        });
+
         it("sets withdrawn flag to true after user withdraws", async () => {
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
@@ -933,6 +962,43 @@ contract("GoodGhosting", (accounts) => {
                 (ev) => web3.utils.toBN(ev.totalAmount).eq(expectedAmount),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
+        });
+
+        it("makes sure the winners get equal interest", async () => {
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                // protocol deposit of the prev. deposit
+                await goodGhosting.depositIntoExternalPool({ from: admin });
+                await approveDaiToContract(player1);
+                await approveDaiToContract(player2);
+
+                await goodGhosting.makeDeposit({ from: player1 });
+                await goodGhosting.makeDeposit({ from: player2 });
+
+            }
+            // accounted for 1st deposit window
+            // the loop will run till segmentCount - 1
+            // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
+            // and another segment where the last segment deposit can generate yield
+            await timeMachine.advanceTime(weekInSecs);
+            await goodGhosting.depositIntoExternalPool({ from: admin });
+            await timeMachine.advanceTime(weekInSecs);
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await goodGhosting.redeemFromExternalPool({ from: admin });
+
+            await goodGhosting.withdraw({ from: player1 });
+            const player1PostWithdrawBalance = await token.balanceOf(player1);
+
+            await goodGhosting.withdraw({ from: player2 });
+            const player2PostWithdrawBalance = await token.balanceOf(player2);
+            assert(player2PostWithdrawBalance.eq(player1PostWithdrawBalance));
         });
 
         it("pays a bonus to winners and losers get their principle back", async () => {
@@ -986,6 +1052,12 @@ contract("GoodGhosting", (accounts) => {
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Funds not redeemed from external pool");
             });
 
+            it("when game has not completed yet", async () => {
+                await approveDaiToContract(player1);
+                await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Game is not completed");
+            });
+
             it("when admin tries to withdraw fees again", async () => {
                 await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
                 //generating mock interest
@@ -996,6 +1068,17 @@ contract("GoodGhosting", (accounts) => {
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 await goodGhosting.adminFeeWithdraw({ from: admin });
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
+            });
+
+            it("someone other than admin tries to withdraw the fees", async () => {
+                await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                //generating mock interest
+                await mintTokensFor(admin);
+                await token.approve(pap.address, toWad(1000), { from: admin });
+                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+                await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+                await goodGhosting.redeemFromExternalPool({ from: player1 });
+                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: player1 }), "Ownable: caller is not the owner");
             });
 
             it("when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
@@ -1199,6 +1282,44 @@ contract("GoodGhosting", (accounts) => {
             await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
+        });
+
+        it("withdraw fees when there's only interest generated by external pool", async () => {
+            goodGhosting = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                merkleRoot,
+                { from: admin },
+            );
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            // mocks interest generation
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await advanceToEndOfGame();
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const contractBalance = await token.balanceOf(goodGhosting.address);
+            const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
+            const grossInterest = contractBalance.sub(totalGamePrincipal);
+            const gameInterest = await goodGhosting.totalGameInterest.call();
+            const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+            truffleAssert.eventEmitted(
+                result,
+                "AdminWithdrawal",
+                (ev) => {
+                    return ev.totalGameInterest.eq(grossInterest)
+                    && ev.adminFeeAmount.eq(gameInterest);
+                });
         });
     });
 
