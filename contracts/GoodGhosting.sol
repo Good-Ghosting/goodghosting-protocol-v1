@@ -258,7 +258,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             currentSegment > 0,
             "Cannot deposit into underlying protocol during segment zero"
         );
-        uint256 amount;
+        uint256 amount = 0;
         for (uint i = 0; i <= currentSegment.sub(1); i++) {
             if (segmentDeposit[i] > 0) {
                amount = amount.add(segmentDeposit[i]);
