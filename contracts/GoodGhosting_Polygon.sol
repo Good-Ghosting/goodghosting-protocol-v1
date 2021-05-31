@@ -90,7 +90,7 @@ contract GoodGhostingPolygon is GoodGhosting {
     }
 
     // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
-    function withdraw() public override {
+    function withdraw() external override {
         Player storage player = players[msg.sender];
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
@@ -135,7 +135,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         // aave has 1:1 peg for tokens and atokens
         // there is no redeem function in v2 it is replaced by withdraw in v2
         // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
-        uint256 amount;
+        uint256 amount = 0;
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
                 address(daiToken),

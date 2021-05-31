@@ -128,10 +128,13 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
         adaiToken = MAToken(adaiTokenAddress);
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint MAX_ALLOWANCE = 2**256 - 1;
-        _inboundCurrency.approve(address(lendingPoolCore), MAX_ALLOWANCE);
+        require(
+            _inboundCurrency.approve(address(lendingPoolCore), MAX_ALLOWANCE),
+            "Fail to approve allowance to lending pool"
+        );
     }
 
-    function getNumberOfPlayers() public view returns (uint256) {
+    function getNumberOfPlayers() external view returns (uint256) {
         return iterablePlayers.length;
     }
 
