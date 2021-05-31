@@ -5,7 +5,7 @@
     "main": "truffle-config.js",
     "scripts": {
         "ipfs": "node --no-warnings ./scripts/ipfs.js",
-        "test": "truffle test -m \"clutchaptain shoe salt awake harvest setup primary inmate ugly among become\"",
+        "test": "truffle test",
         "test:fork:mainnet": "truffle test --network local-mainnet-fork",
         "test:fork:polygon:vigil": "truffle test --network local-polygon-vigil-fork",
         "coverage": "truffle run coverage",
