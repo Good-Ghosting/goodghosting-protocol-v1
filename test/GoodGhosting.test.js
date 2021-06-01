@@ -1001,6 +1001,82 @@ contract("GoodGhosting", (accounts) => {
             assert(player2PostWithdrawBalance.eq(player1PostWithdrawBalance));
         });
 
+        it("pays a bonus to winners in form of early withdraw fees and losers get their principle back", async () => {
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            const player1PreWithdrawBalance = await token.balanceOf(player1);
+            const player2PreWithdrawBalance = await token.balanceOf(player1);
+
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.earlyWithdraw({ from: player2})
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                // protocol deposit of the prev. deposit
+                await goodGhosting.depositIntoExternalPool({ from: admin });
+                await approveDaiToContract(player1);
+                await approveDaiToContract(player2);
+
+                await goodGhosting.makeDeposit({ from: player1 });
+            }
+            // accounted for 1st deposit window
+            // the loop will run till segmentCount - 1
+            // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
+            // and another segment where the last segment deposit can generate yield
+            await timeMachine.advanceTime(weekInSecs);
+            await goodGhosting.depositIntoExternalPool({ from: admin });
+            await timeMachine.advanceTime(weekInSecs);
+            await goodGhosting.redeemFromExternalPool({ from: admin });
+
+            await goodGhosting.withdraw({ from: player1 });
+            const player1PostWithdrawBalance = await token.balanceOf(player1);
+
+            const player2PostWithdrawBalance = await token.balanceOf(player2);
+            assert(player1PostWithdrawBalance.gt(player1PreWithdrawBalance));
+            assert(player2PostWithdrawBalance.lt(player2PreWithdrawBalance));
+
+        });
+
+        it("pays a bonus to winners in form of early withdraw fees and interest earned and losers get their principle back", async () => {
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            const player1PreWithdrawBalance = await token.balanceOf(player1);
+            const player2PreWithdrawBalance = await token.balanceOf(player1);
+
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.earlyWithdraw({ from: player2})
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                // protocol deposit of the prev. deposit
+                await goodGhosting.depositIntoExternalPool({ from: admin });
+                await approveDaiToContract(player1);
+                await approveDaiToContract(player2);
+
+                await goodGhosting.makeDeposit({ from: player1 });
+            }
+            // accounted for 1st deposit window
+            // the loop will run till segmentCount - 1
+            // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
+            // and another segment where the last segment deposit can generate yield
+            await timeMachine.advanceTime(weekInSecs);
+            await goodGhosting.depositIntoExternalPool({ from: admin });
+            await timeMachine.advanceTime(weekInSecs);
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await goodGhosting.redeemFromExternalPool({ from: admin });
+
+            await goodGhosting.withdraw({ from: player1 });
+            const player1PostWithdrawBalance = await token.balanceOf(player1);
+
+            const player2PostWithdrawBalance = await token.balanceOf(player2);
+            assert(player1PostWithdrawBalance.gt(player1PreWithdrawBalance));
+            assert(player2PostWithdrawBalance.lt(player2PreWithdrawBalance));
+
+        });
+
         it("pays a bonus to winners and losers get their principle back", async () => {
             // Player1 is out "loser" and their interest is Player2's bonus
             await approveDaiToContract(player1);
