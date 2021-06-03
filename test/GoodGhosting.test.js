@@ -247,6 +247,10 @@ contract("GoodGhosting", (accounts) => {
             const lastSegmentResult = await goodGhosting.lastSegment.call();
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
+            const earlyWithdrawFee = await goodGhosting.earlyWithdrawalFee.call();
+            const adminFee = await goodGhosting.customFee.call();
+            assert(new BN(earlyWithdrawFee).eq(new BN(10)), `Early Withdraw Fee doesn't match info doesn't match, expected 10 got ${earlyWithdrawFee}`);
+            assert(new BN(adminFee).eq(new BN(5)), `Admin Fee doesn't match, expected 5 got ${adminFee}`);
             assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
             assert(interestCurrencyResult === aToken.address, `Interest currency doesn't match. expected ${aToken.address}; got ${interestCurrencyResult}`);
             assert(lendingPoolAddressProviderResult === pap.address, `LendingPoolAddressesProvider doesn't match. expected ${pap.address}; got ${lendingPoolAddressProviderResult}`);
