@@ -881,16 +881,63 @@ contract("GoodGhosting", (accounts) => {
 
         it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             const totalPrincipal = web3.utils.toBN(segmentPayment * segmentCount);
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
+            const adminFeeAmount = ((new BN(contractsDaiBalance).sub(totalPrincipal)).mul(new BN(adminFee))).div(new BN(100));
+            const expectedInterestValue = new BN(contractsDaiBalance).sub(totalPrincipal).sub(adminFeeAmount);
             truffleAssert.eventEmitted(
                 result,
                 "FundsRedeemedFromExternalPool",
-                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)) && new BN(ev.totalGamePrincipal).eq(totalPrincipal),
+                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)) && new BN(ev.totalGamePrincipal).eq(totalPrincipal) && new BN(ev.totalGameInterest).eq(expectedInterestValue),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
         });
+
+        it("checks the interest is updated correctly when admin fees is more than 0%", async () => {
+            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
+            const principalAmount = await goodGhosting.totalGamePrincipal();
+            const totalInterest = await goodGhosting.totalGameInterest();
+            const adminFeeAmount = ((new BN(contractsDaiBalance).sub(new BN(principalAmount))).mul(new BN(adminFee))).div(new BN(100));
+            const expectedValue = new BN(contractsDaiBalance).sub(new BN(principalAmount)).sub(adminFeeAmount);
+            assert(new BN(totalInterest).eq(expectedValue));
+        });
+
+        it("checks the interest is updated correctly when admin fees is 0 %", async () => {
+            goodGhosting = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                merkleRoot,
+                { from: admin },
+            );
+            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await mintTokensFor(admin);
+            await token.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
+            const principalAmount = await goodGhosting.totalGamePrincipal();
+            const totalInterest = await goodGhosting.totalGameInterest();
+            const expectedValue = new BN(contractsDaiBalance).sub(new BN(principalAmount));
+            assert(new BN(totalInterest).eq(expectedValue));
+        })
 
         it("emits WinnersAnnouncement event when redeem is successful", async () => { // having test with only 1 player for now
             await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
