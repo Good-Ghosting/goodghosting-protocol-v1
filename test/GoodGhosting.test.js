@@ -247,6 +247,10 @@ contract("GoodGhosting", (accounts) => {
             const lastSegmentResult = await goodGhosting.lastSegment.call();
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
+            const earlyWithdrawFee = await goodGhosting.earlyWithdrawalFee.call();
+            const adminFee = await goodGhosting.customFee.call();
+            assert(new BN(earlyWithdrawFee).eq(new BN(10)), `Early Withdraw Fee doesn't match info doesn't match, expected 10 got ${earlyWithdrawFee}`);
+            assert(new BN(adminFee).eq(new BN(5)), `Admin Fee doesn't match, expected 5 got ${adminFee}`);
             assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
             assert(interestCurrencyResult === aToken.address, `Interest currency doesn't match. expected ${aToken.address}; got ${interestCurrencyResult}`);
             assert(lendingPoolAddressProviderResult === pap.address, `LendingPoolAddressesProvider doesn't match. expected ${pap.address}; got ${lendingPoolAddressProviderResult}`);
@@ -700,6 +704,12 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: player1 }), "Game is already completed");
         });
 
+        it("reverts if a non-player tries to withdraw", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: accounts[8] }), "Player does not exist");
+        });
+
         it("sets withdrawn flag to true after user withdraws before end of game", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
@@ -729,6 +739,34 @@ contract("GoodGhosting", (accounts) => {
             const feeAmount = segmentPayment.mul(new BN(fee)).div(new BN(100)); // fee is set as an integer, so needs to be converted to a percentage
             assert(player1PostWithdrawBalance.sub(player1PreWithdrawBalance).eq(segmentPayment.sub(feeAmount)));
         });
+
+        it("segment deposit reduces once early withdraw is done", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            const cuurentSegment = await goodGhosting.getCurrentSegment();
+            const segmentDepositBeforeWithdrawal = await goodGhosting.segmentDeposit(cuurentSegment);
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            const segmentDepositAfterWithdrawal = await goodGhosting.segmentDeposit(cuurentSegment);
+            assert(segmentDepositAfterWithdrawal.lt(segmentDepositBeforeWithdrawal));
+        });
+
+        it("fee collected from early withdrawal is part of segment deposit so it should generate interest", async () => {
+            await approveDaiToContract(player1);
+            await approveDaiToContract(player2);
+            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            const cuurentSegment = await goodGhosting.getCurrentSegment();
+            const principalAmountBeforeWithdraw = await goodGhosting.totalGamePrincipal();
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            const principalAmount = await goodGhosting.totalGamePrincipal();
+            const segmentDepositAfterWithdrawal = await goodGhosting.segmentDeposit(cuurentSegment);
+            // the principal amount when deducted during an early withdraw does not include fees since the fee goes to admin if there are no winners or is admin fee % > 0
+            // so we check since segment deposit funds do generate interest so we check that segment deposit should be more than the principal
+            assert(segmentDepositAfterWithdrawal.gt(principalAmount));
+            assert(principalAmountBeforeWithdraw.gt(principalAmount));
+
+        });
+
 
         it("withdraws user balance subtracted by early withdraw fee when not enough withdrawable balance in the contract", async () => {
             await approveDaiToContract(player1);
