@@ -21,6 +21,8 @@ contract GoodGhostingPolygon is GoodGhosting {
     IERC20 public immutable matic;
     uint public rewardsPerPlayer;
 
+    event Withdrawal(address indexed player, uint256 amount, uint256 playerReward);
+
     event FundsRedeemedFromExternalPool(
         uint256 totalAmount,
         uint256 totalGamePrincipal,
@@ -112,7 +114,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             payout = payout.add(totalGameInterest.div(winners.length));
             playerReward = rewardsPerPlayer;
         }
-        emit Withdrawal(msg.sender, payout);
+        emit Withdrawal(msg.sender, payout, playerReward);
 
         // First player to withdraw redeems everyone's funds
         if (!redeemed) {
