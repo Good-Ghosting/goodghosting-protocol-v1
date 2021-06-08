@@ -1,5 +1,5 @@
 
-   // SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: UNLICENSED
 
 pragma solidity 0.6.11;
 
@@ -11,11 +11,10 @@ import "./aave/ILendingPoolAddressesProvider.sol";
 import "./aave/ILendingPool.sol";
 import "./aave/AToken.sol";
 import "./GoodGhostingWhitelisted.sol";
-/**
- * Play the save game.
- *
- */
 
+
+/// @title GoodGhosting Game Ethereum Contract
+/// @author Francis Odisi & Viraz Malhotra
 contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
     using SafeMath for uint256;
 
@@ -146,21 +145,23 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         );
     }
 
+    /// @notice calculates number of players
+    /// @return number of players
     function getNumberOfPlayers() external view returns (uint256) {
         return iterablePlayers.length;
     }
 
+    /// @notice pause the game
     function pause() external onlyOwner whenNotPaused {
         _pause();
     }
 
+    /// @notice unpause the game
     function unpause() external onlyOwner whenPaused {
         _unpause();
     }
 
-    /**
-       Allowing the admin to withdraw the pool fees
-    */
+    /// @notice Allows admin to withdraw fees if applicable
     function adminFeeWithdraw() external virtual  onlyOwner whenGameIsCompleted {
         require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
@@ -174,10 +175,8 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         );
     }
 
+    /// @notice Responsible for transferring player funds each segment in the contract
     function _transferDaiToContract() internal {
-        // users pays dai in to the smart contract, which he pre-approved to spend the DAI for him
-        // convert DAI to aDAI using the lending pool
-        // this doesn't make sense since we are already transferring
         require(
             daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
             "You need to have allowance to do transfer DAI on the smart contract"
@@ -193,34 +192,32 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         segmentDeposit[currentSegment] = segmentDeposit[currentSegment].add(
             segmentPayment
         );
-        // SECURITY NOTE:
-        // Interacting with the external contracts should be the last action in the logic to avoid re-entracy attacks.
-        // Re-entrancy: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#re-entrancy
-        // Check-Effects-Interactions Pattern: https://solidity.readthedocs.io/en/v0.6.12/security-considerations.html#use-the-checks-effects-interactions-pattern
         require(
             daiToken.transferFrom(msg.sender, address(this), segmentPayment),
             "Transfer failed"
         );
     }
 
-    /**
-        Returns the current segment of the game using a 0-based index (returns 0 for the 1st segment ).
-        @dev solidity does not return floating point numbers this will always return a whole number
-     */
+    /// @notice Calculates Current game segment
+    /// @return current game segment
     function getCurrentSegment() public view returns (uint256) {
         return block.timestamp.sub(firstSegmentStart).div(segmentLength);
     }
 
+    /// @notice Checks if game is completed or not
+    /// @return game's status
     function isGameCompleted() public view returns (bool) {
         // Game is completed when the current segment is greater than "lastSegment" of the game.
         return getCurrentSegment() > lastSegment;
     }
 
+    /// @notice Allows players to join the game
+    /// @param index Merkel Proof Player Index
+    /// @param merkleProof Merkel Proof of the player
     function joinGame(uint256 index, bytes32[] calldata merkleProof) external whenNotPaused {
         require(getCurrentSegment() == 0, "Game has already started");
         address player = msg.sender;
         claim(index, player, true, merkleProof);
-        // require(isValidPlayer, "Not whitelisted player");
         require(
             players[msg.sender].addr != msg.sender || players[msg.sender].canRejoin,
             "Cannot join the game more than once"
@@ -238,16 +235,10 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             iterablePlayers.push(msg.sender);
         }
         emit JoinedGame(msg.sender, segmentPayment);
-
-        // payment for first segment
         _transferDaiToContract();
     }
 
-    /**
-       @dev Allows anyone to deposit the previous segment funds into the underlying protocol.
-       Deposits into the protocol can happen at any moment after segment 0 (first deposit window)
-       is completed, as long as the game is not completed.
-    */
+    /// @notice Responsible for depositing the funds to external pool which is Aave in this case segment wise
     function depositIntoExternalPool()
         external
         whenNotPaused
@@ -275,34 +266,22 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
             "No amount from previous segment to deposit into protocol"
         );
 
-        // require(balance >= amount, "insufficient amount");
         emit FundsDepositedIntoExternalPool(amount);
-        // gg refferal code 155
         lendingPool.deposit(address(daiToken), amount, address(this), 155);
     }
 
-    /**
-       @dev Allows player to withdraw funds in the middle of the game with an early withdrawal fee deducted from the user's principal.
-       earlyWithdrawalFee is set via constructor
-    */
+    /// @notice Allows a player to withdraw early in the middle of the ongoing game
     function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
-        // Makes sure player didn't withdraw; otherwise, player could withdraw multiple times.
         require(!player.withdrawn, "Player has already withdrawn");
-        // since atokenunderlying has 1:1 ratio so we redeem the amount paid by the player
         player.withdrawn = true;
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
-        // So if earlyWithdrawalFee is 10% and deposit amount is 10 dai, player will get 9 dai back, keeping 1 dai in the pool.
         uint256 withdrawAmount = player.amountPaid.sub(
             player.amountPaid.mul(earlyWithdrawalFee).div(100)
         );
         // Decreases the totalGamePrincipal on earlyWithdraw
         totalGamePrincipal = totalGamePrincipal.sub(player.amountPaid);
-        // BUG FIX - Deposit External Pool Tx reverted after an early withdraw
-        // Fixed by first checking at what segment early withdraw happens if > 0 then re-assign current segment as -1
-        // Since in deposit external pool the amount is calculated from the segmentDeposit mapping
-        // and the amount is reduced by withdrawAmount
         uint256 currentSegment = getCurrentSegment();
 
         if (segmentDeposit[currentSegment] > 0) {
@@ -323,7 +302,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
 
         // Only withdraw funds from underlying pool if contract doesn't have enough balance to fulfill the early withdraw.
-        // there is no redeem function in v2 it is replaced by withdraw in v2
         if (contractBalance < withdrawAmount) {
             lendingPool.withdraw(
                 address(daiToken),
@@ -337,17 +315,10 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         );
     }
 
-    /**
-        Reedems funds from external pool and calculates total amount of interest for the game.
-        @dev This method only redeems funds from the external pool, without doing any allocation of balances
-             to users. This helps to prevent running out of gas and having funds locked into the external pool.
-    */
+    /// @notice Redeems Funds from the external aave pool
     function redeemFromExternalPool() public virtual whenGameIsCompleted {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
-        // aave has 1:1 peg for tokens and atokens
-        // there is no redeem function in v2 it is replaced by withdraw in v2
-        // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
                 address(daiToken),
@@ -358,7 +329,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // recording principal amount separately since adai balance will have interest has well
         uint256 grossInterest = totalBalance.sub(totalGamePrincipal);
-        // deduction of a fee % usually 1 % as part of pool fees.
         uint256 _adminFeeAmount;
         if (customFee > 0) {
             _adminFeeAmount = (grossInterest.mul(customFee)).div(100);
@@ -382,7 +352,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         emit WinnersAnnouncement(winners);
     }
 
-    // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
+    /// @notice Allows all the players to withdraw the funds, winners get a share of interest
     function withdraw() external virtual {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
@@ -392,8 +362,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 payout = player.amountPaid;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
-            // No need to worry about if winners.length = 0
-            // If we're in this block then the user is a winner
             payout = payout.add(totalGameInterest.div(winners.length));
         }
         emit Withdrawal(msg.sender, payout);
@@ -409,6 +377,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         );
     }
 
+    /// @notice Allows players to make deposits after they join the game
     function makeDeposit() external whenNotPaused {
         // only registered players can deposit
         require(
@@ -452,8 +421,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         }
 
         emit Deposit(msg.sender, currentSegment, segmentPayment);
-
-        //:moneybag:allow deposit to happen
         _transferDaiToContract();
     }
 }

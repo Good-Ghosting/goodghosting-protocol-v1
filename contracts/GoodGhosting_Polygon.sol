@@ -11,11 +11,8 @@ import "./aave/IncentiveController.sol";
 import "./GoodGhostingWhitelisted.sol";
 import "./GoodGhosting.sol";
 
-/**
- * Play the save game.
- *
- */
-
+/// @title GoodGhosting Game Polygon Contract
+/// @author Francis Odisi & Viraz Malhotra
 contract GoodGhostingPolygon is GoodGhosting {
     IncentiveController public incentiveController;
     IERC20 public immutable matic;
@@ -75,9 +72,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         matic = _matic;
     }
 
-    /**
-       Allowing the admin to withdraw the pool fees
-    */
+    /// @notice Allows admin to withdraw fees if applicable
     function adminFeeWithdraw() external override  onlyOwner whenGameIsCompleted {
         require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
@@ -98,7 +93,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
     }
 
-    // to be called by individual players to get the amount back once it is redeemed following the solidity withdraw pattern
+    /// @notice Allows all the players to withdraw the funds, winners get a share of interest and wmatic rewards
     function withdraw() external override {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
@@ -109,8 +104,6 @@ contract GoodGhostingPolygon is GoodGhosting {
         uint256 playerReward = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
-            // No need to worry about if winners.length = 0
-            // If we're in this block then the user is a winner
             payout = payout.add(totalGameInterest.div(winners.length));
             playerReward = rewardsPerPlayer;
         }
@@ -134,17 +127,10 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
     }
 
-    /**
-        Reedems funds from external pool and calculates total amount of interest for the game.
-        @dev This method only redeems funds from the external pool, without doing any allocation of balances
-             to users. This helps to prevent running out of gas and having funds locked into the external pool.
-    */
+    /// @notice Redeems Funds from the external aave pool
     function redeemFromExternalPool() public override whenGameIsCompleted {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
-        // aave has 1:1 peg for tokens and atokens
-        // there is no redeem function in v2 it is replaced by withdraw in v2
-        // Aave docs recommends using uint(-1) to withdraw the full balance. This is actually an overflow that results in the max uint256 value.
         uint256 amount = 0;
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
