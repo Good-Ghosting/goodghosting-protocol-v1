@@ -11,6 +11,7 @@ import "./moola/MILendingPool.sol";
 import "./moola/MAToken.sol";
 import "./moola/ILendingPoolCore.sol";
 import "./GoodGhostingWhitelisted.sol";
+
 /**
  * Play the save game.
  *
@@ -72,7 +73,11 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 totalGameInterest
     );
     event WinnersAnnouncement(address[] winners);
-    event EarlyWithdrawal(address indexed player, uint256 amount, uint256 totalGamePrincipal);
+    event EarlyWithdrawal(
+        address indexed player,
+        uint256 amount,
+        uint256 totalGamePrincipal
+    );
     event AdminWithdrawal(
         address indexed admin,
         uint256 totalGameInterest,
@@ -97,7 +102,7 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
         customFee
-        @param merkleRoot_ merkel root to verify players on chain to allow only whitelisted users join.
+        @param merkleRoot_ merkle root to verify players on chain to allow only whitelisted users join.
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -109,7 +114,7 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 _customFee,
         MILendingPool _lendingPool,
         bytes32 merkleRoot_
-    ) GoodGhostingWhitelisted(merkleRoot_) public {
+    ) public GoodGhostingWhitelisted(merkleRoot_) {
         require(_customFee <= 20);
         require(_earlyWithdrawalFee <= 10);
         require(_earlyWithdrawalFee > 0);
@@ -121,13 +126,18 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
         earlyWithdrawalFee = _earlyWithdrawalFee;
         customFee = _customFee;
         daiToken = _inboundCurrency;
-        ILendingPoolCore lendingPoolCore = ILendingPoolCore(_lendingPoolAddressProvider.getLendingPoolCore());
+        ILendingPoolCore lendingPoolCore =
+            ILendingPoolCore(_lendingPoolAddressProvider.getLendingPoolCore());
         lendingPool = _lendingPool;
-        address adaiTokenAddress = lendingPoolCore.getReserveATokenAddress(address(_inboundCurrency));
-        require(adaiTokenAddress != address(0), "Aave doesn't support _inboundCurrency");
+        address adaiTokenAddress =
+            lendingPoolCore.getReserveATokenAddress(address(_inboundCurrency));
+        require(
+            adaiTokenAddress != address(0),
+            "Aave doesn't support _inboundCurrency"
+        );
         adaiToken = MAToken(adaiTokenAddress);
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
-        uint MAX_ALLOWANCE = 2**256 - 1;
+        uint256 MAX_ALLOWANCE = 2**256 - 1;
         require(
             _inboundCurrency.approve(address(lendingPoolCore), MAX_ALLOWANCE),
             "Fail to approve allowance to lending pool"
@@ -203,22 +213,27 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
         return getCurrentSegment() > lastSegment;
     }
 
-    function joinGame(uint256 index, bytes32[] calldata merkleProof) external whenNotPaused {
+    function joinGame(uint256 index, bytes32[] calldata merkleProof)
+        external
+        whenNotPaused
+    {
         require(getCurrentSegment() == 0, "Game has already started");
         address player = msg.sender;
         claim(index, player, true, merkleProof);
         // require(isValidPlayer, "Not whitelisted player");
         require(
-            players[msg.sender].addr != msg.sender || players[msg.sender].canRejoin,
+            players[msg.sender].addr != msg.sender ||
+                players[msg.sender].canRejoin,
             "Cannot join the game more than once"
         );
-        Player memory newPlayer = Player({
-            addr: msg.sender,
-            mostRecentSegmentPaid: 0,
-            amountPaid: 0,
-            withdrawn: false,
-            canRejoin: false
-        });
+        Player memory newPlayer =
+            Player({
+                addr: msg.sender,
+                mostRecentSegmentPaid: 0,
+                amountPaid: 0,
+                withdrawn: false,
+                canRejoin: false
+            });
         players[msg.sender] = newPlayer;
         iterablePlayers.push(msg.sender);
         emit JoinedGame(msg.sender, segmentPayment);
@@ -275,9 +290,10 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
         player.withdrawn = true;
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
         // So if earlyWithdrawalFee is 10% and deposit amount is 10 dai, player will get 9 dai back, keeping 1 dai in the pool.
-        uint256 withdrawAmount = player.amountPaid.sub(
-            player.amountPaid.mul(earlyWithdrawalFee).div(100)
-        );
+        uint256 withdrawAmount =
+            player.amountPaid.sub(
+                player.amountPaid.mul(earlyWithdrawalFee).div(100)
+            );
         // Decreases the totalGamePrincipal on earlyWithdraw
         totalGamePrincipal = totalGamePrincipal.sub(player.amountPaid);
         // BUG FIX - Deposit External Pool Tx reverted after an early withdraw

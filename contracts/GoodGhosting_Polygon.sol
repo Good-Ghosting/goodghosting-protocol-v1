@@ -11,14 +11,19 @@ import "./aave/IncentiveController.sol";
 import "./GoodGhostingWhitelisted.sol";
 import "./GoodGhosting.sol";
 
-/// @title GoodGhosting Game Polygon Contract
+/// @title GoodGhosting Game Contract
 /// @author Francis Odisi & Viraz Malhotra
+/// @notice Used for the games deployed on Polygon using Aave as the underlying external pool.
 contract GoodGhostingPolygon is GoodGhosting {
     IncentiveController public incentiveController;
     IERC20 public immutable matic;
-    uint public rewardsPerPlayer;
+    uint256 public rewardsPerPlayer;
 
-    event Withdrawal(address indexed player, uint256 amount, uint256 playerReward);
+    event Withdrawal(
+        address indexed player,
+        uint256 amount,
+        uint256 playerReward
+    );
 
     event FundsRedeemedFromExternalPool(
         uint256 totalAmount,
@@ -34,11 +39,11 @@ contract GoodGhostingPolygon is GoodGhosting {
         @param _segmentCount Number of segments in the game.
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
-        @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
-        customFee
+        @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
+        @param _customFee performance fee charged by admin. Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
-        @param merkleRoot_ merkel root to verify players on chain to allow only whitelisted users join.
-        @param _incentiveController $matic reward claim contract.
+        @param merkleRoot_ merkle root to verify players on chain to allow only whitelisted users to join.
+        @param _incentiveController matic reward claim contract.
         @param _matic matic token address.
      */
     constructor(
@@ -72,8 +77,13 @@ contract GoodGhostingPolygon is GoodGhosting {
         matic = _matic;
     }
 
-    /// @notice Allows admin to withdraw fees if applicable
-    function adminFeeWithdraw() external override  onlyOwner whenGameIsCompleted {
+    /// @notice Allows admin to withdraw fees, if applicable
+    function adminFeeWithdraw()
+        external
+        override
+        onlyOwner
+        whenGameIsCompleted
+    {
         require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
         require(adminFeeAmount > 0, "No Fees Earned");
@@ -85,7 +95,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             "Fail to transfer ER20 tokens to admin"
         );
         if (rewardsPerPlayer == 0) {
-            uint balance = IERC20(matic).balanceOf(address(this));
+            uint256 balance = IERC20(matic).balanceOf(address(this));
             require(
                 IERC20(matic).transfer(msg.sender, balance),
                 "Fail to transfer ERC20 tokens on withdraw"
@@ -93,7 +103,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
     }
 
-    /// @notice Allows all the players to withdraw the funds, winners get a share of interest and wmatic rewards
+    /// @notice Allows all the players to withdraw the funds after the game ends. Winners get a share of interest and wmatic rewards
     function withdraw() external override {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
@@ -127,17 +137,20 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
     }
 
-    /// @notice Redeems Funds from the external aave pool
+    /// @notice Redeems funds from the external pool and updates the internal accounting controls related to the game stats.
+    /// @dev Can only be called after the game is completed.
     function redeemFromExternalPool() public override whenGameIsCompleted {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
         uint256 amount = 0;
+        // Withdraws funds (principal + interest + rewards) from external pool
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
                 address(daiToken),
                 type(uint256).max,
                 address(this)
             );
+            // Claims the rewards from the external pool
             address[] memory assets = new address[](1);
             assets[0] = address(adaiToken);
             amount = incentiveController.getRewardsBalance(
@@ -154,9 +167,10 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
 
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
-        // recording principal amount separately since adai balance will have interest has well
+        // calculates gross interest
         uint256 grossInterest = totalBalance.sub(totalGamePrincipal);
-        // deduction of a fee % usually 1 % as part of pool fees.
+        // calculates the performance/admin fee (takes a cut - the admin percentage fee - from the pool's interest).
+        // calculates the "gameInterest" (net interest) that will be split among winners in the game
         uint256 _adminFeeAmount;
         if (customFee > 0) {
             _adminFeeAmount = (grossInterest.mul(customFee)).div(100);
@@ -166,6 +180,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             totalGameInterest = grossInterest;
         }
 
+        // when there's no winners, admin takes all the interest + rewards
         if (winners.length == 0) {
             rewardsPerPlayer = 0;
             adminFeeAmount = grossInterest;
