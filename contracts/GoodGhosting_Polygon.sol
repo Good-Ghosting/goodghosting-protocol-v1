@@ -77,7 +77,8 @@ contract GoodGhostingPolygon is GoodGhosting {
         matic = _matic;
     }
 
-    /// @notice Allows admin to withdraw fees, if applicable
+    /// @notice Allows the admin to withdraw the performance fee, if applicable. This function can be called only by the contract's admin.
+    /// @dev Cannot be called before the game ends.
     function adminFeeWithdraw()
         external
         override
@@ -103,7 +104,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
     }
 
-    /// @notice Allows all the players to withdraw the funds after the game ends. Winners get a share of interest and wmatic rewards
+    /// @notice Allows player to withdraw their funds after the game ends with no loss (fee). Winners get a share of the interest earned.
     function withdraw() external override {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
