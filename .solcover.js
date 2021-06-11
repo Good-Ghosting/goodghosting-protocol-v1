@@ -11,8 +11,12 @@ module.exports = {
         'mock/TestBundle.sol',
         'mock/ERC20Mintable.sol',
         'mock/ForceSend.sol',
+        'mock/IncentiveControllerMock.sol',
         'aave/AToken.sol',
         'aave/ILendingPool.sol',
         'aave/ILendingPoolAddressesProvider.sol',
+        'GoodGhostingCelo.sol',
+        'GoodGhosting_Polygon_Quickswap.sol',
+        'utils/Math.sol'
     ]
 };
