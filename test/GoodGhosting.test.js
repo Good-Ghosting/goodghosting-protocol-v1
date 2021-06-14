@@ -6,14 +6,12 @@ const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddresses
 const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
-// use this for yarn coverage & merkel root i.e last argument in constructor 0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e
 const coveragePlayerConfig = [
     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } },
     { "0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf": { index: 1, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f"] } },
     // invalid user
     { "0x78863CB2db754Fc45030c4c25faAf757188A0784": { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
 ];
-// use this for truffle test & merkel root i.e last argument in constructor 0xd53ed7372825e2b21778b03e7f08246a9e358bf89416c856ebb4f196fca5e662
 const testPlayerConfig = [
     { "0xf17f52151EbEF6C7334FAD080c5704D77216b732": { index: 1, proof: ["0x2882c9f01add5f1c877ca051d110e9e58fbedc3164a1ae605f2fb231e9d9fb70"] } },
     { "0xC5fdf4076b8F3A5357c5E395ab970B5B54098Fef": { index: 0, proof: ["0x93e8909af44acf5e2128ec9b84e3ba358ce1de36b5c9d6f9c61e14bb89a1d5f2"] } },
@@ -180,7 +178,6 @@ contract("GoodGhosting", (accounts) => {
 
         it("checks if player1 received minted DAI tokens", async () => {
             const usersDaiBalance = await token.balanceOf(player1);
-            // BN.gte => greater than or equals (see https://github.com/indutny/bn.js/)
             assert(usersDaiBalance.div(daiDecimals).gte(new BN(1000)), `Player1 balance should be greater than or equal to 100 DAI at start - current balance: ${usersDaiBalance}`);
         });
 
@@ -332,8 +329,7 @@ contract("GoodGhosting", (accounts) => {
             // Player1 joins the game
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            // Mints DAI for player2 (not minted in the beforeEach hook) and joins the game
-            await mintTokensFor(player2);
+
             await approveDaiToContract(player2);
             await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
 
@@ -645,7 +641,6 @@ contract("GoodGhosting", (accounts) => {
             truffleAssert.eventEmitted(
                 result,
                 "FundsDepositedIntoExternalPool",
-                // accounting for the early withdraw
                 (ev) => web3.utils.toBN(ev.amount).eq(expectedAmount),
                 "FundsDepositedIntoExternalPool events was not emitted",
             );

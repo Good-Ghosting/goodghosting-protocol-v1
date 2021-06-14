@@ -210,7 +210,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
             );
         });
 
-        it("players withdraw from contract", async () => { // having test with only 1 player for now
+        it("players withdraw from contract", async () => {
             // starts from 1, since player1 (loser), requested an early withdraw
             for (let i = 1; i < players.length - 1; i++) {
                 const player = players[i];

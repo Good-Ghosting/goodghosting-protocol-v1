@@ -60,5 +60,5 @@ exports.deployConfigs = {
     segmentPayment: 1, // amount of tokens - i.e. 10 equals to 10 TOKENS (DAI, ETH, etc.);
     earlyWithdrawFee: 10, // i.e. 10 equals to 10%
     customFee: 5, // i.e. 5 equals to 5%
-    merkleroot: "0xd566243e283f1357e5e97dd0c9ab0d78177583074b440cb07815e05f615178bf" // merkel root for 1st 4 player addresses in the fork tests
+    merkleroot: "0xd566243e283f1357e5e97dd0c9ab0d78177583074b440cb07815e05f615178bf" // merkle root for 1st 4 player addresses in the fork tests
 };

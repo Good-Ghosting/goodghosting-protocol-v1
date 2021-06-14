@@ -121,7 +121,6 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                     console.log("totalContractAmount", ev.totalAmount.toString());
                     console.log("totalGamePrincipal", ev.totalGamePrincipal.toString());
                     console.log("totalGameInterest", ev.totalGameInterest.toString());
-                    // interest already transferred to the admin
                     eventAmount = new BN(ev.totalAmount.toString());
                     return eventAmount.eq(contractsDaiBalance);
                 },

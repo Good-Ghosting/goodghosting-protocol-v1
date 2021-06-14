@@ -126,7 +126,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             for (let segmentIndex = 1; segmentIndex < segmentCount; segmentIndex++) {
                 await timeMachine.advanceTime(segmentLength);
                 // protocol deposit of the prev. deposit
-                // tx reverts here with segment 2 with err => Error: Returned error: VM Exception while processing transaction: revert SafeERC20: low-level call failed -- Reason given: SafeERC20: low-level call failed
                 await goodGhosting.depositIntoExternalPool({ from: admin });
 
                 // j must start at 1 - Player1 (index 0) early withdraws after everyone else deposits, so won't continue making deposits
@@ -232,7 +231,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             return expectedAmount.eq(ev.adminFeeAmount);
                         });
                 }
-
             }
         });
     });
