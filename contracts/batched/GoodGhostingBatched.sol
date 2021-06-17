@@ -9,12 +9,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../aave/ILendingPoolAddressesProvider.sol";
 import "../aave/ILendingPool.sol";
 import "../aave/AToken.sol";
-import "../GoodGhostingWhitelisted.sol";
+import "../MerkleDistributor.sol";
 
 /// @title GoodGhosting Game Contract
 /// @notice Used for games deployed on Ethereum Mainnet, using Aave as the underlying pool
 /// @author Francis Odisi & Viraz Malhotra
-contract GoodGhostingBatched is Ownable, Pausable, GoodGhostingWhitelisted {
+contract GoodGhostingBatched is Ownable, Pausable, MerkleDistributor {
     using SafeMath for uint256;
 
     /// @notice Controls if tokens were redeemed or not from the pool
@@ -122,7 +122,7 @@ contract GoodGhostingBatched is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 _customFee,
         address _dataProvider,
         bytes32 merkleRoot_
-    ) public GoodGhostingWhitelisted(merkleRoot_) {
+    ) public MerkleDistributor(merkleRoot_) {
         require(_customFee <= 20);
         require(_earlyWithdrawalFee <= 10);
         require(_earlyWithdrawalFee > 0);

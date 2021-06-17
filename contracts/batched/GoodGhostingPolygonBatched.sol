@@ -8,7 +8,6 @@ import "../aave/ILendingPoolAddressesProvider.sol";
 import "../aave/ILendingPool.sol";
 import "../aave/AToken.sol";
 import "../aave/IncentiveController.sol";
-import "../GoodGhostingWhitelisted.sol";
 import "./GoodGhostingBatched.sol";
 
 /// @title GoodGhosting Game Contract

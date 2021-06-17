@@ -10,14 +10,14 @@ import "./aave/ILendingPoolAddressesProvider.sol";
 import "./moola/MILendingPool.sol";
 import "./moola/MAToken.sol";
 import "./moola/ILendingPoolCore.sol";
-import "./GoodGhostingWhitelisted.sol";
+import "./MerkleDistributor.sol";
 
 /**
  * Play the save game.
  *
  */
 
-contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
+contract GoodGhostingCelo is Ownable, Pausable, MerkleDistributor {
     using SafeMath for uint256;
 
     // Controls if tokens were redeemed or not from the pool
@@ -114,7 +114,7 @@ contract GoodGhostingCelo is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 _customFee,
         MILendingPool _lendingPool,
         bytes32 merkleRoot_
-    ) public GoodGhostingWhitelisted(merkleRoot_) {
+    ) public MerkleDistributor(merkleRoot_) {
         require(_customFee <= 20);
         require(_earlyWithdrawalFee <= 10);
         require(_earlyWithdrawalFee > 0);

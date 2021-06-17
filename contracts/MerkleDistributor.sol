@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/cryptography/MerkleProof.sol";
 import "./merkel/IMerkleDistributor.sol";
 
-/// @title GoodGhostingWhitelisted Contract which is responsible for player's merkle proof validation
+/// @title Contract responsible for player's merkle proof validation
 /// @author Francis Odisi & Viraz Malhotra
-contract GoodGhostingWhitelisted is IMerkleDistributor {
+contract MerkleDistributor is IMerkleDistributor {
     bytes32 public immutable override merkleRoot;
 
     /// @param merkleRoot_ Merkle root for the game

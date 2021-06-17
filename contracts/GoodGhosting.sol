@@ -9,12 +9,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./aave/ILendingPoolAddressesProvider.sol";
 import "./aave/ILendingPool.sol";
 import "./aave/AToken.sol";
-import "./GoodGhostingWhitelisted.sol";
 
 /// @title GoodGhosting Game Contract
 /// @notice Used for games deployed on Ethereum Mainnet, using Aave as the underlying pool
 /// @author Francis Odisi & Viraz Malhotra
-contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
+contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
     /// @notice Controls if tokens were redeemed or not from the pool
@@ -108,7 +107,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
         customFee
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
-        @param merkleRoot_ merkle root to verify players on chain to allow only whitelisted users join.
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -118,9 +116,8 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 _segmentPayment,
         uint256 _earlyWithdrawalFee,
         uint256 _customFee,
-        address _dataProvider,
-        bytes32 merkleRoot_
-    ) public GoodGhostingWhitelisted(merkleRoot_) {
+        address _dataProvider
+    ) public {
         require(_customFee <= 20);
         require(_earlyWithdrawalFee <= 10);
         require(_earlyWithdrawalFee > 0);
@@ -208,30 +205,10 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         lendingPool.deposit(address(daiToken), segmentPayment, address(this), 155);
     }
 
-    /// @notice Calculates the current segment of the game.
-    /// @return current game segment
-    function getCurrentSegment() public view returns (uint256) {
-        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
-    }
-
-    /// @notice Checks if the game is completed or not.
-    /// @return "true" if completeted; otherwise, "false".
-    function isGameCompleted() public view returns (bool) {
-        // Game is completed when the current segment is greater than "lastSegment" of the game.
-        return getCurrentSegment() > lastSegment;
-    }
-
-    /// @notice Allows a player to join the game
-    /// @param index Merkle proof player index
-    /// @param merkleProof Merkle proof of the player
-    /// @dev Cannot be called when the game is paused
-    function joinGame(uint256 index, bytes32[] calldata merkleProof)
-        external
-        whenNotPaused
-    {
+    /// @notice Allows a player to join the game and controls 
+    function _joinGame() internal {
         require(getCurrentSegment() == 0, "Game has already started");
         address player = msg.sender;
-        claim(index, player, true, merkleProof);
         require(
             players[msg.sender].addr != msg.sender ||
                 players[msg.sender].canRejoin,
@@ -252,6 +229,28 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         }
         emit JoinedGame(msg.sender, segmentPayment);
         _transferDaiToContract();
+    }
+
+    /// @notice Calculates the current segment of the game.
+    /// @return current game segment
+    function getCurrentSegment() public view returns (uint256) {
+        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
+    }
+
+    /// @notice Checks if the game is completed or not.
+    /// @return "true" if completeted; otherwise, "false".
+    function isGameCompleted() public view returns (bool) {
+        // Game is completed when the current segment is greater than "lastSegment" of the game.
+        return getCurrentSegment() > lastSegment;
+    }
+
+    /// @notice Allows a player to join the game
+    function joinGame()
+        external
+        virtual
+        whenNotPaused
+    {
+        _joinGame();
     }
 
     /// @notice Allows a player to withdraws funds before the game ends. An early withdrawl fee is charged.
