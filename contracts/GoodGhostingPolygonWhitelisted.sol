@@ -2,7 +2,7 @@
 
 pragma solidity 0.6.11;
 
-import "./GoodGhosting_Polygon.sol";
+import "./GoodGhostingPolygon.sol";
 import "./MerkleDistributor.sol";
 
 contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributor {
