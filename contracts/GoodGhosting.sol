@@ -59,7 +59,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
     /// @notice Stores info about the players in the game
     mapping(address => Player) public players;
     /// @notice controls the amount deposited in each segment that was not yet transferred to the external underlying pool
-    mapping(uint256 => uint256) public segmentDeposit;
     /// @notice list of players
     address[] public iterablePlayers;
     /// @notice list of winners
@@ -72,7 +71,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         uint256 amount
     );
     event Withdrawal(address indexed player, uint256 amount);
-    event FundsDepositedIntoExternalPool(uint256 amount);
     event FundsRedeemedFromExternalPool(
         uint256 totalAmount,
         uint256 totalGamePrincipal,
@@ -197,19 +195,17 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         );
 
         uint256 currentSegment = getCurrentSegment();
-
         players[msg.sender].mostRecentSegmentPaid = currentSegment;
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
             segmentPayment
         );
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
-        segmentDeposit[currentSegment] = segmentDeposit[currentSegment].add(
-            segmentPayment
-        );
         require(
             daiToken.transferFrom(msg.sender, address(this), segmentPayment),
             "Transfer failed"
         );
+
+        lendingPool.deposit(address(daiToken), segmentPayment, address(this), 155);
     }
 
     /// @notice Calculates the current segment of the game.
@@ -258,42 +254,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         _transferDaiToContract();
     }
 
-    /**
-        @notice Transfers funds from the contract into the underlying external pool.
-        @dev Can be called once per segment. Cannot be called in the first segment or after the game is completed.
-     */
-    function depositIntoExternalPool()
-        external
-        whenNotPaused
-        whenGameIsNotCompleted
-    {
-        uint256 currentSegment = getCurrentSegment();
-        require(
-            currentSegment > 0,
-            "Cannot deposit into underlying protocol during segment zero"
-        );
-        // Considers funds from previous segments that weren't transferred to the external pool yet.
-        uint256 amount = 0;
-        for (uint256 i = 0; i <= currentSegment.sub(1); i++) {
-            if (segmentDeposit[i] > 0) {
-                amount = amount.add(segmentDeposit[i]);
-                segmentDeposit[i] = 0;
-            }
-        }
-        // balance safety check
-        uint256 currentBalance = daiToken.balanceOf(address(this));
-        if (amount > currentBalance) {
-            amount = currentBalance;
-        }
-        require(
-            amount > 0,
-            "No amount from previous segment to deposit into protocol"
-        );
-
-        emit FundsDepositedIntoExternalPool(amount);
-        lendingPool.deposit(address(daiToken), amount, address(this), 155);
-    }
-
     /// @notice Allows a player to withdraws funds before the game ends. An early withdrawl fee is charged.
     /// @dev Cannot be called after the game is completed.
     function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
@@ -309,19 +269,6 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
         // Decreases the totalGamePrincipal on earlyWithdraw
         totalGamePrincipal = totalGamePrincipal.sub(player.amountPaid);
         uint256 currentSegment = getCurrentSegment();
-        // Updates (subtracts) the amount deposited in the current segment (that will be later transferred to the external pool).
-        // Only the withdrawal amount (player's principal minus the early withdrawal fee) must be subtracted,
-        // so the early withdrawal fee is still transferred to the external and integrates to the total interest amount generated.
-        if (segmentDeposit[currentSegment] > 0) {
-            if (segmentDeposit[currentSegment] >= withdrawAmount) {
-                segmentDeposit[currentSegment] = segmentDeposit[currentSegment]
-                    .sub(withdrawAmount);
-            } else {
-                segmentDeposit[currentSegment] = 0;
-            }
-        }
-
-        uint256 contractBalance = IERC20(daiToken).balanceOf(address(this));
 
         // Users that early withdraw during the first segment, are allowed to rejoin.
         if (currentSegment == 0) {
@@ -330,14 +277,7 @@ contract GoodGhosting is Ownable, Pausable, GoodGhostingWhitelisted {
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
 
-        // Only withdraw funds from underlying pool if contract doesn't have enough balance to fulfill the early withdrawal request.
-        if (contractBalance < withdrawAmount) {
-            lendingPool.withdraw(
-                address(daiToken),
-                withdrawAmount.sub(contractBalance),
-                address(this)
-            );
-        }
+        lendingPool.withdraw(address(daiToken), withdrawAmount, address(this));
         require(
             IERC20(daiToken).transfer(msg.sender, withdrawAmount),
             "Fail to transfer ERC20 tokens on early withdraw"
