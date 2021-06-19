@@ -17,6 +17,8 @@ module.exports = {
         'aave/ILendingPoolAddressesProvider.sol',
         'GoodGhostingCelo.sol',
         'GoodGhosting_Polygon_Quickswap.sol',
+        'batched/GoodGhostingBatched',
+        'GoodGhostingPolygonBatched',
         'utils/Math.sol'
     ]
 };

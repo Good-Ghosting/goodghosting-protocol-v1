@@ -38,7 +38,6 @@ function printSummary(
         earlyWithdrawFee,
         customFee,
         aaveContractAddress,
-        merkleRoot,
         incentiveController,
         wmatic
     },
@@ -61,8 +60,7 @@ function printSummary(
         "uint256", // segmentPaymentWei
         "uint256", // earlyWithdrawFee
         "uint256", // customFee
-        "address", // dataProvider/lending pool address
-        "bytes32" // merkle root
+        "address" // dataProvider/lending pool address
     ];
     var parameterValues = [
         inboundCurrencyAddress,
@@ -72,8 +70,7 @@ function printSummary(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        aaveContractAddress,
-        merkleRoot
+        aaveContractAddress
     ];
 
     if (isPolygon) {
@@ -102,7 +99,6 @@ function printSummary(
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
     console.log(`Custom Pool Fee: ${customFee}%`);
     console.log(`Data Provider/Lending Pool Address: ${aaveContractAddress}`);
-    console.log(`Merkle Root: ${merkleRoot}`);
     if (isPolygon) {
         console.log(`Incentive Controller: ${incentiveController}`);
         console.log(`Matic Token: ${wmatic}`);
@@ -151,8 +147,7 @@ module.exports = function (deployer, network, accounts) {
             segmentPaymentWei,
             deployConfigs.earlyWithdrawFee,
             deployConfigs.customFee,
-            aaveContractAddress,
-            deployConfigs.merkleroot
+            aaveContractAddress
         ];
         if (networkName === "polygon") {
             deploymentArgs.push(
@@ -177,7 +172,6 @@ module.exports = function (deployer, network, accounts) {
                 earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
                 customFee: deployConfigs.customFee,
                 aaveContractAddress,
-                merkleRoot: deployConfigs.merkleroot,
                 incentiveController,
                 wmatic
             },

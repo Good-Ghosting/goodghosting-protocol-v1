@@ -6,33 +6,10 @@ const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddresses
 const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
-const coveragePlayerConfig = [
-    { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } },
-    { "0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf": { index: 1, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f"] } },
-    // invalid user
-    { "0x78863CB2db754Fc45030c4c25faAf757188A0784": { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
-];
-const testPlayerConfig = [
-    { "0xf17f52151EbEF6C7334FAD080c5704D77216b732": { index: 1, proof: ["0x2882c9f01add5f1c877ca051d110e9e58fbedc3164a1ae605f2fb231e9d9fb70"] } },
-    { "0xC5fdf4076b8F3A5357c5E395ab970B5B54098Fef": { index: 0, proof: ["0x93e8909af44acf5e2128ec9b84e3ba358ce1de36b5c9d6f9c61e14bb89a1d5f2"] } },
-    // invalid user
-    { "0x821aEa9a577a9b44299B9c15c88cf3087F3b5544": { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
-];
 
 contract("GoodGhosting", (accounts) => {
-    let merkleRoot;
-    let whitelistedPlayerConfig;
-
     // Only executes this test file IF NOT a local network fork
     if (["local-mainnet-fork", "local-polygon-vigil-fork"].includes(process.env.NETWORK)) return;
-
-    if (process.env.NETWORK.toLowerCase().includes("coverage")) {
-        whitelistedPlayerConfig = coveragePlayerConfig;
-        merkleRoot = "0x40867aa687de5ac616962b562ed033e36f9002c696ae408b9144e9f425ab166e";
-    } else {
-        whitelistedPlayerConfig = testPlayerConfig;
-        merkleRoot = "0xd53ed7372825e2b21778b03e7f08246a9e358bf89416c856ebb4f196fca5e662";
-    }
 
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     const admin = accounts[0];
@@ -74,7 +51,6 @@ contract("GoodGhosting", (accounts) => {
             fee,
             adminFee,
             pap.address,
-            merkleRoot,
             { from: admin },
         );
     });
@@ -94,14 +70,13 @@ contract("GoodGhosting", (accounts) => {
         await timeMachine.advanceTime(weekInSecs * (segmentCount + 1));
     }
 
-    async function joinGamePaySegmentsAndComplete(player, index, proof) {
+    async function joinGamePaySegmentsAndComplete(player) {
         await approveDaiToContract(player);
-        await goodGhosting.joinGame(index, proof, { from: player });
+        await goodGhosting.joinGame({ from: player });
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
         for (let index = 1; index < segmentCount; index++) {
             await timeMachine.advanceTime(weekInSecs);
             // protocol deposit of the prev. deposit
-            await goodGhosting.depositIntoExternalPool({ from: player1 });
             await approveDaiToContract(player);
             await goodGhosting.makeDeposit({ from: player });
         }
@@ -111,13 +86,12 @@ contract("GoodGhosting", (accounts) => {
         // and another segment where the last segment deposit can generate yield
         await timeMachine.advanceTime(weekInSecs);
 
-        await goodGhosting.depositIntoExternalPool({ from: player1 });
         await timeMachine.advanceTime(weekInSecs);
     }
 
-    async function joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player, index, proof) {
+    async function joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player) {
         await approveDaiToContract(player);
-        await goodGhosting.joinGame(index, proof, { from: player });
+        await goodGhosting.joinGame({ from: player });
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
         for (let index = 1; index < segmentCount; index++) {
             await timeMachine.advanceTime(weekInSecs);
@@ -134,20 +108,18 @@ contract("GoodGhosting", (accounts) => {
         await timeMachine.advanceTime(weekInSecs);
     }
 
-    async function joinGamePaySegmentsAndIncomplete(player, index, proof) {
+    async function joinGamePaySegmentsAndIncomplete(player) {
         await approveDaiToContract(player);
-        await goodGhosting.joinGame(index, proof, { from: player });
+        await goodGhosting.joinGame({ from: player });
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
         for (let index = 1; index < segmentCount - 1; index++) {
             await timeMachine.advanceTime(weekInSecs);
             // protocol deposit of the prev. deposit
-            await goodGhosting.depositIntoExternalPool({ from: player1 });
             await approveDaiToContract(player);
             await goodGhosting.makeDeposit({ from: player });
         }
         await timeMachine.advanceTime(weekInSecs);
         // protocol deposit of the prev. deposit
-        await goodGhosting.depositIntoExternalPool({ from: player1 });
         // accounted for 1st deposit window
         // the loop will run till segmentCount - 1
         // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
@@ -194,7 +166,6 @@ contract("GoodGhosting", (accounts) => {
                 0,
                 adminFee,
                 pap.address,
-                merkleRoot,
                 { from: admin },
             ));
         });
@@ -212,7 +183,6 @@ contract("GoodGhosting", (accounts) => {
                 15,
                 adminFee,
                 pap.address,
-                merkleRoot,
                 { from: admin },
             ));
         });
@@ -230,7 +200,6 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 30,
                 pap.address,
-                merkleRoot,
                 { from: admin },
             ));
         });
@@ -301,37 +270,33 @@ contract("GoodGhosting", (accounts) => {
     describe("when an user tries to join a game", async () => {
         it("reverts if the contract is paused", async () => {
             await goodGhosting.pause({ from: admin });
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Pausable: paused");
+            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "Pausable: paused");
         });
 
         it("reverts if user does not approve the contract to spend dai", async () => {
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "You need to have allowance to do transfer DAI on the smart contract");
+            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "You need to have allowance to do transfer DAI on the smart contract");
         });
 
         it("reverts if the user tries to join after the first segment", async () => {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player1);
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Game has already started");
-        });
-
-        it("reverts when a non-whitelisted player tries to join the game", async () => {
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[2][player3].index, whitelistedPlayerConfig[2][player3].proof, { from: player3 }), "MerkleDistributor: Invalid proof.");
+            await truffleAssert.reverts(goodGhosting.joinGame( { from: player1 }), "Game has already started");
         });
 
         it("reverts if the user tries to join the game twice", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await approveDaiToContract(player1);
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Cannot join the game more than once");
+            await truffleAssert.reverts(goodGhosting.joinGame( { from: player1 }), "Cannot join the game more than once");
         });
 
         it("stores the player(s) who joined the game", async () => {
             // Player1 joins the game
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
 
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame( { from: player2 });
 
             // Reads stored players and compares against player1 and player2
             // Remember: "iterablePlayers" is an array, so we need to pass the index we want to retrieve.
@@ -357,14 +322,14 @@ contract("GoodGhosting", (accounts) => {
         it("transfers the first payment to the contract", async () => {
             // Player1 joins the game
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
+            await goodGhosting.joinGame( { from: player1 });
+            const contractsDaiBalance = await pap.balanceOf(goodGhosting.address);
             assert(contractsDaiBalance.eq(segmentPayment), "Contract balance should increase when user joins the game");
         });
 
         it("emits the event JoinedGame", async () => {
             await approveDaiToContract(player1);
-            const result = await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            const result = await goodGhosting.joinGame( { from: player1 });
             let playerEvent = "";
             let paymentEvent = 0;
             truffleAssert.eventEmitted(
@@ -386,38 +351,38 @@ contract("GoodGhosting", (accounts) => {
     describe("when a player tries to rejoin", async () => {
         it("reverts if user tries to rejoin the game after segment 0", async() => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTime(weekInSecs);
             await goodGhosting.earlyWithdraw({ from: player1 });
             await approveDaiToContract(player1);
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Game has already started");
+            await truffleAssert.reverts(goodGhosting.joinGame( { from: player1 }), "Game has already started");
         });
 
         it("reverts if a user tries to rejoin the game in segment 0 without doing an early withdraw", async() => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await approveDaiToContract(player1);
-            await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "Cannot join the game more than once");
+            await truffleAssert.reverts(goodGhosting.joinGame( { from: player1 }), "Cannot join the game more than once");
         });
 
         it("user can rejoin the game on segment 0 after an early withdrawal", async() => {
             await approveDaiToContract(player1);
             const playerAllowance = await token.allowance(player1, goodGhosting.address);
             assert(playerAllowance.gte(segmentPayment));
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await goodGhosting.earlyWithdraw({ from: player1 });
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
         });
 
         it("verifies the player info stored in the contract after user rejoins after an early withdraw", async() => {
             await approveDaiToContract(player1);
             const playerAllowance = await token.allowance(player1, goodGhosting.address);
             assert(playerAllowance.gte(segmentPayment));
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await goodGhosting.earlyWithdraw({ from: player1 });
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             const playerInfo = await goodGhosting.players(player1);
             assert(playerInfo.mostRecentSegmentPaid.eq(new BN(0)));
             assert(playerInfo.amountPaid.eq(segmentPayment));
@@ -428,13 +393,13 @@ contract("GoodGhosting", (accounts) => {
         it("does not increase the number of players when a user rejoins the game on segment 0 after an early withdrawal", async() => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
             await goodGhosting.earlyWithdraw({ from: player1 });
             await approveDaiToContract(player1);
             const userDaiBalance = await token.balanceOf(player1);
             assert(userDaiBalance.gte(segmentPayment));
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             const numPlayers = await goodGhosting.getNumberOfPlayers();
             assert(numPlayers.eq(new BN(2)));
         });
@@ -453,14 +418,14 @@ contract("GoodGhosting", (accounts) => {
 
         it("reverts if user tries to deposit during segment 0", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await approveDaiToContract(player1);
             await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Deposit available only between segment 1 and segment n-1 (penultimate)");
         });
 
         it("reverts if user is making a deposit during segment n (last segment)", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             // Advances to last segment
             await timeMachine.advanceTime(weekInSecs * segmentCount);
             await approveDaiToContract(player1);
@@ -469,7 +434,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("reverts if user is making a deposit after game ends", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             // Advances to last segment
             await timeMachine.advanceTime(weekInSecs * (segmentCount + 1));
             await approveDaiToContract(player1);
@@ -477,13 +442,13 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("reverts if players try to deposit after the game ends", async() => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), " Deposit available only between segment 1 and segment n-1 (penultimate)");
         });
 
         it("reverts if user is making a duplicated deposit for the same segment", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             // Moves to the next segment
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player1);
@@ -494,7 +459,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("reverts if user forgot to deposit for previous segment", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTime(weekInSecs * 2);
             await approveDaiToContract(player1);
             await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Player didn't pay the previous segment - game over!");
@@ -502,7 +467,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("user can deposit successfully if all requirements are met", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await approveDaiToContract(player1);
             const result = await goodGhosting.makeDeposit({ from: player1 });
@@ -519,17 +484,17 @@ contract("GoodGhosting", (accounts) => {
             await approveDaiToContract(player1);
             const playerAllowance = await token.allowance(player1, goodGhosting.address);
             assert(playerAllowance.gte(segmentPayment));
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await approveDaiToContract(player1);
             await goodGhosting.makeDeposit({ from: player1 });
-            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
+            const contractsDaiBalance = await pap.balanceOf(goodGhosting.address);
             assert(expectedBalance.eq(contractsDaiBalance), "Contract balance should increase when user deposits");
         });
 
         it("makes sure the total principal amount increases", async() => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await approveDaiToContract(player1);
             const principalBeforeDeposit = await goodGhosting.totalGamePrincipal();
@@ -539,19 +504,9 @@ contract("GoodGhosting", (accounts) => {
             assert(difference.eq(segmentPayment));
         });
 
-        it("makes sure the total segment amount is updated", async() => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await approveDaiToContract(player1);
-            await goodGhosting.makeDeposit({ from: player1 });
-            const totalSegmentAmountAfterDeposit = await goodGhosting.segmentDeposit(1);
-            assert(totalSegmentAmountAfterDeposit.eq(segmentPayment));
-        });
-
         it("makes sure the player info stored in contract is updated", async() => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await approveDaiToContract(player1);
             await goodGhosting.makeDeposit({ from: player1 });
@@ -563,128 +518,9 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("makes sure that the winner array contains the player address that makes the last segment deposit", async() => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             const winner = await goodGhosting.winners(new BN(0));
             assert(winner === player1);
-        });
-    });
-
-    describe("when depositing funds into external pool ", async () => {
-        it("reverts if the contract is paused", async () => {
-            await goodGhosting.pause({ from: admin });
-            await truffleAssert.reverts(goodGhosting.depositIntoExternalPool({ from: player1 }), "Pausable: paused");
-        });
-
-        it("reverts if the game is completed", async () => {
-            await advanceToEndOfGame();
-            await truffleAssert.reverts(goodGhosting.depositIntoExternalPool({ from: player1 }), "Game is already completed");
-        });
-
-        it("reverts if tries to make deposit during segment 0 (first deposit window)", async () => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await truffleAssert.reverts(goodGhosting.depositIntoExternalPool({ from: player1 }), "Cannot deposit into underlying protocol during segment zero");
-        });
-
-        it("reverts if there's no amount from previous segment to be deposited", async () => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await goodGhosting.depositIntoExternalPool({ from: player1 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await truffleAssert.reverts(goodGhosting.depositIntoExternalPool({ from: player1 }), "No amount from previous segment to deposit into protocol");
-        });
-
-        it("reverts if trying to deposit more than once for the same segment", async () => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await goodGhosting.depositIntoExternalPool({ from: player1 });
-            await truffleAssert.reverts(goodGhosting.depositIntoExternalPool({ from: player1 }), "No amount from previous segment to deposit into protocol");
-        });
-
-        it("deposits funds successfully when all requirements are met", async () => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await truffleAssert.passes(goodGhosting.depositIntoExternalPool);
-        });
-
-        it("emits FundsDepositedIntoExternalPool event for a successful deposit", async () => {
-            const expectedAmount = web3.utils.toBN(segmentPayment);
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            const result = await goodGhosting.depositIntoExternalPool({ from: player1 });
-            truffleAssert.eventEmitted(
-                result,
-                "FundsDepositedIntoExternalPool",
-                (ev) => web3.utils.toBN(ev.amount).eq(expectedAmount),
-                "FundsDepositedIntoExternalPool events was not emitted",
-            );
-        });
-
-        it("make sure if any segment funds are not deposited, the future external deposits take that amount into account as well", async() => {
-            const expectedAmount = web3.utils.toBN(segmentPayment*4);
-
-            await approveDaiToContract(player1);
-            await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await approveDaiToContract(player1);
-            await approveDaiToContract(player2);
-            await goodGhosting.makeDeposit({from: player1});
-            await goodGhosting.makeDeposit({from: player2});
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            const result =await goodGhosting.depositIntoExternalPool({ from: player1 });
-            truffleAssert.eventEmitted(
-                result,
-                "FundsDepositedIntoExternalPool",
-                (ev) => web3.utils.toBN(ev.amount).eq(expectedAmount),
-                "FundsDepositedIntoExternalPool events was not emitted",
-            );
-        });
-
-        it("make sure if any segment funds are not deposited, the future external deposits take any early withdraws that happen into account too", async() => {
-            await approveDaiToContract(player1);
-            await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await approveDaiToContract(player1);
-            await approveDaiToContract(player2);
-            await goodGhosting.makeDeposit({from: player1});
-            await goodGhosting.earlyWithdraw({from: player2});
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            const contractBalance = await token.balanceOf(goodGhosting.address);
-            const result = await goodGhosting.depositIntoExternalPool({ from: player1 });
-            truffleAssert.eventEmitted(
-                result,
-                "FundsDepositedIntoExternalPool",
-                // accounting for the early withdraw
-                (ev) => web3.utils.toBN(ev.amount).eq(contractBalance),
-                "FundsDepositedIntoExternalPool events was not emitted",
-            );
-        });
-
-        it("emits FundsDepositedIntoExternalPool event for a successful deposit when the segment deposit is less than the balance", async () => {
-            // deposits from 2 players
-            const expectedAmount = web3.utils.toBN(segmentPayment*2);
-            await approveDaiToContract(player1);
-            await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
-            await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await goodGhosting.earlyWithdraw({ from: player1 });
-            const result = await goodGhosting.depositIntoExternalPool({ from: player1 });
-            truffleAssert.eventEmitted(
-                result,
-                "FundsDepositedIntoExternalPool",
-                // accounting for the early withdraw
-                (ev) => web3.utils.toBN(ev.amount).lt(expectedAmount),
-                "FundsDepositedIntoExternalPool events was not emitted",
-            );
         });
     });
 
@@ -701,13 +537,13 @@ contract("GoodGhosting", (accounts) => {
 
         it("reverts if a non-player tries to withdraw", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: accounts[8] }), "Player does not exist");
         });
 
         it("sets withdrawn flag to true after user withdraws before end of game", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await goodGhosting.earlyWithdraw({ from: player1 });
             const player1Result = await goodGhosting.players.call(player1);
@@ -716,7 +552,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("reverts if user tries to withdraw more than once", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await goodGhosting.earlyWithdraw({ from: player1 });
             await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: player1 }), "Player has already withdrawn");
@@ -724,7 +560,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("withdraws user balance subtracted by early withdraw fee", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
 
             // Expect Player1 to get back their deposit minus the early withdraw fee defined in the constructor.
@@ -735,29 +571,16 @@ contract("GoodGhosting", (accounts) => {
             assert(player1PostWithdrawBalance.sub(player1PreWithdrawBalance).eq(segmentPayment.sub(feeAmount)));
         });
 
-        it("segment deposit reduces once early withdraw is done", async () => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            const cuurentSegment = await goodGhosting.getCurrentSegment();
-            const segmentDepositBeforeWithdrawal = await goodGhosting.segmentDeposit(cuurentSegment);
-            await goodGhosting.earlyWithdraw({ from: player1 });
-            const segmentDepositAfterWithdrawal = await goodGhosting.segmentDeposit(cuurentSegment);
-            assert(segmentDepositAfterWithdrawal.lt(segmentDepositBeforeWithdrawal));
-        });
-
         it("fee collected from early withdrawal is part of segment deposit so it should generate interest", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
-            const cuurentSegment = await goodGhosting.getCurrentSegment();
+            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
             const principalAmountBeforeWithdraw = await goodGhosting.totalGamePrincipal();
             await goodGhosting.earlyWithdraw({ from: player1 });
             const principalAmount = await goodGhosting.totalGamePrincipal();
-            const segmentDepositAfterWithdrawal = await goodGhosting.segmentDeposit(cuurentSegment);
             // the principal amount when deducted during an early withdraw does not include fees since the fee goes to admin if there are no winners or is admin fee % > 0
             // so we check since segment deposit funds do generate interest so we check that segment deposit should be more than the principal
-            assert(segmentDepositAfterWithdrawal.gt(principalAmount));
             assert(principalAmountBeforeWithdraw.gt(principalAmount));
 
         });
@@ -765,9 +588,8 @@ contract("GoodGhosting", (accounts) => {
 
         it("withdraws user balance subtracted by early withdraw fee when not enough withdrawable balance in the contract", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
-            await goodGhosting.depositIntoExternalPool({ from: player1 });
             // Expect Player1 to get back their deposit minus the early withdraw fee defined in the constructor.
             const player1PreWithdrawBalance = await token.balanceOf(player1);
             await goodGhosting.earlyWithdraw({ from: player1 });
@@ -778,7 +600,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("emits EarlyWithdrawal event when user withdraws before end of game", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             const result = await goodGhosting.earlyWithdraw({ from: player1 });
             truffleAssert.eventEmitted(
@@ -791,7 +613,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("reverts if user tries to pay next segment after early withdraw", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
             await goodGhosting.earlyWithdraw({ from: player1 });
             await timeMachine.advanceTimeAndBlock(weekInSecs);
@@ -801,7 +623,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("user is able to withdraw in the last segment", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
@@ -815,7 +637,6 @@ contract("GoodGhosting", (accounts) => {
                     );
                 } else {
                     // protocol deposit of the prev. deposit
-                    await goodGhosting.depositIntoExternalPool({ from: player1 });
                     await approveDaiToContract(player1);
                     await goodGhosting.makeDeposit({ from: player1 });
                 }
@@ -825,13 +646,12 @@ contract("GoodGhosting", (accounts) => {
         it("user is able to withdraw in the last segment when 2 players join the game and one of them earlywithdraws when the segment amount is less than withdraw amount", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
 
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
-                await goodGhosting.depositIntoExternalPool({ from: player1 });
                 await approveDaiToContract(player1);
                 await goodGhosting.makeDeposit({ from: player1 });
                 // protocol deposit of the prev. deposit
@@ -839,11 +659,10 @@ contract("GoodGhosting", (accounts) => {
                 await goodGhosting.makeDeposit({ from: player2 });
             }
             const result = await goodGhosting.earlyWithdraw({ from: player1 });
-            const segmentAmount = await goodGhosting.segmentDeposit(segmentCount, { from: player1 });
             truffleAssert.eventEmitted(
                 result,
                 "EarlyWithdrawal",
-                (ev) => ev.player === player1 && segmentAmount.toString() === "0",
+                (ev) => ev.player === player1,
                 "player unable to withdraw in between the game",
             );
         });
@@ -855,19 +674,19 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("reverts if funds were already redeemed", async () => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             await truffleAssert.reverts(goodGhosting.redeemFromExternalPool({ from: player1 }), "Redeem operation already happened for the game");
         });
 
         it("allows anyone to redeem from external pool when game is completed", async () => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             truffleAssert.passes(goodGhosting.redeemFromExternalPool({ from: nonPlayer }), "Couldn't redeem from external pool");
         });
 
         it("transfer funds to contract then redeems from external pool", async () => {
             const expectedBalance = web3.utils.toBN(segmentPayment * segmentCount);
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player2 });
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
             // No interest is generated during tests so far, so contract balance must equals the amount deposited.
@@ -875,7 +694,7 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
             await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
@@ -894,7 +713,7 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("checks the interest is updated correctly when admin fees is more than 0%", async () => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
             await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
@@ -918,10 +737,9 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 0,
                 pap.address,
-                merkleRoot,
                 { from: admin },
             );
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
             await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
@@ -935,7 +753,7 @@ contract("GoodGhosting", (accounts) => {
         })
 
         it("emits WinnersAnnouncement event when redeem is successful", async () => { // having test with only 1 player for now
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             truffleAssert.eventEmitted(result, "WinnersAnnouncement", (ev) => {
                 return ev.winners[0] === player1;
@@ -946,7 +764,7 @@ contract("GoodGhosting", (accounts) => {
     describe("when an user tries to redeem from the external pool when no external deposits are made", async () => {
 
         it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
-            await joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player1);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
             truffleAssert.eventEmitted(
@@ -960,7 +778,7 @@ contract("GoodGhosting", (accounts) => {
 
     describe("when no one wins the game", async () => {
         it("transfers interest to the owner in case no one wins", async () => { // having test with only 1 player for now
-            await joinGamePaySegmentsAndIncomplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndIncomplete(player1);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             const adminBalance = await token.balanceOf(admin);
             const principalBalance = await token.balanceOf(goodGhosting.address);
@@ -975,7 +793,7 @@ contract("GoodGhosting", (accounts) => {
         it("transfers principal to the user in case no one wins", async () => {
             const incompleteSegment = segmentCount - 1;
             const amountPaidInGame = web3.utils.toBN(segmentPayment * incompleteSegment);
-            await joinGamePaySegmentsAndIncomplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndIncomplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const result = await goodGhosting.withdraw({ from: player1 });
 
@@ -990,7 +808,7 @@ contract("GoodGhosting", (accounts) => {
 
     describe("when an user tries to withdraw", async () => {
         it("reverts if user tries to withdraw more than once", async () => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             await goodGhosting.withdraw({ from: player1 });
             await truffleAssert.reverts(goodGhosting.withdraw({ from: player1 }), "Player has already withdrawn");
@@ -998,19 +816,19 @@ contract("GoodGhosting", (accounts) => {
 
         it("reverts if user tries to withdraw before the game ends", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await truffleAssert.reverts(goodGhosting.withdraw({ from: player1 }), "Game is not completed");
         });
 
         it("reverts if a non-player tries to withdraw", async () => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             await truffleAssert.reverts(goodGhosting.withdraw({ from: accounts[9] }), "Player does not exist");
         });
 
         it("reverts if a player tries withdraw after doing an early withdraw", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await goodGhosting.earlyWithdraw({from: player1});
             await advanceToEndOfGame();
             await truffleAssert.reverts(goodGhosting.withdraw({ from: player1 }), "Player has already withdrawn");
@@ -1018,14 +836,14 @@ contract("GoodGhosting", (accounts) => {
 
         it("user is able to withdraw when the contract is paused", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await advanceToEndOfGame();
             await goodGhosting.pause({ from: admin });
             await goodGhosting.withdraw({ from: player1 });
         });
 
         it("sets withdrawn flag to true after user withdraws", async () => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             await goodGhosting.withdraw({ from: player1 });
             const player1Result = await goodGhosting.players.call(player1);
@@ -1034,7 +852,7 @@ contract("GoodGhosting", (accounts) => {
 
         it("withdraws from external pool on first withdraw if funds weren't redeemed yet", async () => {
             const expectedAmount = web3.utils.toBN(segmentPayment * segmentCount);
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             const result = await goodGhosting.withdraw({ from: player1 });
             truffleAssert.eventEmitted(
                 result,
@@ -1047,12 +865,11 @@ contract("GoodGhosting", (accounts) => {
         it("makes sure the winners get equal interest", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 // protocol deposit of the prev. deposit
-                await goodGhosting.depositIntoExternalPool({ from: admin });
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
 
@@ -1065,7 +882,6 @@ contract("GoodGhosting", (accounts) => {
             // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
             // and another segment where the last segment deposit can generate yield
             await timeMachine.advanceTime(weekInSecs);
-            await goodGhosting.depositIntoExternalPool({ from: admin });
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
@@ -1087,13 +903,12 @@ contract("GoodGhosting", (accounts) => {
             const player1PreWithdrawBalance = await token.balanceOf(player1);
             const player2PreWithdrawBalance = await token.balanceOf(player1);
 
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
             await goodGhosting.earlyWithdraw({ from: player2})
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 // protocol deposit of the prev. deposit
-                await goodGhosting.depositIntoExternalPool({ from: admin });
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
 
@@ -1104,7 +919,6 @@ contract("GoodGhosting", (accounts) => {
             // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
             // and another segment where the last segment deposit can generate yield
             await timeMachine.advanceTime(weekInSecs);
-            await goodGhosting.depositIntoExternalPool({ from: admin });
             await timeMachine.advanceTime(weekInSecs);
             await goodGhosting.redeemFromExternalPool({ from: admin });
 
@@ -1123,13 +937,12 @@ contract("GoodGhosting", (accounts) => {
             const player1PreWithdrawBalance = await token.balanceOf(player1);
             const player2PreWithdrawBalance = await token.balanceOf(player1);
 
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
             await goodGhosting.earlyWithdraw({ from: player2})
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 // protocol deposit of the prev. deposit
-                await goodGhosting.depositIntoExternalPool({ from: admin });
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
 
@@ -1140,7 +953,6 @@ contract("GoodGhosting", (accounts) => {
             // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
             // and another segment where the last segment deposit can generate yield
             await timeMachine.advanceTime(weekInSecs);
-            await goodGhosting.depositIntoExternalPool({ from: admin });
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
@@ -1160,11 +972,11 @@ contract("GoodGhosting", (accounts) => {
         it("pays a bonus to winners and losers get their principle back", async () => {
             // Player1 is out "loser" and their interest is Player2's bonus
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
 
             // Player2 pays in all segments and is our lucky winner!
             await mintTokensFor(player2);
-            await joinGamePaySegmentsAndComplete(player2, whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof);
+            await joinGamePaySegmentsAndComplete(player2);
 
             // Simulate some interest by giving the contract more aDAI
             await mintTokensFor(admin);
@@ -1192,7 +1004,7 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("emits Withdrawal event when user withdraws", async () => { // having test with only 1 player for now
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: admin });
             const result = await goodGhosting.withdraw({ from: player1 });
             truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
@@ -1204,18 +1016,18 @@ contract("GoodGhosting", (accounts) => {
     describe("admin tries to withdraw fees with admin percentage fee greater than 0", async () => {
         context("reverts", async () => {
             it("when funds were not redeemed from external pool", async () => {
-                await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                await joinGamePaySegmentsAndComplete(player1);
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Funds not redeemed from external pool");
             });
 
             it("when game has not completed yet", async () => {
                 await approveDaiToContract(player1);
-                await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
+                await goodGhosting.joinGame( { from: player1 });
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Game is not completed");
             });
 
             it("when admin tries to withdraw fees again", async () => {
-                await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
@@ -1227,7 +1039,7 @@ contract("GoodGhosting", (accounts) => {
             });
 
             it("someone other than admin tries to withdraw the fees", async () => {
-                await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
@@ -1238,7 +1050,7 @@ contract("GoodGhosting", (accounts) => {
             });
 
             it("when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
-                await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                await joinGamePaySegmentsAndComplete(player1);
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
             });
@@ -1248,8 +1060,8 @@ contract("GoodGhosting", (accounts) => {
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-                await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+                await goodGhosting.joinGame( { from: player1 });
+                await goodGhosting.joinGame( { from: player2 });
                 await timeMachine.advanceTimeAndBlock(weekInSecs);
                 await goodGhosting.earlyWithdraw({ from: player1 });
                 await advanceToEndOfGame();
@@ -1274,8 +1086,8 @@ contract("GoodGhosting", (accounts) => {
             it("withdraw fees when there's only interest generated by external pool", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-                await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+                await goodGhosting.joinGame( { from: player1 });
+                await goodGhosting.joinGame( { from: player2 });
                 // mocks interest generation
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
@@ -1303,8 +1115,8 @@ contract("GoodGhosting", (accounts) => {
             it("withdraw fees when there's both interest generated by external pool and early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-                await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+                await goodGhosting.joinGame( { from: player1 });
+                await goodGhosting.joinGame( { from: player2 });
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
                 await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
@@ -1335,9 +1147,9 @@ contract("GoodGhosting", (accounts) => {
 
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+                await goodGhosting.joinGame( { from: player2 });
                 await goodGhosting.earlyWithdraw({ from: player2 });
-                await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                await joinGamePaySegmentsAndComplete(player1);
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
@@ -1354,7 +1166,7 @@ contract("GoodGhosting", (accounts) => {
             });
 
             it("withdraw fees when there's only interest generated by external pool", async () => {
-                await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
@@ -1379,10 +1191,10 @@ contract("GoodGhosting", (accounts) => {
 
             it("withdraw fees when there's both interest generated by external pool and early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+                await goodGhosting.joinGame( { from: player2 });
                 await goodGhosting.earlyWithdraw({ from: player2 });
 
-                await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+                await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
@@ -1428,12 +1240,11 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 0,
                 pap.address,
-                merkleRoot,
                 { from: admin },
             );
         });
         it("reverts when there is no interest generated", async () => {
-            await joinGamePaySegmentsAndComplete(player1, whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof);
+            await joinGamePaySegmentsAndComplete(player1);
             //generating mock interest
             await mintTokensFor(goodGhosting.address);
             await mintTokensFor(admin);
@@ -1446,8 +1257,8 @@ contract("GoodGhosting", (accounts) => {
         it("withdraw fees when there's only interest generated by external pool", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
             // mocks interest generation
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
@@ -1472,8 +1283,8 @@ contract("GoodGhosting", (accounts) => {
         it("withdraw fees when there's only early withdraw fees and no winners in the game", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
             await goodGhosting.earlyWithdraw({ from: player1 });
             await goodGhosting.earlyWithdraw({ from: player2 });
             await advanceToEndOfGame();
@@ -1496,8 +1307,8 @@ contract("GoodGhosting", (accounts) => {
         it("withdraw fees when there are both early withdraw fees and interest and no winners in the game", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 });
-            await goodGhosting.joinGame(whitelistedPlayerConfig[1][player2].index, whitelistedPlayerConfig[1][player2].proof, { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
             await goodGhosting.earlyWithdraw({ from: player1 });
             // mocks interest generation
             await mintTokensFor(admin);
