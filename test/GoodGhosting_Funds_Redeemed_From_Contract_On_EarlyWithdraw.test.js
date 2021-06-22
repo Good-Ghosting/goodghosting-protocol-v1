@@ -1,15 +1,33 @@
 const GoodGhosting = artifacts.require("GoodGhosting");
 const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
+const GoodGhostingPolygonWhitelisted = artifacts.require(
+    "GoodGhostingPolygonWhitelisted"
+);
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
 const configs = require("../deploy.config");
+const whitelistedPlayerConfig = [
+    { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
+    { '0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf': { index: 1, proof: ["0xefc82954f8d1549053814986f191e870bb8e2b4efae54964a8831ddd1eaf6267", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef"] } },
+    { '0x78863CB2db754Fc45030c4c25faAf757188A0784': { index: 2, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
+    { '0xd1E80094e0f5f00225Ea5D962484695d57f3afaA': { index: 3, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef"] } },
+    // invalid user
+    { '0x7C3E8511863daF709bdBe243356f562e227573d4': { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
+];
 
 contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
 
     // Only executes this test file for local network fork
-    if (!["local-mainnet-fork", "local-polygon-vigil-fork"].includes(process.env.NETWORK)) return;
+    if (
+        ![
+            "local-mainnet-fork",
+            "local-polygon-vigil-fork",
+            "local-polygon-whitelisted-vigil-fork",
+        ].includes(process.env.NETWORK)
+    )
+        return;
 
     global.web3 = web3;
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
@@ -17,11 +35,15 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
     let GoodGhostingArtifact;
     if (process.env.NETWORK === "local-mainnet-fork") {
         GoodGhostingArtifact = GoodGhosting;
-        providersConfigs     = configs.providers.aave.mainnet;
-    } else {
+        providersConfigs = configs.providers.aave.mainnet;
+    } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
-        providersConfigs     = configs.providers.aave.polygon;
+        providersConfigs = configs.providers.aave.polygon;
+    } else {
+        GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
+        providersConfigs = configs.providers.aave.polygon;
     }
+
     const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, customFee } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
@@ -79,21 +101,63 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                 await token.methods
                     .approve(goodGhosting.address, segmentPayment.mul(new BN(segmentCount)).toString())
                     .send({ from: player });
-                        const result = await goodGhosting.joinGame({ from: player });
-                        let playerEvent = "";
-                        let paymentEvent = 0;
-                        truffleAssert.eventEmitted(
-                            result,
-                            "JoinedGame",
-                            (ev) => {
-                                playerEvent = ev.player;
-                                paymentEvent = ev.amount;
-                                return playerEvent === player && new BN(paymentEvent).eq(new BN(segmentPayment));
-                            },
-                            `JoinedGame event should be emitted when an user joins the game with params\n
-                            player: expected ${player}; got ${playerEvent}\n
-                            paymentAmount: expected ${segmentPayment}; got ${paymentEvent}`,
-                        );
+                    let playerEvent = "";
+                    let paymentEvent = 0;
+                    if (
+                        process.env.NETWORK === "local-mainnet-fork" ||
+                        process.env.NETWORK === "local-polygon-vigil-fork"
+                    ) {
+                       const result = await goodGhosting.joinGame({ from: player });
+                       // got logs not defined error when keep the event assertion check outside of the if-else
+                       truffleAssert.eventEmitted(
+                        result,
+                        "JoinedGame",
+                        (ev) => {
+                            playerEvent = ev.player;
+                            paymentEvent = ev.amount;
+                            return (
+                                playerEvent === player &&
+                                new BN(paymentEvent).eq(new BN(segmentPayment))
+                            );
+                        },
+                        `JoinedGame event should be emitted when an user joins the game with params\n
+                                player: expected ${player}; got ${playerEvent}\n
+                                paymentAmount: expected ${segmentPayment}; got ${paymentEvent}`
+                    );
+                    } else {
+                        if (i === players.length - 1) {
+                            await truffleAssert.reverts(
+                                goodGhosting.joinWhitelistedGame(
+                                    whitelistedPlayerConfig[i][player].index,
+                                    whitelistedPlayerConfig[i][player].proof,
+                                    { from: player }
+                                ),
+                                "MerkleDistributor: Invalid proof."
+                            );
+                        } else {
+                            const result = await goodGhosting.joinWhitelistedGame(
+                                whitelistedPlayerConfig[i][player].index,
+                                whitelistedPlayerConfig[i][player].proof,
+                                { from: player }
+                            );
+                            // got logs not defined error when keep the event assertion check outside of the if-else
+                            truffleAssert.eventEmitted(
+                                result,
+                                "JoinedGame",
+                                (ev) => {
+                                    playerEvent = ev.player;
+                                    paymentEvent = ev.amount;
+                                    return (
+                                        playerEvent === player &&
+                                        new BN(paymentEvent).eq(new BN(segmentPayment))
+                                    );
+                                },
+                                `JoinedGame event should be emitted when an user joins the game with params\n
+                                        player: expected ${player}; got ${playerEvent}\n
+                                        paymentAmount: expected ${segmentPayment}; got ${paymentEvent}`
+                            );
+                        }
+                    }
             }
         });
 

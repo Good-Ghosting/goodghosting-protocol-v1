@@ -53,7 +53,7 @@ function printSummary(
 
 ) {
     const isPolygon = networkName.toLowerCase() === "polygon";
-    const isPolygonWhitelisted = networkName.toLowerCase() === "polygon-whitelisted";
+    const isPolygonWhitelisted = networkName.toLowerCase() === "polygon-whitelisted" || ["polygon-whitelisted"].includes(networkName.toLowerCase()); // for local network
 
     var parameterTypes = [
         "address", // inboundCurrencyAddress
@@ -151,7 +151,7 @@ module.exports = function (deployer, network, accounts) {
 
         let aaveContractAddress = poolConfigs.dataProvider;
         let goodGhostingContract = GoodGhostingContract; // defaults to Ethereum version
-        if (network === "polygon-whitelisted") {
+        if (network.includes("polygon-whitelisted")) {
             networkName = "polygon-whitelisted";
         }
 
@@ -188,7 +188,6 @@ module.exports = function (deployer, network, accounts) {
                 deployConfigs.merkleroot
             );
         }
-        console.log(...deploymentArgs)
 
         // Deploys GoodGhosting contract based on network
         await deployer.deploy(SafeMathLib);
