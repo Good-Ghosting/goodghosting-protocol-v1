@@ -6,6 +6,7 @@ const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
 const GoodGhostingCeloContract = artifacts.require("GoodGhostingCelo");
 const GoodGhostingPolygonContract = artifacts.require("GoodGhostingPolygon");
+const GoodGhostingPolygonWhitelisted = artifacts.require("GoodGhostingPolygonWhitelisted");
 const BN = web3.utils.BN;
 const { providers, deployConfigs } = require("../deploy.config");
 
@@ -39,7 +40,8 @@ function printSummary(
         customFee,
         aaveContractAddress,
         incentiveController,
-        wmatic
+        wmatic,
+        merkleRoot,
     },
     // additional logging info
     {
@@ -50,7 +52,8 @@ function printSummary(
     }
 
 ) {
-    const isPolygon = ["polygon"].includes(networkName.toLowerCase());
+    const isPolygon = networkName.toLowerCase() === "polygon";
+    const isPolygonWhitelisted = networkName.toLowerCase() === "polygon-whitelisted";
 
     var parameterTypes = [
         "address", // inboundCurrencyAddress
@@ -84,6 +87,19 @@ function printSummary(
         );
     }
 
+    if (isPolygonWhitelisted) {
+        parameterTypes.push(
+            "address", // IncentiveController
+            "address", // wmatic token
+            "bytes32"
+        );
+        parameterValues.push(
+            incentiveController,
+            wmatic,
+            merkleRoot
+        );
+    }
+
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
 
     console.log("\n\n\n----------------------------------------------------");
@@ -103,6 +119,12 @@ function printSummary(
         console.log(`Incentive Controller: ${incentiveController}`);
         console.log(`Matic Token: ${wmatic}`);
     }
+    if (isPolygonWhitelisted) {
+        console.log(`Incentive Controller: ${incentiveController}`);
+        console.log(`Matic Token: ${wmatic}`);
+        console.log(`Merkel Root: ${merkleRoot}`);
+
+    }
     console.log("\n\nConstructor Arguments ABI-Encoded:");
     console.log(encodedParameters.toString("hex"));
     console.log("\n\n\n\n");
@@ -118,7 +140,7 @@ module.exports = function (deployer, network, accounts) {
 
     deployer.then(async () => {
 
-        const networkName = getNetworkName(network);
+        let networkName = getNetworkName(network);
         const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkName];
         const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
@@ -129,12 +151,17 @@ module.exports = function (deployer, network, accounts) {
 
         let aaveContractAddress = poolConfigs.dataProvider;
         let goodGhostingContract = GoodGhostingContract; // defaults to Ethereum version
+        if (network === "polygon-whitelisted") {
+            networkName = "polygon-whitelisted";
+        }
 
         if (networkName === "polygon") {
             goodGhostingContract = GoodGhostingPolygonContract;
         } else if (networkName === "alfajores") {
             aaveContractAddress = poolConfigs.lendingPool;
             goodGhostingContract = GoodGhostingCeloContract;
+        } else if (networkName === "polygon-whitelisted") {
+            goodGhostingContract = GoodGhostingPolygonWhitelisted;
         }
 
         // Prepares deployment arguments
@@ -154,7 +181,14 @@ module.exports = function (deployer, network, accounts) {
                 incentiveController,
                 wmatic
             );
+        } else if (networkName === "polygon-whitelisted") {
+            deploymentArgs.push(
+                incentiveController,
+                wmatic,
+                deployConfigs.merkleroot
+            );
         }
+        console.log(...deploymentArgs)
 
         // Deploys GoodGhosting contract based on network
         await deployer.deploy(SafeMathLib);
@@ -173,8 +207,8 @@ module.exports = function (deployer, network, accounts) {
                 customFee: deployConfigs.customFee,
                 aaveContractAddress,
                 incentiveController,
-                wmatic
-            },
+                wmatic,
+                merkleRoot: deployConfigs.merkleroot,            },
             {
                 networkName,
                 selectedProvider: deployConfigs.selectedProvider,
