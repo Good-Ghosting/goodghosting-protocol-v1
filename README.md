@@ -121,6 +121,11 @@ On Polygon Vigil, the process is similar to Ethereum Mainnet described above, bu
 
 - On another terminal window (from the root of the project directory), run `truffle test --network local-polygon-vigil-fork` or `npm run test:fork:polygon:vigil`
 
+- For running the whitelisted contract tests, On another terminal window (from the root of the project directory), run `truffle test --network local-polygon-whitelisted-vigil-fork` or `npm run test:fork:polygon-whitelisted:vigil`
+
+
+
+
 ## Primary Contracts Overview
 * **[GoodGhosting](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting.sol)** is the game contract where whitelisted players cam join the game, make regular deposits and win, the external pool used for generating interest here is [Aave](https://aave.com/).
 
@@ -194,6 +199,7 @@ These are the commands that can be used to deploy (deployment ONLY) the contract
 - Deploy to ropsten: `npm run deploy:ropsten`
 - Deploy to mainnet (PRODUCTION): `npm run deploy:mainnet`
 - Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
+- Deploy to polygon the whitelisted contract (PRODUCTION): `npm run deploy:polygon-whitelisted`
 - Deploy to Celo Alfajores testnet: `npm run deploy:alfajores`
 
 If the deployment is successful, you should see a deployment log in the terminal window similar to this:
@@ -307,6 +313,7 @@ These are the commands that can be used to deploy and automatically verify the c
 - Deploy and Verify on ropsten: `npm run deploy:verify:ropsten`
 - Deploy and Verify on mainnet (PRODUCTION): `npm run deploy:verify:mainnet`
 - Deploy and Verify on polygon (PRODUCTION): `npm run deploy:verify:polygon`
+- Deploy and Verify on polygon the whitelisted contract (PRODUCTION): `npm run deploy:verify:polygon-whitelisted`
 - Deploy and Verify on Celo Alfajores testnet: `npm run deploy:verify:alfajores`
 
 If the verification and deployment is successful, you should see a deployment log in the terminal window similar to the sample below. Note that, for simplicity, the sample below "hides" a bunch of the logs displayed in the terminal window:
