@@ -205,10 +205,9 @@ contract GoodGhosting is Ownable, Pausable {
         lendingPool.deposit(address(daiToken), segmentPayment, address(this), 155);
     }
 
-    /// @notice Allows a player to join the game and controls 
+    /// @notice Allows a player to join the game and controls
     function _joinGame() internal {
         require(getCurrentSegment() == 0, "Game has already started");
-        address player = msg.sender;
         require(
             players[msg.sender].addr != msg.sender ||
                 players[msg.sender].canRejoin,
