@@ -19,7 +19,6 @@ contract("GoodGhosting", (accounts) => {
     let pap;
     let player1 = accounts[1];
     let player2 = accounts[2];
-    let player3 = accounts[3];
     const nonPlayer = accounts[9];
 
     const weekInSecs = 180;
@@ -66,7 +65,7 @@ contract("GoodGhosting", (accounts) => {
     async function advanceToEndOfGame() {
         // We need to to account for the first deposit window.
         // i.e., if game has 5 segments, we need to add + 1, because while current segment was 0,
-        // it was just the first deposit window and game was not started yet.
+        // it was just the first deposit window (a.k.a., joining period).
         await timeMachine.advanceTime(weekInSecs * (segmentCount + 1));
     }
 
@@ -76,56 +75,26 @@ contract("GoodGhosting", (accounts) => {
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
         for (let index = 1; index < segmentCount; index++) {
             await timeMachine.advanceTime(weekInSecs);
-            // protocol deposit of the prev. deposit
             await approveDaiToContract(player);
             await goodGhosting.makeDeposit({ from: player });
         }
-        // accounted for 1st deposit window
-        // the loop will run till segmentCount - 1
-        // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-        // and another segment where the last segment deposit can generate yield
-        await timeMachine.advanceTime(weekInSecs);
-
-        await timeMachine.advanceTime(weekInSecs);
+        // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+        // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+        await timeMachine.advanceTime(weekInSecs * 2);
     }
 
-    async function joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player) {
+    async function joinGameMissLastPaymentAndComplete(player) {
         await approveDaiToContract(player);
         await goodGhosting.joinGame({ from: player });
-        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
-        for (let index = 1; index < segmentCount; index++) {
-            await timeMachine.advanceTime(weekInSecs);
-            // no protocol deposit of the prev. deposit
-            await approveDaiToContract(player);
-            await goodGhosting.makeDeposit({ from: player });
-        }
-        // accounted for 1st deposit window
-        // the loop will run till segmentCount - 1
-        // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-        // and another segment where the last segment deposit can generate yield
-        await timeMachine.advanceTime(weekInSecs);
-        // no protocol deposit of the prev. deposit
-        await timeMachine.advanceTime(weekInSecs);
-    }
-
-    async function joinGamePaySegmentsAndIncomplete(player) {
-        await approveDaiToContract(player);
-        await goodGhosting.joinGame({ from: player });
-        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+        // pay all segments except last one
         for (let index = 1; index < segmentCount - 1; index++) {
             await timeMachine.advanceTime(weekInSecs);
-            // protocol deposit of the prev. deposit
             await approveDaiToContract(player);
             await goodGhosting.makeDeposit({ from: player });
         }
-        await timeMachine.advanceTime(weekInSecs);
-        // protocol deposit of the prev. deposit
-        // accounted for 1st deposit window
-        // the loop will run till segmentCount - 1
-        // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-        // and another segment where the last segment deposit can generate yield
-        await timeMachine.advanceTime(weekInSecs);
-        await timeMachine.advanceTime(weekInSecs);
+        // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 2.
+        // now, we move 3 more segments (segmentCount-2, segmentCount-1 and segmentCount) to complete the game.
+        await timeMachine.advanceTime(weekInSecs * 3);
     }
 
     describe("pre-flight checks", async () => {
@@ -215,7 +184,7 @@ contract("GoodGhosting", (accounts) => {
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
             const earlyWithdrawFee = await goodGhosting.earlyWithdrawalFee.call();
             const adminFee = await goodGhosting.customFee.call();
-            assert(new BN(earlyWithdrawFee).eq(new BN(10)), `Early Withdraw Fee doesn't match info doesn't match, expected 10 got ${earlyWithdrawFee}`);
+            assert(new BN(earlyWithdrawFee).eq(new BN(10)), `Early Withdraw Fee doesn't match, expected 10 got ${earlyWithdrawFee}`);
             assert(new BN(adminFee).eq(new BN(5)), `Admin Fee doesn't match, expected 5 got ${adminFee}`);
             assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
             assert(interestCurrencyResult === aToken.address, `Interest currency doesn't match. expected ${aToken.address}; got ${interestCurrencyResult}`);
@@ -432,16 +401,7 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Deposit available only between segment 1 and segment n-1 (penultimate)");
         });
 
-        it("reverts if user is making a deposit after game ends", async () => {
-            await approveDaiToContract(player1);
-            await goodGhosting.joinGame( { from: player1 });
-            // Advances to last segment
-            await timeMachine.advanceTime(weekInSecs * (segmentCount + 1));
-            await approveDaiToContract(player1);
-            await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), "Deposit available only between segment 1 and segment n-1 (penultimate)");
-        });
-
-        it("reverts if players try to deposit after the game ends", async() => {
+        it("reverts if user tries to deposit after the game ends", async() => {
             await joinGamePaySegmentsAndComplete(player1);
             await truffleAssert.reverts(goodGhosting.makeDeposit({ from: player1 }), " Deposit available only between segment 1 and segment n-1 (penultimate)");
         });
@@ -538,7 +498,7 @@ contract("GoodGhosting", (accounts) => {
         it("reverts if a non-player tries to withdraw", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame( { from: player1 });
-            await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: accounts[8] }), "Player does not exist");
+            await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: nonPlayer }), "Player does not exist");
         });
 
         it("sets withdrawn flag to true after user withdraws before end of game", async () => {
@@ -750,9 +710,9 @@ contract("GoodGhosting", (accounts) => {
             const totalInterest = await goodGhosting.totalGameInterest();
             const expectedValue = new BN(contractsDaiBalance).sub(new BN(principalAmount));
             assert(new BN(totalInterest).eq(expectedValue));
-        })
+        });
 
-        it("emits WinnersAnnouncement event when redeem is successful", async () => { // having test with only 1 player for now
+        it("emits WinnersAnnouncement event when redeem is successful", async () => {
             await joinGamePaySegmentsAndComplete(player1);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             truffleAssert.eventEmitted(result, "WinnersAnnouncement", (ev) => {
@@ -761,24 +721,9 @@ contract("GoodGhosting", (accounts) => {
         });
     });
 
-    describe("when an user tries to redeem from the external pool when no external deposits are made", async () => {
-
-        it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
-            await joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player1);
-            const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
-            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
-            truffleAssert.eventEmitted(
-                result,
-                "FundsRedeemedFromExternalPool",
-                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
-                "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
-            );
-        });
-    });
-
     describe("when no one wins the game", async () => {
-        it("transfers interest to the owner in case no one wins", async () => { // having test with only 1 player for now
-            await joinGamePaySegmentsAndIncomplete(player1);
+        it("transfers interest to the owner in case no one wins", async () => {
+            await joinGameMissLastPaymentAndComplete(player1);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             const adminBalance = await token.balanceOf(admin);
             const principalBalance = await token.balanceOf(goodGhosting.address);
@@ -793,7 +738,7 @@ contract("GoodGhosting", (accounts) => {
         it("transfers principal to the user in case no one wins", async () => {
             const incompleteSegment = segmentCount - 1;
             const amountPaidInGame = web3.utils.toBN(segmentPayment * incompleteSegment);
-            await joinGamePaySegmentsAndIncomplete(player1);
+            await joinGameMissLastPaymentAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const result = await goodGhosting.withdraw({ from: player1 });
 
@@ -823,7 +768,7 @@ contract("GoodGhosting", (accounts) => {
         it("reverts if a non-player tries to withdraw", async () => {
             await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
-            await truffleAssert.reverts(goodGhosting.withdraw({ from: accounts[9] }), "Player does not exist");
+            await truffleAssert.reverts(goodGhosting.withdraw({ from: nonPlayer }), "Player does not exist");
         });
 
         it("reverts if a player tries withdraw after doing an early withdraw", async () => {
@@ -869,7 +814,6 @@ contract("GoodGhosting", (accounts) => {
             await goodGhosting.joinGame( { from: player1 });
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
-                // protocol deposit of the prev. deposit
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
 
@@ -877,10 +821,8 @@ contract("GoodGhosting", (accounts) => {
                 await goodGhosting.makeDeposit({ from: player2 });
 
             }
-            // accounted for 1st deposit window
-            // the loop will run till segmentCount - 1
-            // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-            // and another segment where the last segment deposit can generate yield
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
             await timeMachine.advanceTime(weekInSecs);
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
@@ -905,7 +847,7 @@ contract("GoodGhosting", (accounts) => {
 
             await goodGhosting.joinGame( { from: player2 });
             await goodGhosting.joinGame( { from: player1 });
-            await goodGhosting.earlyWithdraw({ from: player2})
+            await goodGhosting.earlyWithdraw({ from: player2});
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 // protocol deposit of the prev. deposit
@@ -914,10 +856,8 @@ contract("GoodGhosting", (accounts) => {
 
                 await goodGhosting.makeDeposit({ from: player1 });
             }
-            // accounted for 1st deposit window
-            // the loop will run till segmentCount - 1
-            // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-            // and another segment where the last segment deposit can generate yield
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
             await timeMachine.advanceTime(weekInSecs);
             await timeMachine.advanceTime(weekInSecs);
             await goodGhosting.redeemFromExternalPool({ from: admin });
@@ -928,7 +868,6 @@ contract("GoodGhosting", (accounts) => {
             const player2PostWithdrawBalance = await token.balanceOf(player2);
             assert(player1PostWithdrawBalance.gt(player1PreWithdrawBalance));
             assert(player2PostWithdrawBalance.lt(player2PreWithdrawBalance));
-
         });
 
         it("pays a bonus to winners in form of early withdraw fees and interest earned and losers get their principle back", async () => {
@@ -939,7 +878,7 @@ contract("GoodGhosting", (accounts) => {
 
             await goodGhosting.joinGame( { from: player2 });
             await goodGhosting.joinGame( { from: player1 });
-            await goodGhosting.earlyWithdraw({ from: player2})
+            await goodGhosting.earlyWithdraw({ from: player2});
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 // protocol deposit of the prev. deposit
@@ -948,10 +887,8 @@ contract("GoodGhosting", (accounts) => {
 
                 await goodGhosting.makeDeposit({ from: player1 });
             }
-            // accounted for 1st deposit window
-            // the loop will run till segmentCount - 1
-            // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-            // and another segment where the last segment deposit can generate yield
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
             await timeMachine.advanceTime(weekInSecs);
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
@@ -966,7 +903,6 @@ contract("GoodGhosting", (accounts) => {
             const player2PostWithdrawBalance = await token.balanceOf(player2);
             assert(player1PostWithdrawBalance.gt(player1PreWithdrawBalance));
             assert(player2PostWithdrawBalance.lt(player2PreWithdrawBalance));
-
         });
 
         it("pays a bonus to winners and losers get their principle back", async () => {
@@ -1003,7 +939,7 @@ contract("GoodGhosting", (accounts) => {
             assert(withdrawalValue.lte(userDeposit.add(toWad(1000)).sub(adminFeeAmount)));
         });
 
-        it("emits Withdrawal event when user withdraws", async () => { // having test with only 1 player for now
+        it("emits Withdrawal event when user withdraws", async () => {
             await joinGamePaySegmentsAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: admin });
             const result = await goodGhosting.withdraw({ from: player1 });
