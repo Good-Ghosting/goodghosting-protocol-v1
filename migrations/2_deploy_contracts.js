@@ -49,6 +49,7 @@ function printSummary(
         selectedProvider,
         inboundCurrencySymbol,
         segmentPayment,
+        owner,
     }
 
 ) {
@@ -106,6 +107,7 @@ function printSummary(
     console.log("GoogGhosting deployed with the following arguments:");
     console.log("----------------------------------------------------\n");
     console.log(`Network Name: ${networkName}`);
+    console.log(`Contract's Owner: ${owner}`);
     console.log(`Lending Pool: ${selectedProvider}`);
     console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
     console.log(`Inbound Currency: ${inboundCurrencySymbol} at ${inboundCurrencyAddress}`);
@@ -122,7 +124,7 @@ function printSummary(
     if (isPolygonWhitelisted) {
         console.log(`Incentive Controller: ${incentiveController}`);
         console.log(`Matic Token: ${wmatic}`);
-        console.log(`Merkel Root: ${merkleRoot}`);
+        console.log(`Merkle Root: ${merkleRoot}`);
 
     }
     console.log("\n\nConstructor Arguments ABI-Encoded:");
@@ -207,12 +209,14 @@ module.exports = function (deployer, network, accounts) {
                 aaveContractAddress,
                 incentiveController,
                 wmatic,
-                merkleRoot: deployConfigs.merkleroot,            },
+                merkleRoot: deployConfigs.merkleroot,
+            },
             {
                 networkName,
                 selectedProvider: deployConfigs.selectedProvider,
                 inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
                 segmentPayment: deployConfigs.segmentPayment,
+                owner: accounts[0],
             }
         );
     });
