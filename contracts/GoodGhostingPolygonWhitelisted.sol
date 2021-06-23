@@ -52,11 +52,20 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
       // Nothing else needed
     }
 
-    /// @notice Allows a player to join the game
+    /// @notice Does not allow users to join. Must use "joinWhitelistedGame instead.
+    /// @dev Must override function from parent contract (GoodGhosting.sol) and revert to enforce whitelisting.
+    function joinGame()
+        external
+        override
+        whenNotPaused
+    {
+        revert("Whitelisting enabled - use joinWhitelistedGame(uint256, bytes32[]) instead");
+    }
+
+    /// @notice Allows a whitelisted player to join the game.
     /// @param index Merkle proof player index
     /// @param merkleProof Merkle proof of the player
-    /// @dev Cannot be called when the game is paused
-    // name changed since overloading doesn't work joinGame when calling still points to parent contract despite the difference in signature
+    /// @dev Cannot be called when the game is paused. Different function name to avoid confusion (instead of overloading "joinGame")
     function joinWhitelistedGame(uint256 index, bytes32[] calldata merkleProof)
         external
         whenNotPaused

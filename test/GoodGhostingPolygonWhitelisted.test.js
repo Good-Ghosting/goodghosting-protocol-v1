@@ -1,4 +1,4 @@
-/* global context */
+/* global */
 const IERC20 = artifacts.require("IERC20");
 const ERC20Mintable = artifacts.require("MockERC20Mintable");
 const GoodGhostingPolygonWhitelisted = artifacts.require("GoodGhostingPolygonWhitelisted");
@@ -45,7 +45,7 @@ contract("GoodGhostingPolygon", (accounts) => {
     let incentiveController;
     let player1 = accounts[1];
     let player2 = accounts[2];
-    let player3 = accounts[3];
+    let nonPlayer = accounts[3];
 
     const weekInSecs = 180;
     const fee = 10; // represents 10%
@@ -68,9 +68,6 @@ contract("GoodGhostingPolygon", (accounts) => {
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
         incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-         console.log(incentiveController.address)
-         console.log(pap.address)
-         console.log(token.address)
 
         goodGhosting = await GoodGhostingPolygonWhitelisted.new(
             token.address,
@@ -189,18 +186,18 @@ contract("GoodGhostingPolygon", (accounts) => {
             const interestCurrencyResult = await goodGhosting.adaiToken.call();
             const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
             const incentiveControllerResult = await goodGhosting.incentiveController.call();
-
             const lastSegmentResult = await goodGhosting.lastSegment.call();
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
+            const merkleRootResult = await goodGhosting.merkleRoot.call();
             assert(incentiveControllerResult === incentiveController.address, `Incentive Controller address doesn't match. expected ${incentiveController.address}; got ${incentiveControllerResult}`);
-
             assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
             assert(interestCurrencyResult === aToken.address, `Interest currency doesn't match. expected ${aToken.address}; got ${interestCurrencyResult}`);
             assert(lendingPoolAddressProviderResult === pap.address, `LendingPoolAddressesProvider doesn't match. expected ${pap.address}; got ${lendingPoolAddressProviderResult}`);
             assert(new BN(lastSegmentResult).eq(new BN(segmentCount)), `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`);
             assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
             assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
+            assert(merkleRootResult === merkleRoot, `MerkleRoot doesn't match. expected ${merkleRoot}; got ${merkleRootResult}`);
         });
 
         it("checks if game starts at segment zero", async () => {
@@ -212,7 +209,6 @@ contract("GoodGhostingPolygon", (accounts) => {
             );
         });
     });
-
 
     describe("when an user tries to join a game", async () => {
         it("reverts if the contract is paused", async () => {
@@ -231,7 +227,15 @@ contract("GoodGhostingPolygon", (accounts) => {
         });
 
         it("reverts when a non-whitelisted player tries to join the game", async () => {
-            await truffleAssert.reverts(goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[2][player3].index, whitelistedPlayerConfig[2][player3].proof, { from: player3 }), "MerkleDistributor: Invalid proof.");
+            await truffleAssert.reverts(goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[2][nonPlayer].index, whitelistedPlayerConfig[2][nonPlayer].proof, { from: nonPlayer }), "MerkleDistributor: Invalid proof.");
+        });
+
+        it("reverts when whitelisted user tries to join using joinGame() instead of joinWhitelistedGame(...)", async () => {
+            await truffleAssert.reverts(goodGhosting.joinGame( { from: player1 }), "Whitelisting enabled - use joinWhitelistedGame(uint256, bytes32[]) instead");
+        });
+
+        it("reverts when non-whitelisted user tries to join using joinGame() joinWhitelistedGame(...)", async () => {
+            await truffleAssert.reverts(goodGhosting.joinGame( { from: nonPlayer }), "Whitelisting enabled - use joinWhitelistedGame(uint256, bytes32[]) instead");
         });
 
         it("reverts if the user tries to join the game twice", async () => {
@@ -289,6 +293,4 @@ contract("GoodGhostingPolygon", (accounts) => {
             );
         });
     });
-
-
 });
