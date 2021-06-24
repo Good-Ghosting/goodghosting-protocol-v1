@@ -18,19 +18,6 @@ contract GoodGhostingPolygon is GoodGhosting {
     IERC20 public immutable matic;
     uint256 public rewardsPerPlayer;
 
-    event Withdrawal(
-        address indexed player,
-        uint256 amount,
-        uint256 playerReward
-    );
-
-    event FundsRedeemedFromExternalPool(
-        uint256 totalAmount,
-        uint256 totalGamePrincipal,
-        uint256 totalGameInterest,
-        uint256 rewards
-    );
-
     /**
         Creates a new instance of GoodGhosting game
         @param _inboundCurrency Smart contract address of inbound currency used for the game.

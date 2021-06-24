@@ -336,18 +336,40 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             // starts from 1, since player1 (loser), requested an early withdraw
             for (let i = 1; i < players.length - 1; i++) {
                 const player = players[i];
-                let playerMaticBalanceBeforeWithdraw;
+                let rewardBalanceBefore = new BN(0);
+                let rewardBalanceAfter = new BN(0);
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
                     || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
                 ) {
-                    playerMaticBalanceBeforeWithdraw = new BN(
+                    rewardBalanceBefore = new BN(
                         await rewardToken.methods
                             .balanceOf(player)
                             .call({ from: admin })
                     );
                 }
                 const result = await goodGhosting.withdraw({ from: player });
+                if (
+                    GoodGhostingArtifact === GoodGhostingPolygon
+                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
+                ) {
+                    rewardBalanceAfter = new BN(
+                        await rewardToken.methods
+                            .balanceOf(player)
+                            .call({ from: admin })
+                    );
+
+                    assert(
+                        rewardBalanceAfter.gt(rewardBalanceBefore),
+                        "expected rewards balance after withdrawal to be greater than before withdrawal"
+                    );
+                } else {
+                    assert(
+                        rewardBalanceAfter.eq(rewardBalanceBefore),
+                        "expected rewards balance after withdrawal to be equal to before withdrawal"
+                    );
+                }
+
                 truffleAssert.eventEmitted(
                     result,
                     "Withdrawal",
@@ -356,25 +378,23 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             `player${i} withdraw amount: ${ev.amount.toString()}`
                         );
                         if (
-                            GoodGhostingArtifact === GoodGhostingPolygon
-                            || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
+                            GoodGhostingArtifact === GoodGhostingPolygon ||
+                            GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
                         ) {
-                            const playersMaticBalance = new BN(
-                                await rewardToken.methods
-                                    .balanceOf(player)
-                                    .call({ from: admin })
-                            );
                             return (
                                 ev.player === player &&
-                                playersMaticBalance.gt(
-                                    playerMaticBalanceBeforeWithdraw
+                                new BN(ev.playerReward).eq(
+                                    rewardBalanceAfter.sub(rewardBalanceBefore)
                                 )
                             );
                         } else {
-                            return ev.player === player;
+                            return (
+                                ev.player === player &&
+                                new BN(ev.playerReward).eq(new BN(0))
+                            );
                         }
                     },
-                    "unable to withdraw amount"
+                    "withdrawal event failure"
                 );
             }
         });
@@ -389,51 +409,46 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 const expectedAmount = new BN(
                     await goodGhosting.adminFeeAmount.call({ from: admin })
                 );
-                let adminMaticBalanceBeforeWithdraw;
+
+                let rewardBalanceBefore = new BN(0);
+                let rewardBalanceAfter = new BN(0);
+
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
                     || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
                 ) {
-                    adminMaticBalanceBeforeWithdraw = new BN(
+                    rewardBalanceBefore = new BN(
                         await rewardToken.methods
                             .balanceOf(admin)
                             .call({ from: admin })
                     );
                 }
+
                 const result = await goodGhosting.adminFeeWithdraw({
                     from: admin,
                 });
+
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
                     || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
                 ) {
-                    const adminMaticBalance = new BN(
+                    rewardBalanceAfter = new BN(
                         await rewardToken.methods
                             .balanceOf(admin)
                             .call({ from: admin })
                     );
-
-                    truffleAssert.eventEmitted(
-                        result,
-                        "AdminWithdrawal",
-                        (ev) => {
-                            return (
-                                expectedAmount.eq(ev.adminFeeAmount) &&
-                                adminMaticBalance.eq(
-                                    adminMaticBalanceBeforeWithdraw
-                                )
-                            );
-                        }
-                    );
-                } else {
-                    truffleAssert.eventEmitted(
-                        result,
-                        "AdminWithdrawal",
-                        (ev) => {
-                            return expectedAmount.eq(ev.adminFeeAmount);
-                        }
-                    );
                 }
+                assert(
+                    rewardBalanceAfter.eq(rewardBalanceBefore),
+                    "expect rewards balance after withdrawal to be equal to before withdrawal"
+                );
+
+                truffleAssert.eventEmitted(
+                    result,
+                    "AdminWithdrawal",
+                    (ev) => expectedAmount.eq(ev.adminFeeAmount),
+                    "admin fee withdrawal event failure"
+                );
             }
         });
     });

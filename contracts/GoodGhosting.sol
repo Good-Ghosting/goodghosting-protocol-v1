@@ -69,11 +69,16 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 indexed segment,
         uint256 amount
     );
-    event Withdrawal(address indexed player, uint256 amount);
+    event Withdrawal(
+        address indexed player,
+        uint256 amount,
+        uint256 playerReward
+    );
     event FundsRedeemedFromExternalPool(
         uint256 totalAmount,
         uint256 totalGamePrincipal,
-        uint256 totalGameInterest
+        uint256 totalGameInterest,
+        uint256 rewards
     );
     event WinnersAnnouncement(address[] winners);
     event EarlyWithdrawal(
@@ -319,7 +324,8 @@ contract GoodGhosting is Ownable, Pausable {
         emit FundsRedeemedFromExternalPool(
             totalBalance,
             totalGamePrincipal,
-            totalGameInterest
+            totalGameInterest,
+            0
         );
         emit WinnersAnnouncement(winners);
     }
@@ -336,7 +342,7 @@ contract GoodGhosting is Ownable, Pausable {
             // Player is a winner and gets a bonus!
             payout = payout.add(totalGameInterest.div(winners.length));
         }
-        emit Withdrawal(msg.sender, payout);
+        emit Withdrawal(msg.sender, payout, 0);
 
         // First player to withdraw redeems everyone's funds
         if (!redeemed) {

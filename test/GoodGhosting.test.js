@@ -667,7 +667,12 @@ contract("GoodGhosting", (accounts) => {
             truffleAssert.eventEmitted(
                 result,
                 "FundsRedeemedFromExternalPool",
-                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)) && new BN(ev.totalGamePrincipal).eq(totalPrincipal) && new BN(ev.totalGameInterest).eq(expectedInterestValue),
+                (ev) => (
+                    new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)) &&
+                    new BN(ev.totalGamePrincipal).eq(totalPrincipal) &&
+                    new BN(ev.totalGameInterest).eq(expectedInterestValue) &&
+                    new BN(ev.rewards).eq(new BN(0))
+                ),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
         });
@@ -944,7 +949,10 @@ contract("GoodGhosting", (accounts) => {
             await goodGhosting.redeemFromExternalPool({ from: admin });
             const result = await goodGhosting.withdraw({ from: player1 });
             truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
-                return ev.player === player1;
+                return (
+                    ev.player === player1 &&
+                    new BN(ev.playerReward).eq(new BN(0))
+                );
             }, "unable to withdraw amount");
         });
     });
