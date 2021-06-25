@@ -15,10 +15,12 @@ module.exports = {
         'aave/AToken.sol',
         'aave/ILendingPool.sol',
         'aave/ILendingPoolAddressesProvider.sol',
+        'aave/IncentiveController.sol',
+        'aave/ADaiTokenWrapper.sol',
         'GoodGhostingCelo.sol',
         'GoodGhosting_Polygon_Quickswap.sol',
         'batched/GoodGhostingBatched',
-        'GoodGhostingPolygonBatched',
+        'batched/GoodGhostingPolygonBatched',
         'utils/Math.sol'
     ]
 };
