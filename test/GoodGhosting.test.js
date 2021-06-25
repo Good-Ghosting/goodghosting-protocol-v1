@@ -86,7 +86,7 @@ contract("GoodGhosting", (accounts) => {
     async function joinGameMissLastPaymentAndComplete(player) {
         await approveDaiToContract(player);
         await goodGhosting.joinGame({ from: player });
-        // pay all segments except last one
+        // pay all remaining segments except last one
         for (let index = 1; index < segmentCount - 1; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
@@ -603,7 +603,7 @@ contract("GoodGhosting", (accounts) => {
             }
         });
 
-        it("user is able to withdraw in the last segment when 2 players join the game and one of them earlywithdraws when the segment amount is less than withdraw amount", async () => {
+        it("user is able to withdraw in the last segment when 2 players join the game and one of them early withdraws when the segment amount is less than withdraw amount", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
             await goodGhosting.joinGame( { from: player1 });
