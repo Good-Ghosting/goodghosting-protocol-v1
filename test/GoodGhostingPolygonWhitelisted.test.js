@@ -21,7 +21,7 @@ const testPlayerConfig = [
     { "0x821aEa9a577a9b44299B9c15c88cf3087F3b5544": { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
 ];
 
-contract("GoodGhostingPolygon", (accounts) => {
+contract("GoodGhostingPolygonWhitelisted", (accounts) => {
     let merkleRoot;
     let whitelistedPlayerConfig;
 
