@@ -10,9 +10,9 @@ import "./merkel/IMerkleDistributor.sol";
 contract MerkleDistributor is IMerkleDistributor {
     bytes32 public immutable override merkleRoot;
 
-    /// @param merkleRoot_ Merkle root for the game
-    constructor(bytes32 merkleRoot_) public {
-        merkleRoot = merkleRoot_;
+    /// @param _merkleRoot Merkle root for the game
+    constructor(bytes32 _merkleRoot) public {
+        merkleRoot = _merkleRoot;
     }
 
     /// @notice Responsible for validating player merkle proof
