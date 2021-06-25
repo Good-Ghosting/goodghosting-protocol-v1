@@ -84,48 +84,23 @@ contract("GoodGhostingPolygon", (accounts) => {
             await approveDaiToContract(player);
             await goodGhosting.makeDeposit({ from: player });
         }
-        // accounted for 1st deposit window
-        // the loop will run till segmentCount - 1
-        // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-        // and another segment where the last segment deposit can generate yield
-        await timeMachine.advanceTime(weekInSecs);
-        await timeMachine.advanceTime(weekInSecs);
+        // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+        // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+        await timeMachine.advanceTime(weekInSecs * 2);
     }
 
-    async function joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player) {
+    async function joinGameMissLastPaymentAndComplete(player) {
         await approveDaiToContract(player);
         await goodGhosting.joinGame( { from: player });
-        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
-        for (let index = 1; index < segmentCount; index++) {
-            await timeMachine.advanceTime(weekInSecs);
-            // no protocol deposit of the prev. deposit
-            await approveDaiToContract(player);
-            await goodGhosting.makeDeposit({ from: player });
-        }
-        // accounted for 1st deposit window
-        // the loop will run till segmentCount - 1
-        // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-        // and another segment where the last segment deposit can generate yield
-        await timeMachine.advanceTime(weekInSecs);
-        await timeMachine.advanceTime(weekInSecs);
-    }
-
-    async function joinGamePaySegmentsAndIncomplete(player) {
-        await approveDaiToContract(player);
-        await goodGhosting.joinGame( { from: player });
-        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+        // pay all remaining segments except last one
         for (let index = 1; index < segmentCount - 1; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
             await goodGhosting.makeDeposit({ from: player });
         }
-        await timeMachine.advanceTime(weekInSecs);
-        // accounted for 1st deposit window
-        // the loop will run till segmentCount - 1
-        // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-        // and another segment where the last segment deposit can generate yield
-        await timeMachine.advanceTime(weekInSecs);
-        await timeMachine.advanceTime(weekInSecs);
+        // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 2.
+        // now, we move 3 more segments (segmentCount-2, segmentCount-1 and segmentCount) to complete the game.
+        await timeMachine.advanceTime(weekInSecs * 3);
     }
 
     describe("pre-flight checks", async () => {
@@ -287,29 +262,9 @@ contract("GoodGhostingPolygon", (accounts) => {
         });
     });
 
-    describe("when an user tries to redeem from the external pool when no external deposits are made", async () => {
-
-        it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
-            await joinGamePaySegmentsAndCompleteWithoutExternalDeposits(player1);
-            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(goodGhosting.address);
-
-            const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
-            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(goodGhosting.address);
-            // external pool deposit removed so interest and rewards are generated since direct deposits are made to external pool
-            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
-            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
-            truffleAssert.eventEmitted(
-                result,
-                "FundsRedeemedFromExternalPool",
-                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
-                "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
-            );
-        });
-    });
-
     describe("when no one wins the game", async () => {
         it("transfers interest to the owner in case no one wins", async () => { // having test with only 1 player for now
-            await joinGamePaySegmentsAndIncomplete(player1);
+            await joinGameMissLastPaymentAndComplete(player1);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             const adminBalance = await token.balanceOf(admin);
             const principalBalance = await token.balanceOf(goodGhosting.address);
@@ -324,7 +279,7 @@ contract("GoodGhostingPolygon", (accounts) => {
         it("transfers principal to the user in case no one wins", async () => {
             const incompleteSegment = segmentCount - 1;
             const amountPaidInGame = web3.utils.toBN(segmentPayment * incompleteSegment);
-            await joinGamePaySegmentsAndIncomplete(player1);
+            await joinGameMissLastPaymentAndComplete(player1);
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const result = await goodGhosting.withdraw({ from: player1 });
 
@@ -529,9 +484,9 @@ contract("GoodGhostingPolygon", (accounts) => {
                 const gameInterest = await goodGhosting.totalGameInterest.call();
                 // There's no winner, so admin takes it all
                 const expectedAdminFee = regularAdminFee.add(gameInterest);
-                const adminMaticBalanceBeforeWithdraw = await incentiveController.balanceOf(admin)
+                const adminMaticBalanceBeforeWithdraw = await incentiveController.balanceOf(admin);
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
-                const adminMaticBalanceAfterWithdraw = await incentiveController.balanceOf(admin)
+                const adminMaticBalanceAfterWithdraw = await incentiveController.balanceOf(admin);
                 assert(adminMaticBalanceAfterWithdraw.gt(adminMaticBalanceBeforeWithdraw));
                 truffleAssert.eventEmitted(
                     result,
