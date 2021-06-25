@@ -133,7 +133,7 @@ On Polygon Vigil, the process is similar to Ethereum Mainnet described above, bu
 
 * **[GoodGhostingPolygon](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/master/contracts/GoodGhosting_Polygon.sol)** is just an extension of the GoodGhosting contract compatible with [Polygon](https://polygon.technology/) to generate extra yield from the ongoing [Aave-Polygon Liquidity mining](https://cryptobriefing.com/polygon-launches-40m-liquidity-mining-program-with-aave/) this contract, when the game ends claims $MATIC rewards, to generate extra yield for the winners.
 
-* **[GoodGhostingCelo](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/feature/celo/contracts/GoodGhostingCelo.sol)** is just an extension of the GoodGhosting contract compatible with [Celp](https://celo.org/) and uses [Moola](https://moola.market/) to generate extra yield for the winners.
+* **[GoodGhostingCelo](https://github.com/Good-Ghosting/goodghosting-smart-contracts/blob/feature/celo/contracts/GoodGhostingCelo.sol)** is just an extension of the GoodGhosting contract compatible with [Celo](https://celo.org/) and uses [Moola](https://moola.market/) to generate extra yield for the winners.
 
 ## Big Numbers
 * We use `BN.js` for handling Big Numbers
@@ -269,7 +269,7 @@ Segment Payment: 10 dai (10000000000000000000 wei)
 Early Withdrawal Fee: 10%
 
 
-ABI-Enconded Constructor Parameters:
+ABI-Encoded Constructor Parameters:
 000000000000000000000000ff795577d9ac8bd7d90ee22b6c1703490b6512fd000000000000000000000000506b0b2cf20faa8f38a4e2b524ee43e1f4458cc5000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000b40000000000000000000000000000000000000000000000008ac7230489e80000000000000000000000000000000000000000000000000000000000000000000a
 
 
@@ -302,7 +302,7 @@ Use the following steps to verify the contract on Etherscan or Polygon Matic:
     4. *Open Source License*: Choose the license. Use "No licence (None)" if not sure about which one to use
     5. *Optimization*: Check if optimization is used by the repo on (truffle-config file)[./truffle-config.js]. Select the same config
     6. *Solidity Contract Code*: Copy/Paste the code from the flattened file (after executing steps 1 and 2 above).
-    7. *Constructor Arguments ABI-Enconded*: Copy/Paste the Constructor Arguments ABI-Enconded available in the deployment log, displayed in the terminal window
+    7. *Constructor Arguments ABI-Encoded*: Copy/Paste the Constructor Arguments ABI-Encoded available in the deployment log, displayed in the terminal window
     8. *Misc Settings*: Make sure the configs available here, specially _Runs (Optimizer)_ is the same as the configs set in the [truffle-config file]()./truffle-config.js).
 
 
