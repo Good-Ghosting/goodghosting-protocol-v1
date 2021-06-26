@@ -22,6 +22,7 @@ contract("GoodGhostingPolygon", (accounts) => {
     let incentiveController;
     let player1 = accounts[1];
     let player2 = accounts[2];
+    const nonPlayer = accounts[9];
 
     const weekInSecs = 180;
     const fee = 10; // represents 10%
@@ -218,6 +219,12 @@ contract("GoodGhostingPolygon", (accounts) => {
     });
 
     describe("when an user tries to redeem from the external pool", async () => {
+        it("reverts if funds were already redeemed", async () => {
+            await joinGamePaySegmentsAndComplete(player1);
+            await goodGhosting.redeemFromExternalPool({ from: player1 });
+            await truffleAssert.reverts(goodGhosting.redeemFromExternalPool({ from: player1 }), "Redeem operation already happened for the game");
+        });
+
         it("allows to redeem from external pool when game is completed", async () => {
             await joinGamePaySegmentsAndComplete(player1);
             truffleAssert.passes(goodGhosting.redeemFromExternalPool, "Couldn't redeem from external pool");
@@ -298,6 +305,12 @@ contract("GoodGhostingPolygon", (accounts) => {
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             await goodGhosting.withdraw({ from: player1 });
             await truffleAssert.reverts(goodGhosting.withdraw({ from: player1 }), "Player has already withdrawn");
+        });
+
+        it("reverts if a non-player tries to withdraw", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame( { from: player1 });
+            await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: nonPlayer }), "Player does not exist");
         });
 
         it("sets withdrawn flag to true after user withdraws", async () => {
