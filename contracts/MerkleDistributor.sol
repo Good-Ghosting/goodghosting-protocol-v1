@@ -3,7 +3,7 @@ pragma solidity 0.6.11;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/cryptography/MerkleProof.sol";
-import "./merkel/IMerkleDistributor.sol";
+import "./merkle/IMerkleDistributor.sol";
 
 /// @title Contract responsible for player's merkle proof validation
 /// @author Francis Odisi & Viraz Malhotra
