@@ -149,7 +149,7 @@ This commands executes Slither and analyses the file `contracts/GoodGhosting.sol
 Currently, the most common used command for Slither in the repo is provided below. This command ignores all mock and non-production ready contracts.
 
 ```bash
-slither . --filter-path "aave|Migrations.sol|batched|merkel|mock|moola|quickswap|utils|GoodGhosting_Polygon_Quickswap.sol|GoodGhostingCelo.sol|openzeppelin"
+slither . --filter-path "aave|Migrations.sol|batched|merkle|mock|moola|quickswap|utils|GoodGhosting_Polygon_Quickswap.sol|GoodGhostingCelo.sol|openzeppelin"
 ```
 
 
