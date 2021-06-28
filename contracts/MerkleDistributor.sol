@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.6.11;
+pragma solidity 0.6.11;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/cryptography/MerkleProof.sol";
-import "./merkel/IMerkleDistributor.sol";
+import "./merkle/IMerkleDistributor.sol";
 
-/// @title GoodGhostingWhitelisted Contract which is responsible for player's merkle proof validation
+/// @title Contract responsible for player's merkle proof validation
 /// @author Francis Odisi & Viraz Malhotra
-contract GoodGhostingWhitelisted is IMerkleDistributor {
+contract MerkleDistributor is IMerkleDistributor {
     bytes32 public immutable override merkleRoot;
 
-    /// @param merkleRoot_ Merkle root for the game
-    constructor(bytes32 merkleRoot_) public {
-        merkleRoot = merkleRoot_;
+    /// @param _merkleRoot Merkle root for the game
+    constructor(bytes32 _merkleRoot) public {
+        merkleRoot = _merkleRoot;
     }
 
     /// @notice Responsible for validating player merkle proof

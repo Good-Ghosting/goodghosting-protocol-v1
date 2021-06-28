@@ -6,6 +6,7 @@ const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
 const GoodGhostingCeloContract = artifacts.require("GoodGhostingCelo");
 const GoodGhostingPolygonContract = artifacts.require("GoodGhostingPolygon");
+const GoodGhostingPolygonWhitelisted = artifacts.require("GoodGhostingPolygonWhitelisted");
 const BN = web3.utils.BN;
 const { providers, deployConfigs } = require("../deploy.config");
 
@@ -38,9 +39,9 @@ function printSummary(
         earlyWithdrawFee,
         customFee,
         aaveContractAddress,
-        merkleRoot,
         incentiveController,
-        wmatic
+        wmatic,
+        merkleRoot,
     },
     // additional logging info
     {
@@ -48,10 +49,12 @@ function printSummary(
         selectedProvider,
         inboundCurrencySymbol,
         segmentPayment,
+        owner,
     }
 
 ) {
-    const isPolygon = ["polygon"].includes(networkName.toLowerCase());
+    const isPolygon = networkName.toLowerCase() === "polygon";
+    const isPolygonWhitelisted = networkName.toLowerCase() === "polygon-whitelisted" || ["polygon-whitelisted"].includes(networkName.toLowerCase()); // for local network
 
     var parameterTypes = [
         "address", // inboundCurrencyAddress
@@ -61,8 +64,7 @@ function printSummary(
         "uint256", // segmentPaymentWei
         "uint256", // earlyWithdrawFee
         "uint256", // customFee
-        "address", // dataProvider/lending pool address
-        "bytes32" // merkle root
+        "address" // dataProvider/lending pool address
     ];
     var parameterValues = [
         inboundCurrencyAddress,
@@ -72,8 +74,7 @@ function printSummary(
         segmentPaymentWei,
         earlyWithdrawFee,
         customFee,
-        aaveContractAddress,
-        merkleRoot
+        aaveContractAddress
     ];
 
     if (isPolygon) {
@@ -87,12 +88,26 @@ function printSummary(
         );
     }
 
+    if (isPolygonWhitelisted) {
+        parameterTypes.push(
+            "address", // IncentiveController
+            "address", // wmatic token
+            "bytes32"
+        );
+        parameterValues.push(
+            incentiveController,
+            wmatic,
+            merkleRoot
+        );
+    }
+
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
 
     console.log("\n\n\n----------------------------------------------------");
     console.log("GoogGhosting deployed with the following arguments:");
     console.log("----------------------------------------------------\n");
     console.log(`Network Name: ${networkName}`);
+    console.log(`Contract's Owner: ${owner}`);
     console.log(`Lending Pool: ${selectedProvider}`);
     console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
     console.log(`Inbound Currency: ${inboundCurrencySymbol} at ${inboundCurrencyAddress}`);
@@ -102,10 +117,15 @@ function printSummary(
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
     console.log(`Custom Pool Fee: ${customFee}%`);
     console.log(`Data Provider/Lending Pool Address: ${aaveContractAddress}`);
-    console.log(`Merkle Root: ${merkleRoot}`);
     if (isPolygon) {
         console.log(`Incentive Controller: ${incentiveController}`);
         console.log(`Matic Token: ${wmatic}`);
+    }
+    if (isPolygonWhitelisted) {
+        console.log(`Incentive Controller: ${incentiveController}`);
+        console.log(`Matic Token: ${wmatic}`);
+        console.log(`Merkle Root: ${merkleRoot}`);
+
     }
     console.log("\n\nConstructor Arguments ABI-Encoded:");
     console.log(encodedParameters.toString("hex"));
@@ -122,7 +142,7 @@ module.exports = function (deployer, network, accounts) {
 
     deployer.then(async () => {
 
-        const networkName = getNetworkName(network);
+        let networkName = getNetworkName(network);
         const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkName];
         const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
@@ -133,12 +153,17 @@ module.exports = function (deployer, network, accounts) {
 
         let aaveContractAddress = poolConfigs.dataProvider;
         let goodGhostingContract = GoodGhostingContract; // defaults to Ethereum version
+        if (network.includes("polygon-whitelisted")) {
+            networkName = "polygon-whitelisted";
+        }
 
         if (networkName === "polygon") {
             goodGhostingContract = GoodGhostingPolygonContract;
         } else if (networkName === "alfajores") {
             aaveContractAddress = poolConfigs.lendingPool;
             goodGhostingContract = GoodGhostingCeloContract;
+        } else if (networkName === "polygon-whitelisted") {
+            goodGhostingContract = GoodGhostingPolygonWhitelisted;
         }
 
         // Prepares deployment arguments
@@ -151,13 +176,18 @@ module.exports = function (deployer, network, accounts) {
             segmentPaymentWei,
             deployConfigs.earlyWithdrawFee,
             deployConfigs.customFee,
-            aaveContractAddress,
-            deployConfigs.merkleroot
+            aaveContractAddress
         ];
         if (networkName === "polygon") {
             deploymentArgs.push(
                 incentiveController,
                 wmatic
+            );
+        } else if (networkName === "polygon-whitelisted") {
+            deploymentArgs.push(
+                incentiveController,
+                wmatic,
+                deployConfigs.merkleroot
             );
         }
 
@@ -177,15 +207,16 @@ module.exports = function (deployer, network, accounts) {
                 earlyWithdrawFee: deployConfigs.earlyWithdrawFee,
                 customFee: deployConfigs.customFee,
                 aaveContractAddress,
-                merkleRoot: deployConfigs.merkleroot,
                 incentiveController,
-                wmatic
+                wmatic,
+                merkleRoot: deployConfigs.merkleroot,
             },
             {
                 networkName,
                 selectedProvider: deployConfigs.selectedProvider,
                 inboundCurrencySymbol: deployConfigs.inboundCurrencySymbol,
                 segmentPayment: deployConfigs.segmentPayment,
+                owner: accounts[0],
             }
         );
     });

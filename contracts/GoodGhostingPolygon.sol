@@ -8,7 +8,6 @@ import "./aave/ILendingPoolAddressesProvider.sol";
 import "./aave/ILendingPool.sol";
 import "./aave/AToken.sol";
 import "./aave/IncentiveController.sol";
-import "./GoodGhostingWhitelisted.sol";
 import "./GoodGhosting.sol";
 
 /// @title GoodGhosting Game Contract
@@ -18,19 +17,6 @@ contract GoodGhostingPolygon is GoodGhosting {
     IncentiveController public incentiveController;
     IERC20 public immutable matic;
     uint256 public rewardsPerPlayer;
-
-    event Withdrawal(
-        address indexed player,
-        uint256 amount,
-        uint256 playerReward
-    );
-
-    event FundsRedeemedFromExternalPool(
-        uint256 totalAmount,
-        uint256 totalGamePrincipal,
-        uint256 totalGameInterest,
-        uint256 rewards
-    );
 
     /**
         Creates a new instance of GoodGhosting game
@@ -42,7 +28,6 @@ contract GoodGhostingPolygon is GoodGhosting {
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
         @param _customFee performance fee charged by admin. Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
-        @param merkleRoot_ merkle root to verify players on chain to allow only whitelisted users to join.
         @param _incentiveController matic reward claim contract.
         @param _matic matic token address.
      */
@@ -55,7 +40,6 @@ contract GoodGhostingPolygon is GoodGhosting {
         uint256 _earlyWithdrawalFee,
         uint256 _customFee,
         address _dataProvider,
-        bytes32 merkleRoot_,
         address _incentiveController,
         IERC20 _matic
     )
@@ -68,8 +52,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             _segmentPayment,
             _earlyWithdrawalFee,
             _customFee,
-            _dataProvider,
-            merkleRoot_
+            _dataProvider
         )
     {
         // initializing incentiveController contract

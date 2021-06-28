@@ -1,23 +1,33 @@
 const GoodGhosting = artifacts.require("GoodGhosting");
 const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
+const GoodGhostingPolygonWhitelisted = artifacts.require(
+    "GoodGhostingPolygonWhitelisted"
+);
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
 const configs = require("../deploy.config");
 const whitelistedPlayerConfig = [
-    {"0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": {index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398","0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] }},
-    {'0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf': {index: 1, proof: ["0xefc82954f8d1549053814986f191e870bb8e2b4efae54964a8831ddd1eaf6267","0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef"] }},
-    {'0x78863CB2db754Fc45030c4c25faAf757188A0784': {index: 2, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f","0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] }},
-    {'0xd1E80094e0f5f00225Ea5D962484695d57f3afaA': {index: 3, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324","0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef"] }},
+    { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
+    { "0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf": { index: 1, proof: ["0xefc82954f8d1549053814986f191e870bb8e2b4efae54964a8831ddd1eaf6267", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef"] } },
+    { "0x78863CB2db754Fc45030c4c25faAf757188A0784": { index: 2, proof: ["0x6ecff5307e97b4034a59a6888301eaf1e5fdcc399163a89f6e886d1ed4a6614f", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
+    { "0xd1E80094e0f5f00225Ea5D962484695d57f3afaA": { index: 3, proof: ["0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef"] } },
     // invalid user
-    {'0x7C3E8511863daF709bdBe243356f562e227573d4': {index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc","0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef","0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"]}}
-]
+    { "0x7C3E8511863daF709bdBe243356f562e227573d4": { index: 3, proof: ["0x45533c7da4a9f550fb2a9e5efe3b6db62261670807ed02ce75cb871415d708cc", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef", "0xc0afcf89a6f3a0adc4f9753a170e9be8a76083ff27004c10b5fb55db34079324"] } }
+];
 
 contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
 
     // Only executes this test file for local network fork
-    if (!["local-mainnet-fork", "local-polygon-vigil-fork"].includes(process.env.NETWORK)) return;
+    if (
+        ![
+            "local-mainnet-fork",
+            "local-polygon-vigil-fork",
+            "local-polygon-whitelisted-vigil-fork",
+        ].includes(process.env.NETWORK)
+    )
+        return;
 
     global.web3 = web3;
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
@@ -25,11 +35,15 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
     let GoodGhostingArtifact;
     if (process.env.NETWORK === "local-mainnet-fork") {
         GoodGhostingArtifact = GoodGhosting;
-        providersConfigs     = configs.providers.aave.mainnet;
-    } else {
+        providersConfigs = configs.providers.aave.mainnet;
+    } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
-        providersConfigs     = configs.providers.aave.polygon;
+        providersConfigs = configs.providers.aave.polygon;
+    } else {
+        GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
+        providersConfigs = configs.providers.aave.polygon;
     }
+
     const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, customFee } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
@@ -87,25 +101,63 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                 await token.methods
                     .approve(goodGhosting.address, segmentPayment.mul(new BN(segmentCount)).toString())
                     .send({ from: player });
+                let playerEvent = "";
+                let paymentEvent = 0;
+                if (
+                    process.env.NETWORK === "local-mainnet-fork" ||
+                        process.env.NETWORK === "local-polygon-vigil-fork"
+                ) {
+                    const result = await goodGhosting.joinGame({ from: player });
+                    // got logs not defined error when keep the event assertion check outside of the if-else
+                    truffleAssert.eventEmitted(
+                        result,
+                        "JoinedGame",
+                        (ev) => {
+                            playerEvent = ev.player;
+                            paymentEvent = ev.amount;
+                            return (
+                                playerEvent === player &&
+                                new BN(paymentEvent).eq(new BN(segmentPayment))
+                            );
+                        },
+                        `JoinedGame event should be emitted when an user joins the game with params\n
+                            player: expected ${player}; got ${playerEvent}\n
+                            paymentAmount: expected ${segmentPayment}; got ${paymentEvent}`
+                    );
+                } else {
                     if (i === players.length - 1) {
-                        await truffleAssert.reverts(goodGhosting.joinGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof, { from: player }), "MerkleDistributor: Invalid proof.");
+                        await truffleAssert.reverts(
+                            goodGhosting.joinWhitelistedGame(
+                                whitelistedPlayerConfig[i][player].index,
+                                whitelistedPlayerConfig[i][player].proof,
+                                { from: player }
+                            ),
+                            "MerkleDistributor: Invalid proof."
+                        );
                     } else {
-                        const result = await goodGhosting.joinGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof, { from: player });
-                        let playerEvent = "";
-                        let paymentEvent = 0;
+                        const result = await goodGhosting.joinWhitelistedGame(
+                            whitelistedPlayerConfig[i][player].index,
+                            whitelistedPlayerConfig[i][player].proof,
+                            { from: player }
+                        );
+                            // got logs not defined error when keep the event assertion check outside of the if-else
                         truffleAssert.eventEmitted(
                             result,
                             "JoinedGame",
                             (ev) => {
                                 playerEvent = ev.player;
                                 paymentEvent = ev.amount;
-                                return playerEvent === player && new BN(paymentEvent).eq(new BN(segmentPayment));
+                                return (
+                                    playerEvent === player &&
+                                        new BN(paymentEvent).eq(new BN(segmentPayment))
+                                );
                             },
                             `JoinedGame event should be emitted when an user joins the game with params\n
-                            player: expected ${player}; got ${playerEvent}\n
-                            paymentAmount: expected ${segmentPayment}; got ${paymentEvent}`,
+                                player: expected ${player}; got ${playerEvent}\n
+                                paymentAmount: expected ${segmentPayment}; got ${paymentEvent}`
                         );
                     }
+                }
             }
         });
 
@@ -113,7 +165,6 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
             for (let segmentIndex = 1; segmentIndex < segmentCount; segmentIndex++) {
                 await timeMachine.advanceTime(segmentLength);
-                // protocol deposit of the prev. deposit
                 // Player 1 (index 0 - loser), performs an early withdraw on first segment.
                 if (segmentIndex === 1) {
                     const earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser});
@@ -124,10 +175,6 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                         "loser unable to early withdraw from game",
                     );
                 }
-
-                // since funds haven't been deposited to external pool yet so the funds will be redeemed from the contract directly
-                await goodGhosting.depositIntoExternalPool({ from: admin });
-
                 // j must start at 1 - Player1 (index 0) early withdraw, so won't continue making deposits
                 if (segmentIndex === 1) {
                     // All players pay for the 1st segment
@@ -165,13 +212,9 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                 }
 
             }
-            // accounted for 1st deposit window
-            // the loop will run till segmentCount - 1
-            // after that funds for the last segment are deposited to protocol then we wait for segment length to deposit to the protocol
-            // and another segment where the last segment deposit can generate yield
-            await timeMachine.advanceTime(segmentLength);
-            await goodGhosting.depositIntoExternalPool({ from: admin });
-            await timeMachine.advanceTime(segmentLength);
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(segmentLength * 2);
         });
 
 
@@ -195,22 +238,50 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
             );
         });
 
-        it("players withdraw from contract", async () => { // having test with only 1 player for now
+        it("players withdraw from contract", async () => {
             // starts from 2, since player1 (loser) and player2 (secondLoser), requested an early withdraw
             for (let i = 2; i < players.length - 1; i++) {
                 const player = players[i];
-                let playerMaticBalanceBeforeWithdraw;
-                if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                    playerMaticBalanceBeforeWithdraw = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
+                const playerInfo = await goodGhosting.players(player, { from: player });
+                let rewardBalanceBefore = new BN(0);
+                let rewardBalanceAfter = new BN(0);
+                if (
+                    GoodGhostingArtifact === GoodGhostingPolygon ||
+                    GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
+                ) {
+                    rewardBalanceBefore = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
                 }
                 const result = await goodGhosting.withdraw({ from: player });
+
+                if (
+                    GoodGhostingArtifact === GoodGhostingPolygon ||
+                    GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
+                ) {
+                    rewardBalanceAfter = new BN(
+                        await rewardToken.methods.balanceOf(player).call({ from: admin })
+                    );
+
+                    assert(
+                        rewardBalanceAfter.gt(rewardBalanceBefore),
+                        "expected rewards balance after withdrawal to be greater than before withdrawal"
+                    );
+                } else {
+                    assert(
+                        rewardBalanceAfter.eq(rewardBalanceBefore),
+                        "expected rewards balance after withdrawal to be equal to before withdrawal"
+                    );
+                }
+
                 truffleAssert.eventEmitted(result, "Withdrawal", async (ev) => {
                     console.log(`player${i} withdraw amount: ${ev.amount.toString()}`);
-                    if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                        const playersMaticBalance = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
-                        return ev.player === player && playersMaticBalance.gt(playerMaticBalanceBeforeWithdraw);
+                    if (
+                        GoodGhostingArtifact === GoodGhostingPolygon ||
+                        GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
+                    ) {
+                        rewardBalanceAfter = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
+                        return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid) && new BN(ev.playerReward).eq(rewardBalanceAfter.sub(rewardBalanceBefore));
                     } else {
-                        return ev.player === player;
+                        return ev.player === player && new BN(ev.amount.toString()).gt(playerInfo.amountPaid) && new BN(ev.playerReward).eq(new BN(0));
                     }
                 }, "unable to withdraw amount");
             }
@@ -220,29 +291,30 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
             if (!customFee) {
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
             } else {
-                let adminMaticBalanceBeforeWithdraw;
-                if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                    adminMaticBalanceBeforeWithdraw = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
+                let rewardBalanceBefore = new BN();
+                let rewardBalanceAfter = new BN(0);
+
+                if (GoodGhostingArtifact === GoodGhostingPolygon || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted) {
+                    rewardBalanceBefore = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
                 }
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
-                if (GoodGhostingArtifact === GoodGhostingPolygon) {
-                    const adminMaticBalance = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
-                    truffleAssert.eventEmitted(
-                        result,
-                        "AdminWithdrawal",
-                        (ev) => {
-                            const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
-                                return adminFee.lte(ev.adminFeeAmount) && adminMaticBalance.eq(adminMaticBalanceBeforeWithdraw);
-                        });
-                } else {
-                    truffleAssert.eventEmitted(
-                        result,
-                        "AdminWithdrawal",
-                        (ev) => {
-                            const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN('100')));
-                                return adminFee.lte(ev.adminFeeAmount);
-                        });
+
+                if (GoodGhostingArtifact === GoodGhostingPolygon || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted) {
+                    rewardBalanceAfter = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
                 }
+                assert(
+                    rewardBalanceAfter.eq(rewardBalanceBefore),
+                    "expect rewards balance after withdrawal to be equal to before withdrawal"
+                );
+
+                truffleAssert.eventEmitted(
+                    result,
+                    "AdminWithdrawal",
+                    (ev) => {
+                        const adminFee = (new BN(configs.deployConfigs.customFee).mul(ev.totalGameInterest).div(new BN("100")));
+                        return adminFee.lte(ev.adminFeeAmount);
+                    }
+                );
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
             }
         });
