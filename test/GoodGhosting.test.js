@@ -28,6 +28,7 @@ contract("GoodGhosting", (accounts) => {
     const segmentPayment = daiDecimals.mul(new BN(10)); // equivalent to 10 DAI
     const segmentCount = 6;
     const segmentLength = 180;
+    const maxPlayersCount = new BN(100);
 
     beforeEach(async () => {
         global.web3 = web3;
@@ -50,6 +51,7 @@ contract("GoodGhosting", (accounts) => {
             fee,
             adminFee,
             pap.address,
+            maxPlayersCount, 
             { from: admin },
         );
     });
@@ -135,6 +137,7 @@ contract("GoodGhosting", (accounts) => {
                 0,
                 adminFee,
                 pap.address,
+                maxPlayersCount,
                 { from: admin },
             ));
         });
@@ -152,6 +155,7 @@ contract("GoodGhosting", (accounts) => {
                 15,
                 adminFee,
                 pap.address,
+                maxPlayersCount,
                 { from: admin },
             ));
         });
@@ -169,8 +173,51 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 30,
                 pap.address,
+                maxPlayersCount,
                 { from: admin },
             ));
+        });
+
+        it("reverts if the contract is deployed with max player count equal to zero", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(
+                GoodGhosting.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    0,
+                    pap.address,
+                    new BN(0), // set to 0 to force revert
+                    { from: admin },
+                ),
+                "_maxPlayersCount must be greater than zero"
+            );
+        });
+
+        it("accepts setting type(uint256).max as the max number of players", async () => {
+            const expectedValue = new BN(2).pow(new BN(256)).sub(new BN(1));
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            const contract = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                { from: admin },
+            );
+            const result = new BN(await contract.maxPlayersCount.call());
+            assert(expectedValue.eq(result), "expected max number of players to equal type(uint256).max");
         });
     });
 
@@ -184,6 +231,7 @@ contract("GoodGhosting", (accounts) => {
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
             const earlyWithdrawFee = await goodGhosting.earlyWithdrawalFee.call();
             const adminFee = await goodGhosting.customFee.call();
+            const maxPlayersCountResult = await goodGhosting.maxPlayersCount.call();
             assert(new BN(earlyWithdrawFee).eq(new BN(10)), `Early Withdraw Fee doesn't match, expected 10 got ${earlyWithdrawFee}`);
             assert(new BN(adminFee).eq(new BN(5)), `Admin Fee doesn't match, expected 5 got ${adminFee}`);
             assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
@@ -192,6 +240,7 @@ contract("GoodGhosting", (accounts) => {
             assert(new BN(lastSegmentResult).eq(new BN(segmentCount)), `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`);
             assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
             assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
+            assert(new BN(maxPlayersCountResult).eq(maxPlayersCount), `MaxPlayersCount doesn't match. expected ${maxPlayersCount.toString()}; got ${maxPlayersCountResult}`);
         });
 
         it("checks if game starts at segment zero", async () => {
@@ -259,6 +308,30 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(goodGhosting.joinGame( { from: player1 }), "Cannot join the game more than once");
         });
 
+        it("reverts if more players than maxPlayersCount try to join", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            const contract = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                2, // max of 2 players
+                { from: admin },
+            );
+            await token.approve(contract.address, segmentPayment, { from: player1 });
+            await contract.joinGame( { from: player1 });
+            await token.approve(contract.address, segmentPayment, { from: player2 });
+            await contract.joinGame( { from: player2 });
+            await token.approve(contract.address, segmentPayment, { from: nonPlayer });
+            await truffleAssert.reverts(contract.joinGame( { from: nonPlayer }), "Reached max quantity of players allowed");
+        });
+
         it("stores the player(s) who joined the game", async () => {
             // Player1 joins the game
             await approveDaiToContract(player1);
@@ -315,7 +388,6 @@ contract("GoodGhosting", (accounts) => {
             );
         });
     });
-
 
     describe("when a player tries to rejoin", async () => {
         it("reverts if user tries to rejoin the game after segment 0", async() => {
@@ -702,6 +774,7 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 0,
                 pap.address,
+                maxPlayersCount,
                 { from: admin },
             );
             await joinGamePaySegmentsAndComplete(player1);
@@ -1184,6 +1257,7 @@ contract("GoodGhosting", (accounts) => {
                 fee,
                 0,
                 pap.address,
+                maxPlayersCount,
                 { from: admin },
             );
         });

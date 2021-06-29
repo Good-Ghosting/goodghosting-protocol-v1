@@ -17,6 +17,7 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
         @param _customFee performance fee charged by admin. Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
+        @param _maxPlayersCount max quantity of players allowed to join the game
         @param _incentiveController matic reward claim contract.
         @param _matic matic token address.
         @param _merkleRoot merkle root to verify players on chain to allow only whitelisted users join.
@@ -30,6 +31,7 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
         uint256 _earlyWithdrawalFee,
         uint256 _customFee,
         address _dataProvider,
+        uint256 _maxPlayersCount,
         address _incentiveController,
         IERC20 _matic,
         bytes32 _merkleRoot
@@ -44,6 +46,7 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
             _earlyWithdrawalFee,
             _customFee,
             _dataProvider,
+            _maxPlayersCount,
             _incentiveController,
             _matic
         )
