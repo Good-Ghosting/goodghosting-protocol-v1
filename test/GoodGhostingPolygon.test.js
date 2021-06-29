@@ -31,6 +31,7 @@ contract("GoodGhostingPolygon", (accounts) => {
     const segmentPayment = daiDecimals.mul(new BN(10)); // equivalent to 10 DAI
     const segmentCount = 6;
     const segmentLength = 180;
+    const maxPlayersCount = new BN(100);
 
     beforeEach(async () => {
         global.web3 = web3;
@@ -55,6 +56,7 @@ contract("GoodGhostingPolygon", (accounts) => {
             fee,
             adminFee,
             pap.address,
+            maxPlayersCount,
             incentiveController.address,
             incentiveController.address,
             { from: admin },
@@ -143,6 +145,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 0,
                 adminFee,
                 pap.address,
+                maxPlayersCount,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },
@@ -162,6 +165,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 15,
                 adminFee,
                 pap.address,
+                maxPlayersCount,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },
@@ -181,10 +185,57 @@ contract("GoodGhostingPolygon", (accounts) => {
                 fee,
                 30,
                 pap.address,
+                maxPlayersCount,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },
             ));
+        });
+
+        it("reverts if the contract is deployed with max player count equal to zero", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(
+                GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    0,
+                    pap.address,
+                    new BN(0), // set to 0 to force revert
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                ),
+                "_maxPlayersCount must be greater than zero"
+            );
+        });
+
+        it("accepts setting type(uint256).max as the max number of players", async () => {
+            const expectedValue = new BN(2).pow(new BN(256)).sub(new BN(1));
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            const contract = await GoodGhostingPolygon.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+            const result = new BN(await contract.maxPlayersCount.call());
+            assert(expectedValue.eq(result), "expected max number of players to equal type(uint256).max");
         });
     });
 
@@ -198,6 +249,7 @@ contract("GoodGhostingPolygon", (accounts) => {
             const lastSegmentResult = await goodGhosting.lastSegment.call();
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
+            const maxPlayersCountResult = await goodGhosting.maxPlayersCount.call();
             assert(incentiveControllerResult === incentiveController.address, `Incentive Controller address doesn't match. expected ${incentiveController.address}; got ${incentiveControllerResult}`);
 
             assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
@@ -206,6 +258,8 @@ contract("GoodGhostingPolygon", (accounts) => {
             assert(new BN(lastSegmentResult).eq(new BN(segmentCount)), `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`);
             assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
             assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
+            assert(new BN(maxPlayersCountResult).eq(maxPlayersCount), `MaxPlayersCount doesn't match. expected ${maxPlayersCount.toString()}; got ${maxPlayersCountResult}`);
+
         });
 
         it("checks if game starts at segment zero", async () => {
@@ -607,6 +661,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 fee,
                 0,
                 pap.address,
+                maxPlayersCount,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },

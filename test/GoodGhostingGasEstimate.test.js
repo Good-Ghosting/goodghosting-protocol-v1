@@ -48,6 +48,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         segmentLength,
         segmentPayment: segmentPaymentInt,
         customFee,
+        maxPlayersCount,
     } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
@@ -114,9 +115,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
             const expectedSegment = new BN(0);
-            const currentSegmentResult = await goodGhosting.getCurrentSegment.call(
-                { from: admin }
-            );
+            const currentSegmentResult = await goodGhosting.getCurrentSegment.call();
+            const maxPlayersCountResult = await goodGhosting.maxPlayersCount.call();
             assert(
                 inboundCurrencyResult === token.options.address,
                 `Inbound currency doesn't match. expected ${token.options.address}; got ${inboundCurrencyResult}`
@@ -142,6 +142,11 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 currentSegmentResult.eq(new BN(0)),
                 `should start at segment ${expectedSegment} but started at ${currentSegmentResult.toNumber()} instead.`
             );
+            assert(
+                new BN(maxPlayersCountResult).eq(new BN(maxPlayersCount)),
+                `MaxPlayersCount doesn't match. expected ${maxPlayersCount.toString()}; got ${maxPlayersCountResult}`
+            );
+
         });
 
         it("players approve DAI to contract and join the game", async () => {

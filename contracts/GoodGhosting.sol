@@ -47,6 +47,8 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable earlyWithdrawalFee;
     /// @notice The performance admin fee (percentage)
     uint256 public immutable customFee;
+    /// @notice Defines the max quantity of players allowed in the game
+    uint256 public immutable maxPlayersCount;
 
     struct Player {
         address addr;
@@ -110,8 +112,9 @@ contract GoodGhosting is Ownable, Pausable {
         @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
         @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
         @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
-        customFee
+        @param _customFee performance fee charged by admin. Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
+        @param _maxPlayersCount max quantity of players allowed to join the game
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -121,11 +124,13 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _segmentPayment,
         uint256 _earlyWithdrawalFee,
         uint256 _customFee,
-        address _dataProvider
+        address _dataProvider,
+        uint256 _maxPlayersCount
     ) public {
         require(_customFee <= 20);
         require(_earlyWithdrawalFee <= 10);
         require(_earlyWithdrawalFee > 0);
+        require(_maxPlayersCount > 0, "_maxPlayersCount must be greater than zero");
         // Initializes default variables
         firstSegmentStart = block.timestamp; //gets current time
         lastSegment = _segmentCount;
@@ -144,8 +149,8 @@ contract GoodGhosting is Ownable, Pausable {
         // atoken address in v2 is fetched from data provider contract
         (address adaiTokenAddress, , ) =
             dataProvider.getReserveTokensAddresses(address(_inboundCurrency));
-        // require(adaiTokenAddress != address(0), "Aave doesn't support _inboundCurrency");
         adaiToken = AToken(adaiTokenAddress);
+        maxPlayersCount = _maxPlayersCount;
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 MAX_ALLOWANCE = 2**256 - 1;
@@ -231,6 +236,7 @@ contract GoodGhosting is Ownable, Pausable {
         if (!canRejoin) {
             iterablePlayers.push(msg.sender);
         }
+        require(iterablePlayers.length <= maxPlayersCount, "Reached max quantity of players allowed");
         emit JoinedGame(msg.sender, segmentPayment);
         _transferDaiToContract();
     }
