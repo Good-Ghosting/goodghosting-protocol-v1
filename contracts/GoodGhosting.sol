@@ -343,17 +343,17 @@ contract GoodGhosting is Ownable, Pausable {
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
 
+        // First player to withdraw redeems everyone's funds
+        if (!redeemed) {
+            redeemFromExternalPool();
+        }
+
         uint256 payout = player.amountPaid;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
             payout = payout.add(totalGameInterest.div(winners.length));
         }
         emit Withdrawal(msg.sender, payout, 0);
-
-        // First player to withdraw redeems everyone's funds
-        if (!redeemed) {
-            redeemFromExternalPool();
-        }
 
         require(
             IERC20(daiToken).transfer(msg.sender, payout),
