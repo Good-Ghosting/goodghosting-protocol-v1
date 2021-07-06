@@ -97,6 +97,11 @@ contract GoodGhostingPolygon is GoodGhosting {
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
 
+        // First player to withdraw redeems everyone's funds
+        if (!redeemed) {
+            redeemFromExternalPool();
+        }
+
         uint256 payout = player.amountPaid;
         uint256 playerReward = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
@@ -105,11 +110,6 @@ contract GoodGhostingPolygon is GoodGhosting {
             playerReward = rewardsPerPlayer;
         }
         emit Withdrawal(msg.sender, payout, playerReward);
-
-        // First player to withdraw redeems everyone's funds
-        if (!redeemed) {
-            redeemFromExternalPool();
-        }
 
         require(
             IERC20(daiToken).transfer(msg.sender, payout),
