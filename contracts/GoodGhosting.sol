@@ -236,8 +236,8 @@ contract GoodGhosting is Ownable, Pausable {
         players[msg.sender] = newPlayer;
         if (!canRejoin) {
             iterablePlayers.push(msg.sender);
+            require(iterablePlayers.length <= maxPlayersCount, "Reached max quantity of players allowed");
         }
-        require(iterablePlayers.length <= maxPlayersCount, "Reached max quantity of players allowed");
         emit JoinedGame(msg.sender, segmentPayment);
         _transferDaiToContract();
     }
