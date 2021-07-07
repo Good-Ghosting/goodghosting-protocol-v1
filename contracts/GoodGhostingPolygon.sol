@@ -86,7 +86,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         if (rewardsPerPlayer == 0) {
             uint256 balance = IERC20(matic).balanceOf(address(this));
             require(
-                IERC20(matic).transfer(msg.sender, balance),
+                IERC20(matic).transfer(owner(), balance),
                 "Fail to transfer ERC20 tokens on withdraw"
             );
         }
