@@ -181,14 +181,15 @@ contract GoodGhosting is Ownable, Pausable {
     function adminFeeWithdraw() external virtual onlyOwner whenGameIsCompleted {
         require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
-        require(adminFeeAmount > 0, "No Fees Earned");
         adminWithdraw = true;
         emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
 
-        require(
-            IERC20(daiToken).transfer(owner(), adminFeeAmount),
-            "Fail to transfer ER20 tokens to admin"
-        );
+        if (adminFeeAmount > 0) {
+            require(
+                IERC20(daiToken).transfer(owner(), adminFeeAmount),
+                "Fail to transfer ER20 tokens to admin"
+            );
+        }
     }
 
     /**
@@ -308,7 +309,13 @@ contract GoodGhosting is Ownable, Pausable {
         }
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         // calculates gross interest
-        uint256 grossInterest = totalBalance.sub(totalGamePrincipal);
+        uint256 grossInterest = 0;
+        // Sanity check to avoid reverting due to overflow in the "subtraction" below.
+        // This could only happen in case Aave changes the 1:1 ratio between
+        // aToken vs. Token in the future (i.e., 1 aDAI is worth less than 1 DAI)
+        if (totalBalance > totalGamePrincipal) {
+            grossInterest = totalBalance.sub(totalGamePrincipal);
+        }
         // calculates the performance/admin fee (takes a cut - the admin percentage fee - from the pool's interest).
         // calculates the "gameInterest" (net interest) that will be split among winners in the game
         uint256 _adminFeeAmount;
