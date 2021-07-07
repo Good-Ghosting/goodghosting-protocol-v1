@@ -160,7 +160,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         // This could only happen in case Aave changes the 1:1 ratio between
         // aToken vs. Token in the future (i.e., 1 aDAI is worth less than 1 DAI)
         if (totalBalance > totalGamePrincipal) {
-            totalBalance.sub(totalGamePrincipal);
+            grossInterest = totalBalance.sub(totalGamePrincipal);
         }
         // calculates the performance/admin fee (takes a cut - the admin percentage fee - from the pool's interest).
         // calculates the "gameInterest" (net interest) that will be split among winners in the game
