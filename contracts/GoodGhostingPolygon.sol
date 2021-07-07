@@ -73,14 +73,16 @@ contract GoodGhostingPolygon is GoodGhosting {
     {
         require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
-        require(adminFeeAmount > 0, "No Fees Earned");
         adminWithdraw = true;
         emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
 
-        require(
-            IERC20(daiToken).transfer(owner(), adminFeeAmount),
-            "Fail to transfer ER20 tokens to admin"
-        );
+        if (adminFeeAmount > 0) {
+            require(
+                IERC20(daiToken).transfer(owner(), adminFeeAmount),
+                "Fail to transfer ER20 tokens to admin"
+            );
+        }
+
         if (rewardsPerPlayer == 0) {
             uint256 balance = IERC20(matic).balanceOf(address(this));
             require(

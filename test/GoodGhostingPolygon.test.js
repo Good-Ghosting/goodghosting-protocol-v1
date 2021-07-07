@@ -534,15 +534,23 @@ contract("GoodGhostingPolygon", (accounts) => {
                 await goodGhosting.adminFeeWithdraw({ from: admin });
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
             });
-
-            it("when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
-                await joinGamePaySegmentsAndComplete(player1);
-                await goodGhosting.redeemFromExternalPool({ from: player1 });
-                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
-            });
         });
 
         context("with no winners in the game", async () => {
+            it("does not revert when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
+                await approveDaiToContract(player1);
+                await goodGhosting.joinGame( { from: player1 });
+                await advanceToEndOfGame();
+                await goodGhosting.redeemFromExternalPool({ from: player1 });
+                const ZERO = new BN(0);
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+                truffleAssert.eventEmitted(
+                    result,
+                    "AdminWithdrawal",
+                    (ev) => ev.totalGameInterest.eq(ZERO) && ev.adminFeeAmount.eq(ZERO)
+                );
+            });
+
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
@@ -642,6 +650,17 @@ contract("GoodGhostingPolygon", (accounts) => {
         });
 
         context("with winners in the game", async () => {
+            it("does not revert when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
+                await joinGamePaySegmentsAndComplete(player1);
+                await goodGhosting.redeemFromExternalPool({ from: player1 });
+                const ZERO = new BN(0);
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+                truffleAssert.eventEmitted(
+                    result,
+                    "AdminWithdrawal",
+                    (ev) => ev.totalGameInterest.eq(ZERO) && ev.adminFeeAmount.eq(ZERO)
+                );
+            });
 
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
@@ -725,7 +744,7 @@ contract("GoodGhostingPolygon", (accounts) => {
     });
 
     describe("admin tries to withdraw fees with admin percentage fee equal to 0", async () => {
-        it("reverts when there is no interest generated", async () => {
+        it("does not revert when there is no interest generated", async () => {
             pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             await pap.setUnderlyingAssetAddress(token.address);
             goodGhosting = await GoodGhostingPolygon.new(
@@ -749,7 +768,16 @@ contract("GoodGhostingPolygon", (accounts) => {
             await token.approve(pap.address, toWad(1000), { from: admin });
             await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: player1 });
-            await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "No Fees Earned");
+            const contractBalance = await token.balanceOf(goodGhosting.address);
+            const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
+            const grossInterest = contractBalance.sub(totalGamePrincipal);
+            const ZERO = new BN(0);
+            const result = await goodGhosting.adminFeeWithdraw({ from: admin });
+            truffleAssert.eventEmitted(
+                result,
+                "AdminWithdrawal",
+                (ev) => ev.totalGameInterest.eq(grossInterest) && ev.adminFeeAmount.eq(ZERO)
+            );
         });
     });
 });
