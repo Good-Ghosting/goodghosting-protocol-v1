@@ -86,7 +86,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         if (rewardsPerPlayer == 0) {
             uint256 balance = IERC20(matic).balanceOf(address(this));
             require(
-                IERC20(matic).transfer(msg.sender, balance),
+                IERC20(matic).transfer(owner(), balance),
                 "Fail to transfer ERC20 tokens on withdraw"
             );
         }
@@ -131,7 +131,6 @@ contract GoodGhostingPolygon is GoodGhosting {
     function redeemFromExternalPool() public override whenGameIsCompleted {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
-        uint256 amount = 0;
         // Withdraws funds (principal + interest + rewards) from external pool
         if (adaiToken.balanceOf(address(this)) > 0) {
             lendingPool.withdraw(
@@ -142,20 +141,21 @@ contract GoodGhostingPolygon is GoodGhosting {
             // Claims the rewards from the external pool
             address[] memory assets = new address[](1);
             assets[0] = address(adaiToken);
-            amount = incentiveController.getRewardsBalance(
+            uint256 claimableRewards = incentiveController.getRewardsBalance(
                 assets,
                 address(this)
             );
-            if (amount > 0) {
-                amount = incentiveController.claimRewards(
+            if (claimableRewards > 0) {
+                incentiveController.claimRewards(
                     assets,
-                    amount,
+                    claimableRewards,
                     address(this)
                 );
             }
         }
 
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
+        uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
         // calculates gross interest
         uint256 grossInterest = 0;
         // Sanity check to avoid reverting due to overflow in the "subtraction" below.
@@ -180,7 +180,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             rewardsPerPlayer = 0;
             adminFeeAmount = grossInterest;
         } else {
-            rewardsPerPlayer = amount.div(winners.length);
+            rewardsPerPlayer = rewardsAmount.div(winners.length);
             adminFeeAmount = _adminFeeAmount;
         }
 
@@ -188,7 +188,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             totalBalance,
             totalGamePrincipal,
             totalGameInterest,
-            amount
+            rewardsAmount
         );
         emit WinnersAnnouncement(winners);
     }

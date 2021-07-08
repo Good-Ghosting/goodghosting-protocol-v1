@@ -2,9 +2,9 @@
 
 pragma solidity 0.6.11;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../aave/IncentiveController.sol";
+import "./ERC20Mintable.sol";
 
 import {
     ILendingPoolAddressesProvider
@@ -15,13 +15,13 @@ contract IncentiveControllerMock is
     ILendingPoolAddressesProvider,
     ILendingPool,
     IncentiveController,
-    ERC20
+    MockERC20Mintable
 {
     address public underlyingAssetAddress;
 
     constructor(string memory name, string memory symbol)
         public
-        ERC20(name, symbol)
+        MockERC20Mintable(name, symbol)
     {}
 
     /// ILendingPoolAddressesProvider interface

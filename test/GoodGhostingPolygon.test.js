@@ -67,6 +67,10 @@ contract("GoodGhostingPolygon", (accounts) => {
         await token.mint(player, toWad(1000), { from: admin });
     }
 
+    async function mintRewardsFor(to) {
+        await incentiveController.mint(to, toWad(1000), { from: admin });
+    }
+
     async function approveDaiToContract(fromAddr) {
         await token.approve(goodGhosting.address, segmentPayment, { from: fromAddr });
     }
@@ -321,6 +325,38 @@ contract("GoodGhostingPolygon", (accounts) => {
                 return ev.winners[0] === player1;
             }, "WinnersAnnouncement event should be emitted when funds are redeemed from external pool");
         });
+
+        it("allocates external rewards sent to contract to the players", async () => {
+            const incentiveRewards = new BN(toWad(1000));
+            const contractMaticBalanceBeforeIncentive = await incentiveController.balanceOf(goodGhosting.address);
+            await mintRewardsFor(goodGhosting.address);
+            const contractMaticBalanceAfterIncentive = await incentiveController.balanceOf(goodGhosting.address);
+            assert(
+                contractMaticBalanceAfterIncentive.eq(incentiveRewards.add(contractMaticBalanceBeforeIncentive)),
+                "contract rewards balance after incentive does not match"
+            );
+
+            await joinGamePaySegmentsAndComplete(player1);
+            const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
+            const rewardsPerPlayer = new BN (await goodGhosting.rewardsPerPlayer.call({ from: admin }));
+
+            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(goodGhosting.address);
+            const contractDaiBalance = await token.balanceOf(goodGhosting.address);
+            const expectedRewardAmount = contractMaticBalanceAfterRedeem.sub(contractMaticBalanceBeforeIncentive);
+
+            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceAfterIncentive));
+            assert(expectedRewardAmount.eq(rewardsPerPlayer), "rewardsPerPlayer does not match");
+            truffleAssert.eventEmitted(
+                result,
+                "FundsRedeemedFromExternalPool",
+                (ev) => (
+                    new BN(ev.totalAmount).eq(new BN(contractDaiBalance)) &&
+                    new BN(ev.rewards).eq(new BN(expectedRewardAmount))
+                ),
+                "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
+            );
+        });
+
     });
 
     describe("when no one wins the game", async () => {
