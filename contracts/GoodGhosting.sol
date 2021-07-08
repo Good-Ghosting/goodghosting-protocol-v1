@@ -160,12 +160,6 @@ contract GoodGhosting is Ownable, Pausable {
         );
     }
 
-    /// @notice gets the number of players in the game
-    /// @return number of players
-    function getNumberOfPlayers() external view returns (uint256) {
-        return iterablePlayers.length;
-    }
-
     /// @notice pauses the game. This function can be called only by the contract's admin.
     function pause() external onlyOwner whenNotPaused {
         _pause();
@@ -190,69 +184,6 @@ contract GoodGhosting is Ownable, Pausable {
                 "Fail to transfer ER20 tokens to admin"
             );
         }
-    }
-
-    /**
-        @dev Manages the transfer of funds from the player to the contract, recording
-        the required accounting operations to control the user's position in the pool.
-     */
-    function _transferDaiToContract() internal {
-        require(
-            daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
-            "You need to have allowance to do transfer DAI on the smart contract"
-        );
-
-        uint256 currentSegment = getCurrentSegment();
-        players[msg.sender].mostRecentSegmentPaid = currentSegment;
-        players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
-            segmentPayment
-        );
-        totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
-        require(
-            daiToken.transferFrom(msg.sender, address(this), segmentPayment),
-            "Transfer failed"
-        );
-
-        lendingPool.deposit(address(daiToken), segmentPayment, address(this), 155);
-    }
-
-    /// @notice Allows a player to join the game and controls
-    function _joinGame() internal {
-        require(getCurrentSegment() == 0, "Game has already started");
-        require(
-            players[msg.sender].addr != msg.sender ||
-                players[msg.sender].canRejoin,
-            "Cannot join the game more than once"
-        );
-        bool canRejoin = players[msg.sender].canRejoin;
-        Player memory newPlayer =
-            Player({
-                addr: msg.sender,
-                mostRecentSegmentPaid: 0,
-                amountPaid: 0,
-                withdrawn: false,
-                canRejoin: false
-            });
-        players[msg.sender] = newPlayer;
-        if (!canRejoin) {
-            iterablePlayers.push(msg.sender);
-            require(iterablePlayers.length <= maxPlayersCount, "Reached max quantity of players allowed");
-        }
-        emit JoinedGame(msg.sender, segmentPayment);
-        _transferDaiToContract();
-    }
-
-    /// @notice Calculates the current segment of the game.
-    /// @return current game segment
-    function getCurrentSegment() public view returns (uint256) {
-        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
-    }
-
-    /// @notice Checks if the game is completed or not.
-    /// @return "true" if completeted; otherwise, "false".
-    function isGameCompleted() public view returns (bool) {
-        // Game is completed when the current segment is greater than "lastSegment" of the game.
-        return getCurrentSegment() > lastSegment;
     }
 
     /// @notice Allows a player to join the game
@@ -292,55 +223,6 @@ contract GoodGhosting is Ownable, Pausable {
             IERC20(daiToken).transfer(msg.sender, withdrawAmount),
             "Fail to transfer ERC20 tokens on early withdraw"
         );
-    }
-
-    /// @notice Redeems funds from the external pool and updates the internal accounting controls related to the game stats.
-    /// @dev Can only be called after the game is completed.
-    function redeemFromExternalPool() public virtual whenGameIsCompleted {
-        require(!redeemed, "Redeem operation already happened for the game");
-        redeemed = true;
-        // Withdraws funds (principal + interest + rewards) from external pool
-        if (adaiToken.balanceOf(address(this)) > 0) {
-            lendingPool.withdraw(
-                address(daiToken),
-                type(uint256).max,
-                address(this)
-            );
-        }
-        uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
-        // calculates gross interest
-        uint256 grossInterest = 0;
-        // Sanity check to avoid reverting due to overflow in the "subtraction" below.
-        // This could only happen in case Aave changes the 1:1 ratio between
-        // aToken vs. Token in the future (i.e., 1 aDAI is worth less than 1 DAI)
-        if (totalBalance > totalGamePrincipal) {
-            grossInterest = totalBalance.sub(totalGamePrincipal);
-        }
-        // calculates the performance/admin fee (takes a cut - the admin percentage fee - from the pool's interest).
-        // calculates the "gameInterest" (net interest) that will be split among winners in the game
-        uint256 _adminFeeAmount;
-        if (customFee > 0) {
-            _adminFeeAmount = (grossInterest.mul(customFee)).div(100);
-            totalGameInterest = grossInterest.sub(_adminFeeAmount);
-        } else {
-            _adminFeeAmount = 0;
-            totalGameInterest = grossInterest;
-        }
-
-        // when there's no winners, admin takes all the interest + rewards
-        if (winners.length == 0) {
-            adminFeeAmount = grossInterest;
-        } else {
-            adminFeeAmount = _adminFeeAmount;
-        }
-
-        emit FundsRedeemedFromExternalPool(
-            totalBalance,
-            totalGamePrincipal,
-            totalGameInterest,
-            0
-        );
-        emit WinnersAnnouncement(winners);
     }
 
     /// @notice Allows player to withdraw their funds after the game ends with no loss (fee). Winners get a share of the interest earned.
@@ -411,6 +293,124 @@ contract GoodGhosting is Ownable, Pausable {
         }
 
         emit Deposit(msg.sender, currentSegment, segmentPayment);
+        _transferDaiToContract();
+    }
+
+    /// @notice gets the number of players in the game
+    /// @return number of players
+    function getNumberOfPlayers() external view returns (uint256) {
+        return iterablePlayers.length;
+    }
+
+    /// @notice Redeems funds from the external pool and updates the internal accounting controls related to the game stats.
+    /// @dev Can only be called after the game is completed.
+    function redeemFromExternalPool() public virtual whenGameIsCompleted {
+        require(!redeemed, "Redeem operation already happened for the game");
+        redeemed = true;
+        // Withdraws funds (principal + interest + rewards) from external pool
+        if (adaiToken.balanceOf(address(this)) > 0) {
+            lendingPool.withdraw(
+                address(daiToken),
+                type(uint256).max,
+                address(this)
+            );
+        }
+        uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
+        // calculates gross interest
+        uint256 grossInterest = 0;
+        // Sanity check to avoid reverting due to overflow in the "subtraction" below.
+        // This could only happen in case Aave changes the 1:1 ratio between
+        // aToken vs. Token in the future (i.e., 1 aDAI is worth less than 1 DAI)
+        if (totalBalance > totalGamePrincipal) {
+            grossInterest = totalBalance.sub(totalGamePrincipal);
+        }
+        // calculates the performance/admin fee (takes a cut - the admin percentage fee - from the pool's interest).
+        // calculates the "gameInterest" (net interest) that will be split among winners in the game
+        uint256 _adminFeeAmount;
+        if (customFee > 0) {
+            _adminFeeAmount = (grossInterest.mul(customFee)).div(100);
+            totalGameInterest = grossInterest.sub(_adminFeeAmount);
+        } else {
+            _adminFeeAmount = 0;
+            totalGameInterest = grossInterest;
+        }
+
+        // when there's no winners, admin takes all the interest + rewards
+        if (winners.length == 0) {
+            adminFeeAmount = grossInterest;
+        } else {
+            adminFeeAmount = _adminFeeAmount;
+        }
+
+        emit FundsRedeemedFromExternalPool(
+            totalBalance,
+            totalGamePrincipal,
+            totalGameInterest,
+            0
+        );
+        emit WinnersAnnouncement(winners);
+    }
+
+    /// @notice Calculates the current segment of the game.
+    /// @return current game segment
+    function getCurrentSegment() public view returns (uint256) {
+        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
+    }
+
+    /// @notice Checks if the game is completed or not.
+    /// @return "true" if completeted; otherwise, "false".
+    function isGameCompleted() public view returns (bool) {
+        // Game is completed when the current segment is greater than "lastSegment" of the game.
+        return getCurrentSegment() > lastSegment;
+    }
+
+    /**
+        @dev Manages the transfer of funds from the player to the contract, recording
+        the required accounting operations to control the user's position in the pool.
+     */
+    function _transferDaiToContract() internal {
+        require(
+            daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
+            "You need to have allowance to do transfer DAI on the smart contract"
+        );
+
+        uint256 currentSegment = getCurrentSegment();
+        players[msg.sender].mostRecentSegmentPaid = currentSegment;
+        players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
+            segmentPayment
+        );
+        totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
+        require(
+            daiToken.transferFrom(msg.sender, address(this), segmentPayment),
+            "Transfer failed"
+        );
+
+        lendingPool.deposit(address(daiToken), segmentPayment, address(this), 155);
+    }
+
+    /// @notice Allows a player to join the game and controls
+    function _joinGame() internal {
+        require(getCurrentSegment() == 0, "Game has already started");
+        require(
+            players[msg.sender].addr != msg.sender ||
+                players[msg.sender].canRejoin,
+            "Cannot join the game more than once"
+        );
+        bool canRejoin = players[msg.sender].canRejoin;
+        Player memory newPlayer =
+            Player({
+                addr: msg.sender,
+                mostRecentSegmentPaid: 0,
+                amountPaid: 0,
+                withdrawn: false,
+                canRejoin: false
+            });
+        players[msg.sender] = newPlayer;
+        if (!canRejoin) {
+            iterablePlayers.push(msg.sender);
+            require(iterablePlayers.length <= maxPlayersCount, "Reached max quantity of players allowed");
+        }
+        emit JoinedGame(msg.sender, segmentPayment);
         _transferDaiToContract();
     }
 }
