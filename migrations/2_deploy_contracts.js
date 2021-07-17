@@ -40,6 +40,7 @@ function printSummary(
         customFee,
         aaveContractAddress,
         maxPlayersCount,
+        incentiveToken,
         incentiveController,
         wmatic,
         merkleRoot,
@@ -66,7 +67,8 @@ function printSummary(
         "uint256", // earlyWithdrawFee
         "uint256", // customFee
         "address", // dataProvider/lending pool address
-        "uint256" // maxPlayersCount
+        "uint256", // maxPlayersCount
+        "address" // incentiveToken
     ];
     var parameterValues = [
         inboundCurrencyAddress,
@@ -77,7 +79,8 @@ function printSummary(
         earlyWithdrawFee,
         customFee,
         aaveContractAddress,
-        maxPlayersCount
+        maxPlayersCount,
+        incentiveToken
     ];
 
     if (isPolygon) {
@@ -95,7 +98,7 @@ function printSummary(
         parameterTypes.push(
             "address", // IncentiveController
             "address", // wmatic token
-            "bytes32"
+            "bytes32" // merkle root
         );
         parameterValues.push(
             incentiveController,
@@ -121,6 +124,7 @@ function printSummary(
     console.log(`Custom Pool Fee: ${customFee}%`);
     console.log(`Data Provider/Lending Pool Address: ${aaveContractAddress}`);
     console.log(`Max Quantity of Players: ${maxPlayersCount}`);
+    console.log(`Incentive Token: ${incentiveToken}`);
     if (isPolygon) {
         console.log(`Incentive Controller: ${incentiveController}`);
         console.log(`Matic Token: ${wmatic}`);
@@ -155,6 +159,7 @@ module.exports = function (deployer, network, accounts) {
         const incentiveController = poolConfigs.incentiveController;
         const wmatic = poolConfigs.wmatic;
         const maxPlayersCount = deployConfigs.maxPlayersCount;
+        const incentiveToken = poolConfigs.incentiveToken;
 
         let aaveContractAddress = poolConfigs.dataProvider;
         let goodGhostingContract = GoodGhostingContract; // defaults to Ethereum version
@@ -182,7 +187,8 @@ module.exports = function (deployer, network, accounts) {
             deployConfigs.earlyWithdrawFee,
             deployConfigs.customFee,
             aaveContractAddress,
-            maxPlayersCount
+            maxPlayersCount,
+            incentiveToken
         ];
         if (networkName === "polygon") {
             deploymentArgs.push(
@@ -214,6 +220,7 @@ module.exports = function (deployer, network, accounts) {
                 customFee: deployConfigs.customFee,
                 aaveContractAddress,
                 maxPlayersCount,
+                incentiveToken,
                 incentiveController,
                 wmatic,
                 merkleRoot: deployConfigs.merkleroot,

@@ -55,7 +55,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
     const segmentCount = 6;
     const segmentLength = 180;
     const maxPlayersCount = new BN(100);
-
+    const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
     beforeEach(async () => {
         global.web3 = web3;
@@ -81,6 +81,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
             adminFee,
             pap.address,
             maxPlayersCount,
+            ZERO_ADDRESS,
             incentiveController.address,
             incentiveController.address,
             merkleRoot,
@@ -136,6 +137,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 adminFee,
                 pap.address,
                 maxPlayersCount,
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
@@ -157,6 +159,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 adminFee,
                 pap.address,
                 maxPlayersCount,
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
@@ -178,6 +181,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 30,
                 pap.address,
                 maxPlayersCount,
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
@@ -200,6 +204,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                     0,
                     pap.address,
                     new BN(0), // set to 0 to force revert
+                    ZERO_ADDRESS,
                     incentiveController.address,
                     incentiveController.address,
                     merkleRoot,
@@ -224,6 +229,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 0,
                 pap.address,
                 "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
@@ -245,6 +251,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
             const merkleRootResult = await goodGhosting.merkleRoot.call();
             const maxPlayersCountResult = await goodGhosting.maxPlayersCount.call();
+            const incentiveToken = await goodGhosting.incentiveToken.call();
 
             assert(incentiveControllerResult === incentiveController.address, `Incentive Controller address doesn't match. expected ${incentiveController.address}; got ${incentiveControllerResult}`);
             assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
@@ -255,6 +262,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
             assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
             assert(merkleRootResult === merkleRoot, `MerkleRoot doesn't match. expected ${merkleRoot}; got ${merkleRootResult}`);
             assert(new BN(maxPlayersCountResult).eq(maxPlayersCount), `MaxPlayersCount doesn't match. expected ${maxPlayersCount.toString()}; got ${maxPlayersCountResult}`);
+            assert(incentiveToken === ZERO_ADDRESS);
         });
 
         it("checks if game starts at segment zero", async () => {
@@ -316,6 +324,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 0,
                 pap.address,
                 1, // max of 1 player
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,

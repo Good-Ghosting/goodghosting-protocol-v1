@@ -26,6 +26,8 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public adminFeeAmount;
     /// @notice controls if admin withdrew or not the performance fee.
     bool public adminWithdraw;
+    /// @notice total amount of incentive tokens to be distributed among winners
+    uint256 public totalIncentiveAmount = 0;
 
     /// @notice Address of the token used for depositing into the game by players (DAI)
     IERC20 public immutable daiToken;
@@ -49,6 +51,8 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable customFee;
     /// @notice Defines the max quantity of players allowed in the game
     uint256 public immutable maxPlayersCount;
+    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
+    IERC20 public immutable incentiveToken;
 
     struct Player {
         address addr;
@@ -74,13 +78,15 @@ contract GoodGhosting is Ownable, Pausable {
     event Withdrawal(
         address indexed player,
         uint256 amount,
-        uint256 playerReward
+        uint256 playerReward,
+        uint256 playerIncentive
     );
     event FundsRedeemedFromExternalPool(
         uint256 totalAmount,
         uint256 totalGamePrincipal,
         uint256 totalGameInterest,
-        uint256 rewards
+        uint256 rewards,
+        uint256 totalIncentiveAmount
     );
     event WinnersAnnouncement(address[] winners);
     event EarlyWithdrawal(
@@ -91,7 +97,8 @@ contract GoodGhosting is Ownable, Pausable {
     event AdminWithdrawal(
         address indexed admin,
         uint256 totalGameInterest,
-        uint256 adminFeeAmount
+        uint256 adminFeeAmount,
+        uint256 adminIncentiveAmount
     );
 
     modifier whenGameIsCompleted() {
@@ -115,6 +122,7 @@ contract GoodGhosting is Ownable, Pausable {
         @param _customFee performance fee charged by admin. Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
         @param _maxPlayersCount max quantity of players allowed to join the game
+        @param _incentiveToken optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -125,7 +133,8 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _earlyWithdrawalFee,
         uint256 _customFee,
         address _dataProvider,
-        uint256 _maxPlayersCount
+        uint256 _maxPlayersCount,
+        IERC20 _incentiveToken
     ) public {
         require(_customFee <= 20);
         require(_earlyWithdrawalFee <= 10);
@@ -151,6 +160,7 @@ contract GoodGhosting is Ownable, Pausable {
             dataProvider.getReserveTokensAddresses(address(_inboundCurrency));
         adaiToken = AToken(adaiTokenAddress);
         maxPlayersCount = _maxPlayersCount;
+        incentiveToken = _incentiveToken;
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 MAX_ALLOWANCE = 2**256 - 1;
@@ -176,12 +186,27 @@ contract GoodGhosting is Ownable, Pausable {
         require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
         adminWithdraw = true;
-        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
+
+        // when there are no winners, admin will be able to withdraw the
+        // additional incentives sent to the pool, avoiding locking the funds.
+        uint256 adminIncentiveAmount = 0;
+        if (winners.length == 0 && totalIncentiveAmount > 0) {
+            adminIncentiveAmount = totalIncentiveAmount;
+        }
+
+        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount, adminIncentiveAmount);
 
         if (adminFeeAmount > 0) {
             require(
                 IERC20(daiToken).transfer(owner(), adminFeeAmount),
                 "Fail to transfer ER20 tokens to admin"
+            );
+        }
+
+        if (adminIncentiveAmount > 0) {
+            require(
+                IERC20(incentiveToken).transfer(owner(), adminIncentiveAmount),
+                "Fail to transfer ER20 incentive tokens to admin"
             );
         }
     }
@@ -238,16 +263,28 @@ contract GoodGhosting is Ownable, Pausable {
         }
 
         uint256 payout = player.amountPaid;
+        uint256 playerIncentive = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
             payout = payout.add(totalGameInterest.div(winners.length));
+            // If there's additional incentives, distributes them to winners
+            if (totalIncentiveAmount > 0) {
+                playerIncentive = totalIncentiveAmount.div(winners.length);
+            }
         }
-        emit Withdrawal(msg.sender, payout, 0);
+        emit Withdrawal(msg.sender, payout, 0, playerIncentive);
 
         require(
             IERC20(daiToken).transfer(msg.sender, payout),
             "Fail to transfer ERC20 tokens on withdraw"
         );
+
+        if (playerIncentive > 0) {
+            require(
+                IERC20(incentiveToken).transfer(msg.sender, playerIncentive),
+                "Fail to transfer ERC20 incentive tokens on withdraw"
+            );
+        }
     }
 
     /// @notice Allows players to make deposits for the game segments, after joining the game.
@@ -316,8 +353,14 @@ contract GoodGhosting is Ownable, Pausable {
             );
         }
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
+        // If there's an incentive token address defined, sets the total incentive amount to be distributed among winners.
+        if (address(incentiveToken) != address(0)) {
+            totalIncentiveAmount = IERC20(incentiveToken).balanceOf(address(this));
+        }
+
         // calculates gross interest
         uint256 grossInterest = 0;
+
         // Sanity check to avoid reverting due to overflow in the "subtraction" below.
         // This could only happen in case Aave changes the 1:1 ratio between
         // aToken vs. Token in the future (i.e., 1 aDAI is worth less than 1 DAI)
@@ -346,7 +389,8 @@ contract GoodGhosting is Ownable, Pausable {
             totalBalance,
             totalGamePrincipal,
             totalGameInterest,
-            0
+            0,
+            totalIncentiveAmount
         );
         emit WinnersAnnouncement(winners);
     }
