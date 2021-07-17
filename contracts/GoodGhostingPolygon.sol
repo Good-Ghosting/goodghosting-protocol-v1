@@ -29,6 +29,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         @param _customFee performance fee charged by admin. Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
         @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
         @param _maxPlayersCount max quantity of players allowed to join the game
+        @param _incentiveToken optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
         @param _incentiveController matic reward claim contract.
         @param _matic matic token address.
      */
@@ -42,6 +43,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         uint256 _customFee,
         address _dataProvider,
         uint256 _maxPlayersCount,
+        IERC20 _incentiveToken,
         address _incentiveController,
         IERC20 _matic
     )
@@ -55,7 +57,8 @@ contract GoodGhostingPolygon is GoodGhosting {
             _earlyWithdrawalFee,
             _customFee,
             _dataProvider,
-            _maxPlayersCount
+            _maxPlayersCount,
+            _incentiveToken
         )
     {
         // initializing incentiveController contract
@@ -74,7 +77,15 @@ contract GoodGhostingPolygon is GoodGhosting {
         require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
         adminWithdraw = true;
-        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount);
+
+        // when there are no winners, admin will be able to withdraw the
+        // additional incentives sent to the pool, avoiding locking the funds.
+        uint256 adminIncentiveAmount = 0;
+        if (winners.length == 0 && totalIncentiveAmount > 0) {
+            adminIncentiveAmount = totalIncentiveAmount;
+        }
+
+        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount, adminIncentiveAmount);
 
         if (adminFeeAmount > 0) {
             require(
@@ -83,11 +94,18 @@ contract GoodGhostingPolygon is GoodGhosting {
             );
         }
 
+        if (adminIncentiveAmount > 0) {
+            require(
+                IERC20(incentiveToken).transfer(owner(), adminIncentiveAmount),
+                "Fail to transfer ER20 incentive tokens to admin"
+            );
+        }
+
         if (rewardsPerPlayer == 0) {
             uint256 balance = IERC20(matic).balanceOf(address(this));
             require(
                 IERC20(matic).transfer(owner(), balance),
-                "Fail to transfer ERC20 tokens on withdraw"
+                "Fail to transfer ERC20 rewards tokens to admin"
             );
         }
     }
@@ -105,18 +123,30 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
 
         uint256 payout = player.amountPaid;
+        uint256 playerIncentive = 0;
         uint256 playerReward = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
             payout = payout.add(totalGameInterest.div(winners.length));
             playerReward = rewardsPerPlayer;
+            // If there's additional incentives, distributes them to winners
+            if (totalIncentiveAmount > 0) {
+                playerIncentive = totalIncentiveAmount.div(winners.length);
+            }
         }
-        emit Withdrawal(msg.sender, payout, playerReward);
+        emit Withdrawal(msg.sender, payout, playerReward, playerIncentive);
 
         require(
             IERC20(daiToken).transfer(msg.sender, payout),
             "Fail to transfer ERC20 tokens on withdraw"
         );
+
+        if (playerIncentive > 0) {
+            require(
+                IERC20(incentiveToken).transfer(msg.sender, playerIncentive),
+                "Fail to transfer ERC20 incentive tokens on withdraw"
+            );
+        }
 
         if (playerReward > 0) {
             require(
@@ -156,6 +186,10 @@ contract GoodGhostingPolygon is GoodGhosting {
 
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
+        // If there's an incentive token address defined, sets the total incentive amount to be distributed among winners.
+        if (address(incentiveToken) != address(0)) {
+            totalIncentiveAmount = IERC20(incentiveToken).balanceOf(address(this));
+        }
         // calculates gross interest
         uint256 grossInterest = 0;
         // Sanity check to avoid reverting due to overflow in the "subtraction" below.
@@ -188,7 +222,8 @@ contract GoodGhostingPolygon is GoodGhosting {
             totalBalance,
             totalGamePrincipal,
             totalGameInterest,
-            rewardsAmount
+            rewardsAmount,
+            totalIncentiveAmount
         );
         emit WinnersAnnouncement(winners);
     }

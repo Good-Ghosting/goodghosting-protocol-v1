@@ -122,7 +122,7 @@ On Ethereum Mainnet, the account `0x4a75f0ae51a5d616ada4db52be140d89302aaf78` ha
 On Polygon Vigil, the process is similar to Ethereum Mainnet described above, but the commands are slightly different:
 
 - On a terminal window, execute `ganache-cli` forking from mainnet. For details, check this [article](https://ethereumdev.io/testing-your-smart-contract-with-existing-protocols-ganache-fork/). Make sure to pass the address defined in the `.env` file in the `--unlock` parameter. The full command should look something like this:
-  `ganache-cli -f https://matic-mainnet-full-rpc.bwarelabs.com -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
+  `ganache-cli -f https://matic-mainnet-archive-rpc.bwarelabs.com -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock {DAI_ACCOUNT_HOLDER_FORKED_NETWORK}`
 
   or
 

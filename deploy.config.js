@@ -15,16 +15,18 @@ exports.providers = {
                 address: "0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD",
                 decimals: 18,
             },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         polygon: {
             lendingPoolAddressProvider: "0xd05e3E715d945B59290df0ae8eF85c1BdB684744",
             dataProvider: "0x7551b5D2763519d4e37e8B81929D336De671d46d",
-            incentiveController: '0x357D51124f59836DeD84c8a1730D72B749d8BC23',
-            wmatic: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
+            incentiveController: "0x357D51124f59836DeD84c8a1730D72B749d8BC23",
+            wmatic: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
             dai: {
                 address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
                 decimals: 18,
-            }
+            },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         alfajores: {
             lendingPoolAddressProvider: "0x6EAE47ccEFF3c3Ac94971704ccd25C7820121483",
@@ -40,6 +42,7 @@ exports.providers = {
                 address: "0xf80A32A835F79D7787E8a8ee5721D0fEaFd78108",                  /* Note: Ropsten depreciated in Aave v2 */
                 decimals: 18,
             },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         mainnet: {
             lendingPoolAddressProvider: "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
@@ -48,6 +51,7 @@ exports.providers = {
                 address: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
                 decimals: 18,
             },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
         },
     }
 };

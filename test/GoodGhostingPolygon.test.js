@@ -32,6 +32,7 @@ contract("GoodGhostingPolygon", (accounts) => {
     const segmentCount = 6;
     const segmentLength = 180;
     const maxPlayersCount = new BN(100);
+    const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
     beforeEach(async () => {
         global.web3 = web3;
@@ -57,6 +58,7 @@ contract("GoodGhostingPolygon", (accounts) => {
             adminFee,
             pap.address,
             maxPlayersCount,
+            ZERO_ADDRESS,
             incentiveController.address,
             incentiveController.address,
             { from: admin },
@@ -82,14 +84,18 @@ contract("GoodGhostingPolygon", (accounts) => {
         await timeMachine.advanceTime(weekInSecs * (segmentCount + 1));
     }
 
-    async function joinGamePaySegmentsAndComplete(player) {
+    async function joinGamePaySegmentsAndComplete(player, contractInstance) {
+        let contract = contractInstance;
+        if (!contract) {
+            contract = goodGhosting;
+        }
         await approveDaiToContract(player);
-        await goodGhosting.joinGame( { from: player });
+        await contract.joinGame( { from: player });
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
         for (let index = 1; index < segmentCount; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
-            await goodGhosting.makeDeposit({ from: player });
+            await contract.makeDeposit({ from: player });
         }
         // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
         // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
@@ -150,6 +156,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 adminFee,
                 pap.address,
                 maxPlayersCount,
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },
@@ -170,6 +177,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 adminFee,
                 pap.address,
                 maxPlayersCount,
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },
@@ -190,6 +198,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 30,
                 pap.address,
                 maxPlayersCount,
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },
@@ -211,6 +220,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                     0,
                     pap.address,
                     new BN(0), // set to 0 to force revert
+                    ZERO_ADDRESS,
                     incentiveController.address,
                     incentiveController.address,
                     { from: admin },
@@ -234,6 +244,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 0,
                 pap.address,
                 "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },
@@ -254,8 +265,9 @@ contract("GoodGhostingPolygon", (accounts) => {
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
             const maxPlayersCountResult = await goodGhosting.maxPlayersCount.call();
-            assert(incentiveControllerResult === incentiveController.address, `Incentive Controller address doesn't match. expected ${incentiveController.address}; got ${incentiveControllerResult}`);
+            const incentiveToken = await goodGhosting.incentiveToken.call();
 
+            assert(incentiveControllerResult === incentiveController.address, `Incentive Controller address doesn't match. expected ${incentiveController.address}; got ${incentiveControllerResult}`);
             assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
             assert(interestCurrencyResult === aToken.address, `Interest currency doesn't match. expected ${aToken.address}; got ${interestCurrencyResult}`);
             assert(lendingPoolAddressProviderResult === pap.address, `LendingPoolAddressesProvider doesn't match. expected ${pap.address}; got ${lendingPoolAddressProviderResult}`);
@@ -263,7 +275,7 @@ contract("GoodGhostingPolygon", (accounts) => {
             assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
             assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
             assert(new BN(maxPlayersCountResult).eq(maxPlayersCount), `MaxPlayersCount doesn't match. expected ${maxPlayersCount.toString()}; got ${maxPlayersCountResult}`);
-
+            assert(incentiveToken === ZERO_ADDRESS);
         });
 
         it("checks if game starts at segment zero", async () => {
@@ -355,6 +367,52 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
+        });
+
+        context("when incentive token is defined", async () => {
+            const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
+            const incentiveAmount = new BN(toWad(10));
+            let contract;
+            let incentiveToken;
+
+            beforeEach(async () => {
+                incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
+                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+                aToken = await IERC20.at(await pap.getLendingPool.call());
+                await pap.setUnderlyingAssetAddress(token.address);
+                contract = await GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    0,
+                    pap.address,
+                    "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                    incentiveToken.address,
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                );
+            });
+
+            it("sets totalIncentiveAmount to amount sent to contract", async () => {
+                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
+                await token.approve(contract.address, approvalAmount, { from: player1 });
+                await joinGamePaySegmentsAndComplete(player1, contract);
+                await contract.redeemFromExternalPool({ from: player1 });
+                const result = new BN(await contract.totalIncentiveAmount.call());
+                assert(result.eq(incentiveAmount), `totalIncentiveAmount should be ${incentiveAmount.toString()}; received ${result.toString()}`);
+            });
+
+            it("sets totalIncentiveAmount to zero if no amount is sent to contract", async () => {
+                await token.approve(contract.address, approvalAmount, { from: player1 });
+                await joinGamePaySegmentsAndComplete(player1, contract);
+                await contract.redeemFromExternalPool({ from: player1 });
+                const result = new BN(await contract.totalIncentiveAmount.call());
+                assert(result.eq(new BN(0)), `totalIncentiveAmount should be 0; received ${result.toString()}`);
+            });
         });
 
     });
@@ -550,6 +608,121 @@ contract("GoodGhostingPolygon", (accounts) => {
                 return ev.player === player1 && new BN(ev.playerReward/10**18).eq(new BN(1));
             }, "unable to withdraw amount");
         });
+
+        context("when incentive token is defined", async () => {
+            const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
+            const incentiveAmount = new BN(toWad(10));
+            const rewardAmount = new BN(toWad(1));
+            let contract;
+            let incentiveToken;
+
+            beforeEach(async () => {
+                incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
+                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+                aToken = await IERC20.at(await pap.getLendingPool.call());
+                await pap.setUnderlyingAssetAddress(token.address);
+                contract = await GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    0,
+                    pap.address,
+                    "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                    incentiveToken.address,
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                );
+            });
+
+            it("pays additional incentive to winners when incentive is sent to contract", async () => {
+                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
+                await token.approve(contract.address, approvalAmount, { from: player1 });
+                await token.approve(contract.address, approvalAmount, { from: player2 });
+
+                const player1IncentiveBalanceBefore = await incentiveToken.balanceOf(player1);
+                const player2IncentiveBalanceBefore = await incentiveToken.balanceOf(player2);
+                await contract.joinGame({ from: player2 });
+                await joinGamePaySegmentsAndComplete(player1, contract);
+                await contract.redeemFromExternalPool({ from: player1 });
+
+                const resultPlayer2 = await contract.withdraw({ from: player2});
+                const resultPlayer1 = await contract.withdraw({ from: player1 });
+
+                const player1IncentiveBalanceAfter = await incentiveToken.balanceOf(player1);
+                const player2IncentiveBalanceAfter = await incentiveToken.balanceOf(player2);
+
+                assert(
+                    player2IncentiveBalanceBefore.eq(player2IncentiveBalanceAfter),
+                    "player2 incentive token balance should be equal before and after withdrawal",
+                );
+                assert(
+                    player1IncentiveBalanceAfter.eq(player1IncentiveBalanceBefore.add(incentiveAmount)),
+                    "player1 incentive balance should be equal to incentive sent",
+                );
+
+                truffleAssert.eventEmitted(resultPlayer2, "Withdrawal", (ev) => {
+                    return (
+                        ev.player === player2 &&
+                        new BN(ev.playerReward).eq(new BN(0)) &&
+                        new BN(ev.playerIncentive).eq(new BN(0))
+                    );
+                }, "invalid withdraw amounts for player 2");
+
+                truffleAssert.eventEmitted(resultPlayer1, "Withdrawal", (ev) => {
+                    return (
+                        ev.player === player1 &&
+                        new BN(ev.playerReward).eq(rewardAmount) &&
+                        new BN(ev.playerIncentive).eq(incentiveAmount)
+                    );
+                }, "invalid withdraw amounts for player 1");
+            });
+
+            it("does not pay additional incentive to winners if incentive is not sent to contract", async () => {
+                await token.approve(contract.address, approvalAmount, { from: player1 });
+                await token.approve(contract.address, approvalAmount, { from: player2 });
+
+                const player1IncentiveBalanceBefore = await incentiveToken.balanceOf(player1);
+                const player2IncentiveBalanceBefore = await incentiveToken.balanceOf(player2);
+                await contract.joinGame({ from: player2 });
+                await joinGamePaySegmentsAndComplete(player1, contract);
+                await contract.redeemFromExternalPool({ from: player1 });
+
+                const resultPlayer2 = await contract.withdraw({ from: player2});
+                const resultPlayer1 = await contract.withdraw({ from: player1 });
+
+                const player1IncentiveBalanceAfter = await incentiveToken.balanceOf(player1);
+                const player2IncentiveBalanceAfter = await incentiveToken.balanceOf(player2);
+
+                assert(
+                    player2IncentiveBalanceBefore.eq(player2IncentiveBalanceAfter),
+                    "player2 incentive token balance should be equal before and after withdrawal",
+                );
+                assert(
+                    player1IncentiveBalanceBefore.eq(player1IncentiveBalanceAfter),
+                    "player1 incentive token balance should be equal before and after withdrawal",
+                );
+
+                truffleAssert.eventEmitted(resultPlayer2, "Withdrawal", (ev) => {
+                    return (
+                        ev.player === player2 &&
+                        new BN(ev.playerReward).eq(new BN(0)) &&
+                        new BN(ev.playerIncentive).eq(new BN(0))
+                    );
+                }, "invalid withdraw amounts for player 2");
+
+                truffleAssert.eventEmitted(resultPlayer1, "Withdrawal", (ev) => {
+                    return (
+                        ev.player === player1 &&
+                        new BN(ev.playerReward).eq(rewardAmount) &&
+                        new BN(ev.playerIncentive).eq(new BN(0))
+                    );
+                }, "invalid withdraw amounts for player 1");
+            });
+        });
     });
 
     describe("admin tries to withdraw fees with admin percentage fee greater than 0", async () => {
@@ -683,6 +856,50 @@ contract("GoodGhostingPolygon", (accounts) => {
                         && ev.adminFeeAmount.eq(expectedAdminFee);
                     });
             });
+
+            it("withdraw incentives sent to contract", async () => {
+                const incentiveAmount = new BN(toWad(10));
+                const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
+                const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
+                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+                aToken = await IERC20.at(await pap.getLendingPool.call());
+                await pap.setUnderlyingAssetAddress(token.address);
+                const contract = await GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    new BN(1),
+                    pap.address,
+                    "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                    incentiveToken.address,
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                );
+
+                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
+                await token.approve(contract.address, approvalAmount, { from: player1 });
+                await contract.joinGame({ from: player1 });
+                await advanceToEndOfGame();
+                await contract.redeemFromExternalPool({ from: player1 });
+                const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
+                const result = await contract.adminFeeWithdraw({ from: admin });
+                const incentiveBalanceAfter = await incentiveToken.balanceOf(admin);
+
+                assert(
+                    incentiveBalanceAfter.eq(incentiveBalanceBefore.add(incentiveAmount)),
+                    "admin incentive balance should be equal to incentive sent",
+                );
+
+                truffleAssert.eventEmitted(
+                    result,
+                    "AdminWithdrawal",
+                    (ev) => ev.adminIncentiveAmount.eq(incentiveAmount)
+                );
+            });
         });
 
         context("with winners in the game", async () => {
@@ -776,10 +993,54 @@ contract("GoodGhostingPolygon", (accounts) => {
                         && ev.adminFeeAmount.eq(expectedAdminFee);
                     });
             });
+
+            it("does not withdraw any incentives sent to contract", async () => {
+                const incentiveAmount = new BN(toWad(10));
+                const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
+                const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
+                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+                aToken = await IERC20.at(await pap.getLendingPool.call());
+                await pap.setUnderlyingAssetAddress(token.address);
+                const contract = await GoodGhostingPolygon.new(
+                    token.address,
+                    pap.address,
+                    segmentCount,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    new BN(1),
+                    pap.address,
+                    "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                    incentiveToken.address,
+                    incentiveController.address,
+                    incentiveController.address,
+                    { from: admin },
+                );
+
+                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
+                await token.approve(contract.address, approvalAmount, { from: player1 });
+                await joinGamePaySegmentsAndComplete(player1, contract);
+                await advanceToEndOfGame();
+                await contract.redeemFromExternalPool({ from: player1 });
+                const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
+                const result = await contract.adminFeeWithdraw({ from: admin });
+                const incentiveBalanceAfter = await incentiveToken.balanceOf(admin);
+
+                assert(
+                    incentiveBalanceAfter.eq(incentiveBalanceBefore),
+                    "admin incentive balance before game should be equal to balance after game",
+                );
+
+                truffleAssert.eventEmitted(
+                    result,
+                    "AdminWithdrawal",
+                    (ev) => ev.adminIncentiveAmount.eq(new BN(0))
+                );
+            });
         });
     });
 
-    describe("admin tries to withdraw fees with admin percentage fee equal to 0", async () => {
+    describe("admin tries to withdraw fees with admin percentage fee equal to 0 and no winners", async () => {
         it("does not revert when there is no interest generated", async () => {
             pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             await pap.setUnderlyingAssetAddress(token.address);
@@ -793,6 +1054,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 0,
                 pap.address,
                 maxPlayersCount,
+                ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
                 { from: admin },
@@ -813,6 +1075,50 @@ contract("GoodGhostingPolygon", (accounts) => {
                 result,
                 "AdminWithdrawal",
                 (ev) => ev.totalGameInterest.eq(grossInterest) && ev.adminFeeAmount.eq(ZERO)
+            );
+        });
+
+        it("withdraw incentives sent to contract", async () => {
+            const incentiveAmount = new BN(toWad(10));
+            const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
+            const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            const contract = await GoodGhostingPolygon.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                new BN(0),
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                incentiveToken.address,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+
+            await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
+            await token.approve(contract.address, approvalAmount, { from: player1 });
+            await contract.joinGame({ from: player1 });
+            await advanceToEndOfGame();
+            await contract.redeemFromExternalPool({ from: player1 });
+            const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
+            const result = await contract.adminFeeWithdraw({ from: admin });
+            const incentiveBalanceAfter = await incentiveToken.balanceOf(admin);
+
+            assert(
+                incentiveBalanceAfter.eq(incentiveBalanceBefore.add(incentiveAmount)),
+                "admin incentive balance should be equal to incentive sent",
+            );
+
+            truffleAssert.eventEmitted(
+                result,
+                "AdminWithdrawal",
+                (ev) => ev.adminIncentiveAmount.eq(incentiveAmount)
             );
         });
     });
