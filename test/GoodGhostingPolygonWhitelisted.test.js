@@ -238,6 +238,182 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
             const result = new BN(await contract.maxPlayersCount.call());
             assert(expectedValue.eq(result), "expected max number of players to equal type(uint256).max");
         });
+
+        it("reverts if the contract is deployed with invalid inbound token address", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhostingPolygonWhitelisted.new(
+                ZERO_ADDRESS,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                incentiveController.address,
+                incentiveController.address,
+                merkleRoot,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with invalid lending pool address", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhostingPolygonWhitelisted.new(
+                token.address,
+                ZERO_ADDRESS,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                incentiveController.address,
+                incentiveController.address,
+                merkleRoot,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with segment count as 0", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhostingPolygonWhitelisted.new(
+                token.address,
+                pap.address,
+                new BN(0),
+                segmentLength,
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                incentiveController.address,
+                incentiveController.address,
+                merkleRoot,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with segment length as 0", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhostingPolygonWhitelisted.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                new BN(0),
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                incentiveController.address,
+                incentiveController.address,
+                merkleRoot,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with segment payment as 0", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhostingPolygonWhitelisted.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                new BN(0),
+                1,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                incentiveController.address,
+                incentiveController.address,
+                merkleRoot,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with invalid data provider address", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhostingPolygonWhitelisted.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                1,
+                adminFee,
+                ZERO_ADDRESS,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                incentiveController.address,
+                incentiveController.address,
+                merkleRoot,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with invalid incentive controller address", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhostingPolygonWhitelisted.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                ZERO_ADDRESS,
+                incentiveController.address,
+                merkleRoot,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with invalid matic token address", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhostingPolygonWhitelisted.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                merkleRoot,
+                { from: admin },
+            ));
+        });
     });
 
     describe("when the contract is deployed", async () => {

@@ -140,6 +140,12 @@ contract GoodGhosting is Ownable, Pausable {
         require(_earlyWithdrawalFee <= 10);
         require(_earlyWithdrawalFee > 0);
         require(_maxPlayersCount > 0, "_maxPlayersCount must be greater than zero");
+        require(address(_inboundCurrency) != address(0));
+        require(address(_lendingPoolAddressProvider) != address(0));
+        require(_segmentCount > 0);
+        require(_segmentLength > 0);
+        require(_segmentPayment > 0);
+        require(_dataProvider != address(0));
         // Initializes default variables
         firstSegmentStart = block.timestamp; //gets current time
         lastSegment = _segmentCount;

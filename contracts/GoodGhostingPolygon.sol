@@ -61,6 +61,8 @@ contract GoodGhostingPolygon is GoodGhosting {
             _incentiveToken
         )
     {
+        require(_incentiveController != address(0));
+        require(address(_matic) != address(0));
         // initializing incentiveController contract
         incentiveController = IncentiveController(_incentiveController);
         matic = _matic;

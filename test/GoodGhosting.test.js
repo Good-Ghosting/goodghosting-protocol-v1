@@ -149,6 +149,120 @@ contract("GoodGhosting", (accounts) => {
             ));
         });
 
+        it("reverts if the contract is deployed with invalid inbound token address", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                ZERO_ADDRESS,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with invalid lending pool address", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                token.address,
+                ZERO_ADDRESS,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with segment count as 0", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                token.address,
+                pap.address,
+                new BN(0),
+                segmentLength,
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with segment length as 0", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                new BN(0),
+                segmentPayment,
+                3,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with segment payment as 0", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                new BN(0),
+                1,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                { from: admin },
+            ));
+        });
+
+        it("reverts if the contract is deployed with invalid data provider address", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            await truffleAssert.reverts(GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                1,
+                adminFee,
+                ZERO_ADDRESS,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                { from: admin },
+            ));
+        });
+
         it("reverts if the contract is deployed with early withdraw fee more than 10%", async () => {
             pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
