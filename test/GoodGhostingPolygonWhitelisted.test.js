@@ -142,7 +142,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "_earlyWithdrawalFee must be greater than zero");
         });
 
         it("reverts if the contract is deployed with early withdraw fee more than 10%", async () => {
@@ -164,7 +165,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "_earlyWithdrawalFee must be less than or equal to 10%");
         });
 
         it("reverts if the contract is deployed with admin fee more than 20%", async () => {
@@ -186,7 +188,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "_customFee must be less than or equal to 20%");
         });
 
         it("reverts if the contract is deployed with max player count equal to zero", async () => {
@@ -258,7 +261,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "invalid _inboundCurrency address");
         });
 
         it("reverts if the contract is deployed with invalid lending pool address", async () => {
@@ -280,7 +284,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "invalid _lendingPoolAddressProvider address");
         });
 
         it("reverts if the contract is deployed with segment count as 0", async () => {
@@ -302,7 +307,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "_segmentCount must be greater than zero");
         });
 
         it("reverts if the contract is deployed with segment length as 0", async () => {
@@ -324,7 +330,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "_segmentLength must be greater than zero");
         });
 
         it("reverts if the contract is deployed with segment payment as 0", async () => {
@@ -346,7 +353,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "_segmentPayment must be greater than zero");
         });
 
         it("reverts if the contract is deployed with invalid data provider address", async () => {
@@ -368,7 +376,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "invalid _dataProvider address");
         });
 
         it("reverts if the contract is deployed with invalid incentive controller address", async () => {
@@ -390,7 +399,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "invalid _incentiveController address");
         });
 
         it("reverts if the contract is deployed with invalid matic token address", async () => {
@@ -412,7 +422,8 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 ZERO_ADDRESS,
                 merkleRoot,
                 { from: admin },
-            ));
+            ),
+            "invalid _matic address");
         });
     });
 
