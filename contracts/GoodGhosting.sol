@@ -136,10 +136,16 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _maxPlayersCount,
         IERC20 _incentiveToken
     ) public {
-        require(_customFee <= 20);
-        require(_earlyWithdrawalFee <= 10);
-        require(_earlyWithdrawalFee > 0);
+        require(_customFee <= 20, "_customFee must be less than or equal to 20%");
+        require(_earlyWithdrawalFee <= 10, "_earlyWithdrawalFee must be less than or equal to 10%");
+        require(_earlyWithdrawalFee > 0,  "_earlyWithdrawalFee must be greater than zero");
         require(_maxPlayersCount > 0, "_maxPlayersCount must be greater than zero");
+        require(address(_inboundCurrency) != address(0), "invalid _inboundCurrency address");
+        require(address(_lendingPoolAddressProvider) != address(0), "invalid _lendingPoolAddressProvider address");
+        require(_segmentCount > 0, "_segmentCount must be greater than zero");
+        require(_segmentLength > 0, "_segmentLength must be greater than zero");
+        require(_segmentPayment > 0, "_segmentPayment must be greater than zero");
+        require(_dataProvider != address(0), "invalid _dataProvider address");
         // Initializes default variables
         firstSegmentStart = block.timestamp; //gets current time
         lastSegment = _segmentCount;
@@ -161,6 +167,13 @@ contract GoodGhosting is Ownable, Pausable {
         adaiToken = AToken(adaiTokenAddress);
         maxPlayersCount = _maxPlayersCount;
         incentiveToken = _incentiveToken;
+
+        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
+        uint256 MAX_ALLOWANCE = 2**256 - 1;
+        require(
+            _inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE),
+            "Fail to approve allowance to lending pool"
+        );
     }
 
     /// @notice pauses the game. This function can be called only by the contract's admin.
@@ -421,6 +434,7 @@ contract GoodGhosting is Ownable, Pausable {
             daiToken.transferFrom(msg.sender, address(this), segmentPayment),
             "Transfer failed"
         );
+
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 contractBalance = daiToken.balanceOf(address(this));
