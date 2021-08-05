@@ -423,12 +423,13 @@ contract GoodGhosting is Ownable, Pausable {
         );
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
+        uint256 contractBalance = daiToken.balanceOf(address(this));
         require(
-            daiToken.approve(address(lendingPool), segmentPayment),
+            daiToken.approve(address(lendingPool), contractBalance),
             "Fail to approve allowance to lending pool"
         );
 
-        lendingPool.deposit(address(daiToken), segmentPayment, address(this), 155);
+        lendingPool.deposit(address(daiToken), contractBalance, address(this), 155);
     }
 
     /// @notice Allows a player to join the game and controls
