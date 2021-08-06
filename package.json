@@ -9,7 +9,7 @@
         "test:fork:mainnet": "truffle test --network local-mainnet-fork",
         "test:fork:polygon:vigil": "truffle test --network local-polygon-vigil-fork",
         "test:fork:polygon-whitelisted:vigil": "truffle test --network local-polygon-whitelisted-vigil-fork",
-        "coverage": "truffle run coverage",
+        "coverage": "truffle run coverage --network soliditycoverage",
         "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",
         "deploy:kovan": "truffle deploy -f 2 --network kovan --reset",
         "deploy:mainnet": "truffle deploy -f 2 --network mainnet --reset",
@@ -60,7 +60,7 @@
         "path": "^0.12.7",
         "shelljs": "^0.8.4",
         "solidity-coverage": "^0.7.16",
-        "truffle": "^5.3.6",
+        "truffle": "^5.4.5",
         "truffle-assertions": "^0.9.2",
         "truffle-plugin-verify": "^0.5.8"
     }
