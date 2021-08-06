@@ -167,13 +167,6 @@ contract GoodGhosting is Ownable, Pausable {
         adaiToken = AToken(adaiTokenAddress);
         maxPlayersCount = _maxPlayersCount;
         incentiveToken = _incentiveToken;
-
-        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
-        uint256 MAX_ALLOWANCE = 2**256 - 1;
-        require(
-            _inboundCurrency.approve(address(lendingPool), MAX_ALLOWANCE),
-            "Fail to approve allowance to lending pool"
-        );
     }
 
     /// @notice pauses the game. This function can be called only by the contract's admin.
@@ -435,7 +428,15 @@ contract GoodGhosting is Ownable, Pausable {
             "Transfer failed"
         );
 
-        lendingPool.deposit(address(daiToken), segmentPayment, address(this), 155);
+
+        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
+        uint256 contractBalance = daiToken.balanceOf(address(this));
+        require(
+            daiToken.approve(address(lendingPool), contractBalance),
+            "Fail to approve allowance to lending pool"
+        );
+
+        lendingPool.deposit(address(daiToken), contractBalance, address(this), 155);
     }
 
     /// @notice Allows a player to join the game and controls
