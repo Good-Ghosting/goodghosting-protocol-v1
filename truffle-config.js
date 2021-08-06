@@ -141,12 +141,11 @@ module.exports = {
             skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
         },
 
-        coverage: {
+        soliditycoverage: {
             host: "localhost",
             network_id: "*",
             port: 8555,         // <-- If you change this, also set the port option in .solcover.js.
-            gas: 8900000, // <-- Use this high gas value
-            gasPrice: 115*(10^9)      // <-- Use this low gas price (10^9 == 1 Gwei) => x * 10^9 === x Gwei
+            disableConfirmationListener: true, // https://github.com/trufflesuite/truffle/issues/2688#issuecomment-736639231
         },
     },
 
