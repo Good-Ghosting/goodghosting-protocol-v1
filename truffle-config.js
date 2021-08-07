@@ -1,15 +1,17 @@
 const HDWalletProvider = require("@truffle/hdwallet-provider");
-const Web3 = require('web3')
-const ContractKit = require('@celo/contractkit')
-const web3 = new Web3('https://alfajores-forno.celo-testnet.org')
-const kit = ContractKit.newKitFromWeb3(web3)
-const getAccount = require('./getAccount').getAccount
+const Web3 = require("web3");
+const ContractKit = require("@celo/contractkit");
+const web3 = new Web3("https://alfajores-forno.celo-testnet.org");
+const kit = ContractKit.newKitFromWeb3(web3);
+const getAccount = require("./getAccount").getAccount;
 
 async function awaitWrapper(){
-    let account = await getAccount()
-    kit.connection.addAccount(account.privateKey)
+    let account = await getAccount();
+    if (account) {
+        kit.connection.addAccount(account.privateKey);
+    }
 }
-awaitWrapper()
+awaitWrapper();
 require("dotenv").config();
 
 module.exports = {
@@ -93,7 +95,7 @@ module.exports = {
             timeoutBlocks: 50, // # of blocks before a deployment times out  (minimum/default: 50)
             skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
         },
-        'polygon-whitelisted' : {
+        "polygon-whitelisted" : {
             provider: () => new HDWalletProvider(
                 process.env.POLYGON_MAINNET_MNEMONIC,
                 process.env.POLYGON_MAINNET_PROVIDER_URL,
@@ -154,11 +156,11 @@ module.exports = {
             version: "0.6.11",
             settings: {
                 optimizer: {
-                  enabled: true,
-                  runs: 1500
+                    enabled: true,
+                    runs: 1500
                 }
-              }
-             // A version or constraint - Ex. "^0.5.0"
+            }
+            // A version or constraint - Ex. "^0.5.0"
             // Can also be set to "native" to use a native solc
             //docker: false, // Use a version obtained through docker
             // parser: "solcjs",  // Leverages solc-js purely for speedy parsing
