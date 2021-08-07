@@ -491,6 +491,78 @@ contract("GoodGhosting", (accounts) => {
             await truffleAssert.reverts(contract.joinGame( { from: nonPlayer }), "Reached max quantity of players allowed");
         });
 
+        it("increases activePlayersCount when a new player joins", async () => {
+            const playerCountBefore = await goodGhosting.activePlayersCount.call();
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame( { from: player1 });
+            const playerCountAfter = await goodGhosting.activePlayersCount.call();
+            assert(playerCountAfter.eq(playerCountBefore.add(new BN(1))));
+        });
+
+        it("second player can join after cap spot (maxPlayersCount) is open by an early withdraw", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            const contract = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                1, // max of 1 player
+                ZERO_ADDRESS,
+                { from: admin },
+            );
+            await token.approve(contract.address, segmentPayment, { from: player1 });
+            await contract.joinGame( { from: player1 });
+
+            await token.approve(contract.address, segmentPayment, { from: player2 });
+            await truffleAssert.reverts(contract.joinGame( { from: player2 }), "Reached max quantity of players allowed");
+
+            await contract.earlyWithdraw( { from: player1 });
+
+            await token.approve(contract.address, segmentPayment, { from: player2 });
+            await contract.joinGame( { from: player2 });
+
+            await token.approve(contract.address, segmentPayment, { from: nonPlayer });
+            await truffleAssert.reverts(contract.joinGame( { from: nonPlayer }), "Reached max quantity of players allowed");
+        });
+
+        it("early withdraw player can rejoin if spot (maxPlayersCount) is available", async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            const contract = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                1, // max of 1 player
+                ZERO_ADDRESS,
+                { from: admin },
+            );
+            await token.approve(contract.address, segmentPayment, { from: player1 });
+            await contract.joinGame( { from: player1 });
+
+            await token.approve(contract.address, segmentPayment, { from: player2 });
+            await truffleAssert.reverts(contract.joinGame( { from: player2 }), "Reached max quantity of players allowed");
+
+            await contract.earlyWithdraw( { from: player1 });
+
+            await token.approve(contract.address, segmentPayment, { from: player1 });
+            await contract.joinGame( { from: player1 });
+
+            await token.approve(contract.address, segmentPayment, { from: nonPlayer });
+            await truffleAssert.reverts(contract.joinGame( { from: nonPlayer }), "Reached max quantity of players allowed");
+        });
+
         it("stores the player(s) who joined the game", async () => {
             // Player1 joins the game
             await approveDaiToContract(player1);

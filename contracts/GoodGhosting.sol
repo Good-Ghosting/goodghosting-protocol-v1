@@ -28,6 +28,8 @@ contract GoodGhosting is Ownable, Pausable {
     bool public adminWithdraw;
     /// @notice total amount of incentive tokens to be distributed among winners
     uint256 public totalIncentiveAmount = 0;
+    /// @notice Controls the amount of active players in the game (ignores players that early withdraw)
+    uint256 public activePlayersCount = 0;
 
     /// @notice Address of the token used for depositing into the game by players (DAI)
     IERC20 public immutable daiToken;
@@ -226,6 +228,8 @@ contract GoodGhosting is Ownable, Pausable {
         require(player.amountPaid > 0, "Player does not exist");
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
+        activePlayersCount = activePlayersCount.sub(1);
+
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
         uint256 withdrawAmount =
             player.amountPaid.sub(
@@ -447,6 +451,10 @@ contract GoodGhosting is Ownable, Pausable {
                 players[msg.sender].canRejoin,
             "Cannot join the game more than once"
         );
+
+        activePlayersCount = activePlayersCount.add(1);
+        require(activePlayersCount <= maxPlayersCount, "Reached max quantity of players allowed");
+
         bool canRejoin = players[msg.sender].canRejoin;
         Player memory newPlayer =
             Player({
@@ -459,7 +467,6 @@ contract GoodGhosting is Ownable, Pausable {
         players[msg.sender] = newPlayer;
         if (!canRejoin) {
             iterablePlayers.push(msg.sender);
-            require(iterablePlayers.length <= maxPlayersCount, "Reached max quantity of players allowed");
         }
         emit JoinedGame(msg.sender, segmentPayment);
         _transferDaiToContract();
