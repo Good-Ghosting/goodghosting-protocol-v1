@@ -34,7 +34,8 @@ exports.providers = {
             dai: {
                 address: "0x10c892a6ec43a53e45d0b916b4b7d383b1b78c0f",
                 decimals: 18,
-            }
+            },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         ropsten: {
             lendingPoolAddressProvider: "0x1c8756FD2B28e9426CDBDcC7E3c4d64fa9A54728",   /* Note: Ropsten depreciated in Aave v2 */
