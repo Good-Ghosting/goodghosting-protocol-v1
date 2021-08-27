@@ -40,6 +40,8 @@ contract GoodGhostingCelo is Ownable, Pausable {
     ILendingPoolAddressesProvider public immutable lendingPoolAddressProvider;
     /// @notice Lending pool address
     MILendingPool public lendingPool;
+    /// @notice Lending pool core address
+    ILendingPoolCore public lendingPoolCore;
     /// @notice The amount to be paid on each segment
     uint256 public immutable segmentPayment;
     /// @notice The number of segments in the game (segment count)
@@ -158,7 +160,7 @@ contract GoodGhostingCelo is Ownable, Pausable {
         customFee = _customFee;
         daiToken = _inboundCurrency;
         lendingPoolAddressProvider = _lendingPoolAddressProvider;
-        ILendingPoolCore lendingPoolCore =
+        lendingPoolCore =
             ILendingPoolCore(_lendingPoolAddressProvider.getLendingPoolCore());
         lendingPool = _lendingPool;
         address adaiTokenAddress =
@@ -429,7 +431,7 @@ contract GoodGhostingCelo is Ownable, Pausable {
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 contractBalance = daiToken.balanceOf(address(this));
         require(
-            daiToken.approve(address(lendingPool), contractBalance),
+            daiToken.approve(address(lendingPoolCore), contractBalance),
             "Fail to approve allowance to lending pool"
         );
 
