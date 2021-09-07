@@ -6,7 +6,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract GoodGhostingRegistry is Ownable {
     event RegistryInitialized(address[] contracts);
-    event RegistryUpdated(address contracts);
+    event PoolAdded(address contracts);
+    event PoolRemoved(address contracts);
+
 
     mapping(address => bool) public pools;
 
@@ -26,11 +28,12 @@ contract GoodGhostingRegistry is Ownable {
     function addContract(address _contract) external onlyOwner {
         isValid(_contract);
         pools[_contract] = true;
-        emit RegistryUpdated(_contract);
+        emit PoolAdded(_contract);
     }
 
     function removeContract(address _contract) external onlyOwner {
         require(pools[_contract], "contract does not exists in the registry");
         pools[_contract] = false;
+        emit PoolRemoved(_contract);
     }
 }
