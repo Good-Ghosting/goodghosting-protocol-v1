@@ -12,6 +12,7 @@ contract GoodGhostingRegistry is Ownable {
 
     function isValid(address _contract) internal {
         require(_contract != address(0), "invalid _contract address");
+        require(!pools[_contract], "contract already exists in the registry");
     }
 
     constructor(address[] memory _contracts) public {
@@ -26,5 +27,10 @@ contract GoodGhostingRegistry is Ownable {
         isValid(_contract);
         pools[_contract] = true;
         emit RegistryUpdated(_contract);
+    }
+
+    function removeContract(address _contract) external onlyOwner {
+        require(pools[_contract], "contract does not exists in the registry");
+        pools[_contract] = false;
     }
 }

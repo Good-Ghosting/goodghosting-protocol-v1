@@ -90,6 +90,24 @@ contract("GoodGhostingRegistry", (accounts) => {
             it("reverts if a null address is added to the registry", async () => {
                 await truffleAssert.reverts(goodGhostingRegistry.addContract(ZERO_ADDRESS, { from: admin }), "invalid _contract address");
             });
+
+            it("revverts if a same contract is added again in the registry", async() => {
+                const newPool = await GoodGhosting.new(
+                    token.address,
+                    pap.address,
+                    segmentCount + 1,
+                    segmentLength,
+                    segmentPayment,
+                    fee,
+                    adminFee,
+                    pap.address,
+                    maxPlayersCount,
+                    ZERO_ADDRESS,
+                    { from: admin },
+                );
+                await goodGhostingRegistry.addContract(newPool.address, { from: admin })
+                await truffleAssert.reverts(goodGhostingRegistry.addContract(newPool.address, { from: admin }), "contract already exists in the registry");
+            })
     
             it("able to add a new address to the registry", async () => {
                 const newPool = await GoodGhosting.new(
@@ -110,4 +128,31 @@ contract("GoodGhostingRegistry", (accounts) => {
                 assert(poolExists);
             });
             });
+
+        describe("removing contracts from the registry", async () => {
+                it("reverts if a non-existing address in the registry is removed", async () => {
+                    await truffleAssert.reverts(goodGhostingRegistry.removeContract(ZERO_ADDRESS, { from: admin }), "contract does not exists in the registry");
+                });
+        
+                it("able to remove a address from the registry", async () => {
+                    const newPool = await GoodGhosting.new(
+                        token.address,
+                        pap.address,
+                        segmentCount + 1,
+                        segmentLength,
+                        segmentPayment,
+                        fee,
+                        adminFee,
+                        pap.address,
+                        maxPlayersCount,
+                        ZERO_ADDRESS,
+                        { from: admin },
+                    );
+                    await goodGhostingRegistry.addContract(newPool.address, { from: admin })
+                    await goodGhostingRegistry.removeContract(newPool.address, { from: admin })
+
+                    const poolExists = await goodGhostingRegistry.pools(newPool.address)
+                    assert(!poolExists);
+                });
+                });
     })
