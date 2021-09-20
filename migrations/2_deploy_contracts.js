@@ -24,6 +24,7 @@ function getNetworkName(network) {
     if (name.includes("mainnet")) return "mainnet";
     if (name.includes("polygon")) return "polygon";
     if (name.includes("alfajores")) return "alfajores";
+    if (name.includes("celo")) return "celo";
 
     throw new Error(`Unsupported network "${network}"`);
 }
@@ -169,7 +170,7 @@ module.exports = function (deployer, network, accounts) {
 
         if (networkName === "polygon") {
             goodGhostingContract = GoodGhostingPolygonContract;
-        } else if (networkName === "alfajores") {
+        } else if (networkName === "alfajores" || networkName === "celo") {
             aaveContractAddress = poolConfigs.lendingPool;
             goodGhostingContract = GoodGhostingCeloContract;
         } else if (networkName === "polygon-whitelisted") {

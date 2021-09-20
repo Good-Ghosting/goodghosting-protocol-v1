@@ -37,6 +37,15 @@ exports.providers = {
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
+        celo: {
+            lendingPoolAddressProvider: "0x7AAaD5a5fa74Aec83b74C2a098FBC86E17Ce4aEA",
+            lendingPool: "0xc1548F5AA1D76CDcAB7385FA6B5cEA70f941e535",
+            dai: {
+                address: "0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73",
+                decimals: 18,
+            },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
+        },
         ropsten: {
             lendingPoolAddressProvider: "0x1c8756FD2B28e9426CDBDcC7E3c4d64fa9A54728",   /* Note: Ropsten depreciated in Aave v2 */
             dai: {                                                                      /* Note: Ropsten depreciated in Aave v2 */
