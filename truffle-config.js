@@ -1,19 +1,22 @@
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 const Web3 = require("web3");
+require("dotenv").config();
 const ContractKit = require("@celo/contractkit");
 const getAccount = require("./getAccount").getAccount;
-const web3 = new Web3("https://forno.celo.org/");
+// use testnet rpc as default
+const web3 = new Web3(process.env.CELO_RPC || 'https://alfajores-forno.celo-testnet.org');
+
 const kit = ContractKit.newKitFromWeb3(web3);
 
-require("dotenv").config();
-
-function awaitWrapper(){
-    let account = getAccount();
+async function awaitWrapper(){
+    let account = await getAccount();
     if (account) {
+        console.log(account)
         kit.connection.addAccount(account.privateKey);
     }
     return kit.connection.web3.currentProvider
 }
+awaitWrapper()
 
 module.exports = {
     // See <http://truffleframework.com/docs/advanced/configuration>

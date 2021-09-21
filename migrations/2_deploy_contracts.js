@@ -4,7 +4,6 @@ var abi = require("ethereumjs-abi");
 
 const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
-const GoodGhostingCeloContract = artifacts.require("GoodGhostingCelo");
 const GoodGhostingPolygonContract = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonWhitelisted = artifacts.require("GoodGhostingPolygonWhitelisted");
 const BN = web3.utils.BN;
@@ -170,8 +169,6 @@ module.exports = function (deployer, network, accounts) {
 
         if (networkName === "polygon") {
             goodGhostingContract = GoodGhostingPolygonContract;
-        } else if (networkName === "alfajores" || networkName === "celo") {
-            goodGhostingContract = GoodGhostingCeloContract;
         } else if (networkName === "polygon-whitelisted") {
             goodGhostingContract = GoodGhostingPolygonWhitelisted;
         }
