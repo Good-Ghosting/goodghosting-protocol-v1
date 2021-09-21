@@ -2,14 +2,14 @@
 const IERC20 = artifacts.require("IERC20");
 const ERC20Mintable = artifacts.require("MockERC20Mintable");
 const GoodGhosting = artifacts.require("GoodGhostingCelo");
-const LendingPoolAddressesProviderMock = artifacts.require("MoolaLendingPoolAddressProviderMock");
+const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddressesProviderMock");
 const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 
 contract("GoodGhostingCelo", (accounts) => {
     // Only executes this test file IF NOT a local network fork
-    if (["local-mainnet-fork", "local-polygon-vigil-fork", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
+    if (["local-mainnet-fork", "local-polygon-vigil-fork", "local-polygon-whitelisted-vigil-fork", "local-celo-fork"].includes(process.env.NETWORK)) return;
 
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     const admin = accounts[0];
@@ -40,7 +40,7 @@ contract("GoodGhostingCelo", (accounts) => {
         // and then divided by 10 ** 18
         await mintTokensFor(player1);
         await mintTokensFor(player2);
-        pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+        pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
         aToken = await IERC20.at(await pap.getLendingPool.call());
         await pap.setUnderlyingAssetAddress(token.address);
         goodGhosting = await GoodGhosting.new(
@@ -131,7 +131,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with 0% early withdraw fee", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -151,7 +151,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with invalid inbound token address", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -171,7 +171,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with invalid lending pool address", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -191,7 +191,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with segment count as 0", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -211,7 +211,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with segment length as 0", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -231,7 +231,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with segment payment as 0", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -251,7 +251,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with invalid data provider address", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -267,11 +267,11 @@ contract("GoodGhostingCelo", (accounts) => {
                 ZERO_ADDRESS,
                 { from: admin },
             ),
-            "invalid _lendingPool address");
+            "invalid _dataProvider address");
         });
 
         it("reverts if the contract is deployed with early withdraw fee more than 10%", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -291,7 +291,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with admin fee more than 20%", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(GoodGhosting.new(
@@ -311,7 +311,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if the contract is deployed with max player count equal to zero", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             await truffleAssert.reverts(
@@ -334,7 +334,7 @@ contract("GoodGhostingCelo", (accounts) => {
 
         it("accepts setting type(uint256).max as the max number of players", async () => {
             const expectedValue = new BN(2).pow(new BN(256)).sub(new BN(1));
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             const contract = await GoodGhosting.new(
@@ -390,7 +390,7 @@ contract("GoodGhostingCelo", (accounts) => {
 
         it("checks incentive token address is set", async () => {
             const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             const contract = await GoodGhosting.new(
@@ -467,7 +467,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("reverts if more players than maxPlayersCount try to join", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             const contract = await GoodGhosting.new(
@@ -500,7 +500,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("second player can join after cap spot (maxPlayersCount) is open by an early withdraw", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             const contract = await GoodGhosting.new(
@@ -532,7 +532,7 @@ contract("GoodGhostingCelo", (accounts) => {
         });
 
         it("early withdraw player can rejoin if spot (maxPlayersCount) is available", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             const contract = await GoodGhosting.new(
@@ -960,7 +960,7 @@ contract("GoodGhostingCelo", (accounts) => {
             await joinGamePaySegmentsAndComplete(player1);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             const totalPrincipal = web3.utils.toBN(segmentPayment * segmentCount);
@@ -985,7 +985,7 @@ contract("GoodGhostingCelo", (accounts) => {
             await joinGamePaySegmentsAndComplete(player1);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
@@ -1013,7 +1013,7 @@ contract("GoodGhostingCelo", (accounts) => {
             await joinGamePaySegmentsAndComplete(player1);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
@@ -1027,7 +1027,7 @@ contract("GoodGhostingCelo", (accounts) => {
             await joinGamePaySegmentsAndComplete(player1);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
@@ -1054,7 +1054,7 @@ contract("GoodGhostingCelo", (accounts) => {
 
             beforeEach(async () => {
                 incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
                 aToken = await IERC20.at(await pap.getLendingPool.call());
                 await pap.setUnderlyingAssetAddress(token.address);
                 contract = await GoodGhosting.new(
@@ -1197,7 +1197,7 @@ contract("GoodGhostingCelo", (accounts) => {
             await mintTokensFor(admin);
             const incentiveAmount = toWad(1000);
             await token.approve(pap.address, incentiveAmount, { from: admin });
-            await pap.deposit(token.address, incentiveAmount, 0, { from: admin });
+            await pap.deposit(token.address, incentiveAmount, pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
 
             const player1BeforeWithdrawBalance = await token.balanceOf(player1);
@@ -1242,7 +1242,7 @@ contract("GoodGhostingCelo", (accounts) => {
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: admin });
 
@@ -1308,7 +1308,7 @@ contract("GoodGhostingCelo", (accounts) => {
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: admin });
 
@@ -1332,7 +1332,7 @@ contract("GoodGhostingCelo", (accounts) => {
             // Simulate some interest by giving the contract more aDAI
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
 
             // Expect Player1 to get back the deposited amount
@@ -1375,7 +1375,7 @@ contract("GoodGhostingCelo", (accounts) => {
 
             beforeEach(async () => {
                 incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
                 aToken = await IERC20.at(await pap.getLendingPool.call());
                 await pap.setUnderlyingAssetAddress(token.address);
                 contract = await GoodGhosting.new(
@@ -1498,7 +1498,7 @@ contract("GoodGhostingCelo", (accounts) => {
                 //generating mock interest
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
                 await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 await goodGhosting.adminFeeWithdraw({ from: admin });
@@ -1510,7 +1510,7 @@ contract("GoodGhostingCelo", (accounts) => {
                 //generating mock interest
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
                 await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: player1 }), "Ownable: caller is not the owner");
@@ -1568,7 +1568,7 @@ contract("GoodGhostingCelo", (accounts) => {
                 // mocks interest generation
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
                 await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
                 await advanceToEndOfGame();
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
@@ -1597,7 +1597,7 @@ contract("GoodGhostingCelo", (accounts) => {
                 await goodGhosting.joinGame( { from: player2 });
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
                 await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
                 await timeMachine.advanceTimeAndBlock(weekInSecs);
                 await goodGhosting.earlyWithdraw({ from: player1 });
@@ -1625,7 +1625,7 @@ contract("GoodGhostingCelo", (accounts) => {
                 const incentiveAmount = new BN(toWad(10));
                 const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
                 const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
                 aToken = await IERC20.at(await pap.getLendingPool.call());
                 await pap.setUnderlyingAssetAddress(token.address);
                 const contract = await GoodGhosting.new(
@@ -1703,7 +1703,7 @@ contract("GoodGhostingCelo", (accounts) => {
                 //generating mock interest
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
                 await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
 
@@ -1732,7 +1732,7 @@ contract("GoodGhostingCelo", (accounts) => {
                 //generating mock interest
                 await mintTokensFor(admin);
                 await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
                 await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
 
@@ -1763,7 +1763,7 @@ contract("GoodGhostingCelo", (accounts) => {
                 const incentiveAmount = new BN(toWad(10));
                 const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
                 const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address,  { from: admin });
+                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
                 aToken = await IERC20.at(await pap.getLendingPool.call());
                 await pap.setUnderlyingAssetAddress(token.address);
                 const contract = await GoodGhosting.new(
@@ -1804,7 +1804,7 @@ contract("GoodGhostingCelo", (accounts) => {
 
     describe("admin tries to withdraw fees with admin percentage fee equal to 0 and no winners", async () => {
         beforeEach(async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             goodGhosting = await GoodGhosting.new(
@@ -1828,7 +1828,7 @@ contract("GoodGhostingCelo", (accounts) => {
             await mintTokensFor(goodGhosting.address);
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const contractBalance = await token.balanceOf(goodGhosting.address);
             const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
@@ -1850,7 +1850,7 @@ contract("GoodGhostingCelo", (accounts) => {
             // mocks interest generation
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             await advanceToEndOfGame();
             await goodGhosting.redeemFromExternalPool({ from: player1 });
@@ -1903,7 +1903,7 @@ contract("GoodGhostingCelo", (accounts) => {
             // mocks interest generation
             await mintTokensFor(admin);
             await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), 0, { from: admin });
+            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
             await advanceToEndOfGame();
             await goodGhosting.redeemFromExternalPool({ from: player1 });
@@ -1927,7 +1927,7 @@ contract("GoodGhostingCelo", (accounts) => {
             const incentiveAmount = new BN(toWad(10));
             const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
             const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", token.address, { from: admin });
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
             aToken = await IERC20.at(await pap.getLendingPool.call());
             await pap.setUnderlyingAssetAddress(token.address);
             const contract = await GoodGhosting.new(

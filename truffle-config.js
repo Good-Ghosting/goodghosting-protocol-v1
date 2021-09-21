@@ -60,6 +60,11 @@ module.exports = {
             port: 8545,
             network_id: "*",
         },
+        "local-celo-fork": {
+            host: "127.0.0.1",
+            port: 8545,
+            network_id: "*",
+        },
         alfajores: {
             provider: kit.connection.web3.currentProvider, // CeloProvider
             network_id: 44787                              // Alfajores network id

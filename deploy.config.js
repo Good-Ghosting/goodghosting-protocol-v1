@@ -29,8 +29,8 @@ exports.providers = {
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         alfajores: {
-            lendingPoolAddressProvider: "0x6EAE47ccEFF3c3Ac94971704ccd25C7820121483",
-            lendingPool: "0x0886f74eEEc443fBb6907fB5528B57C28E813129",
+            lendingPoolAddressProvider: "0xb3072f5F0d5e8B9036aEC29F37baB70E86EA0018",
+            dataProvider: "0x31ccB9dC068058672D96E92BAf96B1607855822E",
             dai: {
                 address: "0x10c892a6ec43a53e45d0b916b4b7d383b1b78c0f",
                 decimals: 18,

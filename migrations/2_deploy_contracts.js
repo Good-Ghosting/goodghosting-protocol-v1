@@ -171,7 +171,6 @@ module.exports = function (deployer, network, accounts) {
         if (networkName === "polygon") {
             goodGhostingContract = GoodGhostingPolygonContract;
         } else if (networkName === "alfajores" || networkName === "celo") {
-            aaveContractAddress = poolConfigs.lendingPool;
             goodGhostingContract = GoodGhostingCeloContract;
         } else if (networkName === "polygon-whitelisted") {
             goodGhostingContract = GoodGhostingPolygonWhitelisted;
