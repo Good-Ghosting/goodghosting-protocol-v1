@@ -11,7 +11,7 @@ import "./aave/ILendingPool.sol";
 import "./aave/AToken.sol";
 
 /// @title GoodGhosting Game Contract
-/// @notice Used for games deployed on Ethereum Mainnet, using Aave as the underlying pool
+/// @notice Used for games deployed on Ethereum Mainnet using Aave (v2) as the underlying pool, or for games deployed on Celo using Moola (v2) as the underlying pool
 /// @author Francis Odisi & Viraz Malhotra
 contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
