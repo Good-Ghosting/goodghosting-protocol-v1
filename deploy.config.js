@@ -32,16 +32,16 @@ exports.providers = {
             lendingPoolAddressProvider: "0xb3072f5F0d5e8B9036aEC29F37baB70E86EA0018",
             dataProvider: "0x31ccB9dC068058672D96E92BAf96B1607855822E",
             dai: {
-                address: "0x10c892a6ec43a53e45d0b916b4b7d383b1b78c0f",
+                address: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
                 decimals: 18,
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         celo: {
-            lendingPoolAddressProvider: "0x7AAaD5a5fa74Aec83b74C2a098FBC86E17Ce4aEA",
-            lendingPool: "0xc1548F5AA1D76CDcAB7385FA6B5cEA70f941e535",
+            lendingPoolAddressProvider: "0xD1088091A174d33412a968Fa34Cb67131188B332",
+            dataProvider: "0x43d067ed784D9DD2ffEda73775e2CC4c560103A1",
             dai: {
-                address: "0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73",
+                address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
                 decimals: 18,
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
@@ -72,8 +72,8 @@ exports.deployConfigs = {
     segmentCount: 3, // integer number of segments
     segmentLength: 600, // in seconds
     segmentPayment: 1, // amount of tokens - i.e. 10 equals to 10 TOKENS (DAI, ETH, etc.);
-    earlyWithdrawFee: 10, // i.e. 10 equals to 10%
-    customFee: 5, // i.e. 5 equals to 5%
+    earlyWithdrawFee: 1, // i.e. 10 equals to 10%
+    customFee: 1, // i.e. 5 equals to 5%
     maxPlayersCount: "115792089237316195423570985008687907853269984665640564039457584007913129639935", // max quantity of players allowed.
     merkleroot: "0xd566243e283f1357e5e97dd0c9ab0d78177583074b440cb07815e05f615178bf" // merkle root for 1st 4 player addresses in the fork tests
 };

@@ -3,15 +3,14 @@ const Web3 = require("web3");
 require("dotenv").config();
 const ContractKit = require("@celo/contractkit");
 const getAccount = require("./getAccount").getAccount;
-// use testnet rpc as default
-const web3 = new Web3(process.env.CELO_RPC || 'https://alfajores-forno.celo-testnet.org');
+// use mainnet rpc as default
+const web3 = new Web3(process.env.CELO_RPC || 'https://forno.celo.org/');
 
 const kit = ContractKit.newKitFromWeb3(web3);
 
 async function awaitWrapper(){
     let account = await getAccount();
     if (account) {
-        console.log(account)
         kit.connection.addAccount(account.privateKey);
     }
     return kit.connection.web3.currentProvider
@@ -102,7 +101,7 @@ module.exports = {
             network_id: 137, // Polygon mainnet id
             networkCheckTimeout: 60000,
             //gas: 7017622, //
-            gasPrice: 1000000000,// 1 Gwei
+            gasPrice: 30000000000,// 1 Gwei
             confirmations: 2, // # of confs to wait between deployments. (default: 0)
             timeoutBlocks: 50, // # of blocks before a deployment times out  (minimum/default: 50)
             skipDryRun: false // Skip dry run before migrations? (default: false for public nets )

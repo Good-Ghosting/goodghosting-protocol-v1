@@ -7,6 +7,7 @@
         "ipfs": "node --no-warnings ./scripts/ipfs.js",
         "test": "truffle test",
         "test:fork:mainnet": "truffle test --network local-mainnet-fork",
+        "test:fork:celo": "truffle test --network local-celo-fork",
         "test:fork:polygon:vigil": "truffle test --network local-polygon-vigil-fork",
         "test:fork:polygon-whitelisted:vigil": "truffle test --network local-polygon-whitelisted-vigil-fork",
         "coverage": "truffle run coverage --network soliditycoverage",

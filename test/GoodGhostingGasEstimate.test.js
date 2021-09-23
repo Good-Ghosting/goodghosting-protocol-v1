@@ -25,6 +25,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             "local-mainnet-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
+            "local-celo-fork"
         ].includes(process.env.NETWORK)
     )
         return;
@@ -33,9 +34,13 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
     let providersConfigs;
     let GoodGhostingArtifact;
-    if (process.env.NETWORK === "local-mainnet-fork") {
+    if (process.env.NETWORK === "local-mainnet-fork" || process.env.NETWORK === "local-celo-fork") {
         GoodGhostingArtifact = GoodGhosting;
-        providersConfigs = configs.providers.aave.mainnet;
+        if (process.env.NETWORK === "local-mainnet-fork") {
+            providersConfigs = configs.providers.aave.mainnet;
+        } else if (process.env.NETWORK === "local-celo-fork") {
+            providersConfigs = configs.providers.aave.celo;
+        }
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs = configs.providers.aave.polygon;
@@ -162,6 +167,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 let paymentEvent = 0;
                 if (
                     process.env.NETWORK === "local-mainnet-fork" ||
+                    process.env.NETWORK === "local-celo-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork"
                 ) {
                     const result = await goodGhosting.joinGame({ from: player });
@@ -405,12 +411,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("admin withdraws admin fee from contract", async () => {
-            if (!customFee) {
-                await truffleAssert.reverts(
-                    goodGhosting.adminFeeWithdraw({ from: admin }),
-                    "No Fees Earned"
-                );
-            } else {
+          if (customFee > 0) {
                 const expectedAmount = new BN(
                     await goodGhosting.adminFeeAmount.call({ from: admin })
                 );

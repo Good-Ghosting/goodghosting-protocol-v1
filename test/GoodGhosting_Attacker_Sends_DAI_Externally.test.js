@@ -23,6 +23,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
     if (
         ![
             "local-mainnet-fork",
+            "local-celo-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
         ].includes(process.env.NETWORK)
@@ -33,9 +34,13 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
     let providersConfigs;
     let GoodGhostingArtifact;
-    if (process.env.NETWORK === "local-mainnet-fork") {
+    if (process.env.NETWORK === "local-mainnet-fork" || process.env.NETWORK === "local-celo-fork") {
         GoodGhostingArtifact = GoodGhosting;
-        providersConfigs = configs.providers.aave.mainnet;
+        if (process.env.NETWORK === "local-mainnet-fork") {
+            providersConfigs = configs.providers.aave.mainnet;
+        } else if (process.env.NETWORK === "local-celo-fork") {
+            providersConfigs = configs.providers.aave.celo;
+        }
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs = configs.providers.aave.polygon;
@@ -111,6 +116,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 let paymentEvent = 0;
                 if (
                     process.env.NETWORK === "local-mainnet-fork" ||
+                    process.env.NETWORK === "local-celo-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork"
                 ) {
                     const result = await goodGhosting.joinGame({ from: player });
