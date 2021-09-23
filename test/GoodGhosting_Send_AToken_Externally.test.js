@@ -40,10 +40,11 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
         GoodGhostingArtifact = GoodGhosting;
         if (process.env.NETWORK === "local-mainnet-fork") {
             providersConfigs = configs.providers.aave.mainnet;
+            aTokenAddress = "0x028171bCA77440897B824Ca71D1c56caC55b68A3";
         } else if (process.env.NETWORK === "local-celo-fork") {
             providersConfigs = configs.providers.aave.celo;
+            aTokenAddress = "0x64defa3544c695db8c535d289d843a189aa26b98";
         }
-        aTokenAddress = "0x64defa3544c695db8c535d289d843a189aa26b98";
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs = configs.providers.aave.polygon;
