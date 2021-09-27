@@ -132,6 +132,16 @@ On Polygon Vigil, the process is similar to Ethereum Mainnet described above, bu
 
 - For running the whitelisted contract tests, On another terminal window (from the root of the project directory), run `truffle test --network local-polygon-whitelisted-vigil-fork` or `npm run test:fork:polygon-whitelisted:vigil`
 
+#### Celo
+On Celo Mainnet, the account `0xEd936bc60AF587DdD1Ab93728e7164cC288FdE82` had both assets at the time of writing, so this account is a good candidate to be used.
+You can find other accounts on celo block explorer.
+
+- On a terminal window, execute `ganache-cli` forking from mainnet. The full command should look something like this:
+
+  `ganache-cli -f https://forno.celo.org/  -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0xEd936bc60AF587DdD1Ab93728e7164cC288FdE82`
+
+
+- On another terminal window (from the root of the project directory), run `truffle test --network local-celo-fork` or `npm run test:fork:celo`
 
 # Security Tools
 There's a few automated security tools that could be integrated with the development process. Currently, we use [Slither](https://github.com/crytic/slither) to help identify well-known issues via static analysis. Other tools may be added in the near future as part of the continuous improvement process.
@@ -180,6 +190,7 @@ The project uses [Matic RPC](https://rpc.maticvigil.com/) to deploy smart contra
 2. Open file `.env`
 3. Insert your Infura or Polygon's ProjectId and your wallet mnemonic in the file for the desired network.
     - Note: If deploying to Celo networks (mainnet or testnets), add your private key in the appropriate config key with ```0x``` at the beginning
+    - For Celo deployments going forward update the rpc based on your deployment at line 5 of truffle config for testnet, rpc = https://alfajores-forno.celo-testnet.org & for mainnet the rpc = https://forno.celo.org/
 4. Open the file [deploy.config.js](./deploy.config.js) and set the desired deployment configs for the contract.
 5. Once you have the `.env` and `deploy.config.js` files properly setup, you can deploy the GoodGhosting contract to the desired network by choosing one of the 02 options:
     - Deployment with manual contract verification: used for verifying contracts on block explorers like [Etherscan](https://etherscan.io), [MaticVigil Block Explorer](https://explorer-mainnet.maticvigil.com/), [Celo Block Explorer](https://explorer.celo.org/) (including their testnets block explorers)
@@ -219,6 +230,7 @@ These are the commands that can be used to deploy (deployment ONLY) the contract
 - Deploy to polygon (PRODUCTION): `npm run deploy:polygon`
 - Deploy to polygon the whitelisted contract (PRODUCTION): `npm run deploy:polygon-whitelisted`
 - Deploy to Celo Alfajores testnet: `npm run deploy:alfajores`
+- Deploy to Celo Mainnet: `npm run deploy:celo`
 
 If the deployment is successful, you should see a deployment log in the terminal window similar to this:
 
@@ -333,6 +345,7 @@ These are the commands that can be used to deploy and automatically verify the c
 - Deploy and Verify on polygon (PRODUCTION): `npm run deploy:verify:polygon`
 - Deploy and Verify on polygon the whitelisted contract (PRODUCTION): `npm run deploy:verify:polygon-whitelisted`
 - Deploy and Verify on Celo Alfajores testnet: `npm run deploy:verify:alfajores`
+- - Deploy and Verify on Celo Mainnet: `npm run deploy:verify:celo`
 
 If the verification and deployment is successful, you should see a deployment log in the terminal window similar to the sample below. Note that, for simplicity, the sample below "hides" a bunch of the logs displayed in the terminal window:
 

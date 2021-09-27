@@ -1,0 +1,31 @@
+name: Celo Mainnet Fork Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    env:
+      DAI_ACCOUNT_HOLDER_FORKED_NETWORK: '0xEd936bc60AF587DdD1Ab93728e7164cC288FdE82'
+
+    strategy:
+      matrix:
+        node-version: [12.x]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - run: npm install -g truffle
+      - run: npm install -g ganache-cli
+      - run: |
+          ganache-cli -f https://forno.celo.org/ -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0xEd936bc60AF587DdD1Ab93728e7164cC288FdE82 &
+          npm run test:fork:celo
