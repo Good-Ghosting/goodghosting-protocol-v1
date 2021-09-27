@@ -1,70 +1,70 @@
 {
-    "name": "goodghosting-smart-contracts",
-    "version": "1.0.0",
-    "description": "",
-    "main": "truffle-config.js",
-    "scripts": {
-        "ipfs": "node --no-warnings ./scripts/ipfs.js",
-        "test": "truffle test",
-        "test:fork:mainnet": "truffle test --network local-mainnet-fork",
-        "test:fork:celo": "truffle test --network local-celo-fork",
-        "test:fork:polygon:vigil": "truffle test --network local-polygon-vigil-fork",
-        "test:fork:polygon-whitelisted:vigil": "truffle test --network local-polygon-whitelisted-vigil-fork",
-        "coverage": "truffle run coverage --network soliditycoverage",
-        "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",
-        "deploy:kovan": "truffle deploy -f 2 --network kovan --reset",
-        "deploy:mainnet": "truffle deploy -f 2 --network mainnet --reset",
-        "deploy:polygon": "truffle deploy -f 2 --network polygon --reset",
-        "deploy:polygon-whitelisted": "truffle deploy -f 2 --network polygon-whitelisted --reset",
-        "deploy:alfajores": "truffle deploy -f 2 --network alfajores --reset",
-        "deploy:celo": "truffle deploy -f 2 --network celo --reset",
-        "deploy:verify:ropsten": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network ropsten --reset",
-        "deploy:verify:kovan": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network kovan --reset",
-        "deploy:verify:mainnet": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network mainnet --reset",
-        "deploy:verify:polygon": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon --reset",
-        "deploy:verify:polygon-whitelisted": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon-whitelisted --reset",
-        "deploy:verify:alfajores": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network alfajores --reset",
-        "deploy:verify:celo": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network celo --reset"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/Good-Ghosting/goodghosting-smart-contracts.git"
-    },
-    "keywords": [
-        "goodghosting, defi, DeFi, lend, lending, loan, loans, aave, compound, curve, dYdX, fulcrum"
-    ],
-    "author": "GoodGhosting",
-    "license": "UNLICENSED",
-    "bugs": {
-        "url": "https://github.com/Good-Ghosting/goodghosting-smart-contracts/issues"
-    },
-    "homepage": "https://github.com/Good-Ghosting/goodghosting-smart-contracts#readme",
-    "dependencies": {
-        "@aave/protocol-v2": "^1.0.1",
-        "@celo/contractkit": "^1.2.0",
-        "@openzeppelin/contracts": "^3.4.1",
-        "ethereumjs-abi": "^0.6.8",
-        "install": "^0.13.0",
-        "npm": "^7.12.1"
-    },
-    "devDependencies": {
-        "@decentral.ee/web3-test-helpers": "^0.2.7",
-        "@openzeppelin/test-helpers": "^0.5.11",
-        "@truffle/hdwallet-provider": "^1.4.0",
-        "bignumber.js": "^9.0.1",
-        "bn.js": "^5.2.0",
-        "coveralls": "^3.1.0",
-        "dotenv": "^9.0.2",
-        "eslint": "^7.26.0",
-        "eth-gas-reporter": "^0.2.22",
-        "ganache-time-traveler": "^1.0.15",
-        "ipfs-http-client": "^50.0.0",
-        "npm-run-all": "^4.1.5",
-        "path": "^0.12.7",
-        "shelljs": "^0.8.4",
-        "solidity-coverage": "^0.7.16",
-        "truffle": "^5.4.5",
-        "truffle-assertions": "^0.9.2",
-        "truffle-plugin-verify": "^0.5.8"
-    }
+  "name": "goodghosting-smart-contracts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "truffle-config.js",
+  "scripts": {
+    "ipfs": "node --no-warnings ./scripts/ipfs.js",
+    "test": "truffle test",
+    "test:fork:mainnet": "truffle test --network local-mainnet-fork",
+    "test:fork:celo": "truffle test --network local-celo-fork",
+    "test:fork:polygon:vigil": "truffle test --network local-polygon-vigil-fork",
+    "test:fork:polygon-whitelisted:vigil": "truffle test --network local-polygon-whitelisted-vigil-fork",
+    "coverage": "truffle run coverage --network soliditycoverage",
+    "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",
+    "deploy:kovan": "truffle deploy -f 2 --network kovan --reset",
+    "deploy:mainnet": "truffle deploy -f 2 --network mainnet --reset",
+    "deploy:polygon": "truffle deploy -f 2 --network polygon --reset",
+    "deploy:polygon-whitelisted": "truffle deploy -f 2 --network polygon-whitelisted --reset",
+    "deploy:alfajores": "truffle deploy -f 2 --network alfajores --reset",
+    "deploy:celo": "truffle deploy -f 2 --network celo --reset",
+    "deploy:verify:ropsten": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network ropsten --reset",
+    "deploy:verify:kovan": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network kovan --reset",
+    "deploy:verify:mainnet": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network mainnet --reset",
+    "deploy:verify:polygon": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon --reset",
+    "deploy:verify:polygon-whitelisted": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon-whitelisted --reset",
+    "deploy:verify:alfajores": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network alfajores --reset",
+    "deploy:verify:celo": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network celo --reset"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Good-Ghosting/goodghosting-smart-contracts.git"
+  },
+  "keywords": [
+    "goodghosting, defi, DeFi, lend, lending, loan, loans, aave, compound, curve, dYdX, fulcrum"
+  ],
+  "author": "GoodGhosting",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/Good-Ghosting/goodghosting-smart-contracts/issues"
+  },
+  "homepage": "https://github.com/Good-Ghosting/goodghosting-smart-contracts#readme",
+  "dependencies": {
+    "@aave/protocol-v2": "^1.0.1",
+    "@celo/contractkit": "^1.2.0",
+    "@openzeppelin/contracts": "^3.4.1",
+    "ethereumjs-abi": "^0.6.8",
+    "install": "^0.13.0",
+    "npm": "^7.12.1"
+  },
+  "devDependencies": {
+    "@decentral.ee/web3-test-helpers": "^0.2.7",
+    "@openzeppelin/test-helpers": "^0.5.11",
+    "@truffle/hdwallet-provider": "^1.5.0",
+    "bignumber.js": "^9.0.1",
+    "bn.js": "^5.2.0",
+    "coveralls": "^3.1.0",
+    "dotenv": "^9.0.2",
+    "eslint": "^7.26.0",
+    "eth-gas-reporter": "^0.2.22",
+    "ganache-time-traveler": "^1.0.15",
+    "ipfs-http-client": "^50.0.0",
+    "npm-run-all": "^4.1.5",
+    "path": "^0.12.7",
+    "shelljs": "^0.8.4",
+    "solidity-coverage": "^0.7.16",
+    "truffle": "^5.4.5",
+    "truffle-assertions": "^0.9.2",
+    "truffle-plugin-verify": "^0.5.8"
+  }
 }
