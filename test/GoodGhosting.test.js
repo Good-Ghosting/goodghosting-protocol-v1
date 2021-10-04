@@ -929,6 +929,25 @@ contract("GoodGhosting", (accounts) => {
                 "player unable to withdraw in between the game",
             );
         });
+
+        it("winner count reduces when a player withdraws before the end of the game", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame({ from: player1 });
+            // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await approveDaiToContract(player1);
+                await goodGhosting.makeDeposit({ from: player1 });
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
+            await goodGhosting.earlyWithdraw({ from: player1 });
+            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
+            assert(winnerCountBeforeEarlyWithdraw.eq(new BN(1)))
+            assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)))
+        })
     });
 
     describe("when an user tries to redeem from the external pool", async () => {

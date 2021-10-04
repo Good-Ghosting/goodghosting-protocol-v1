@@ -55,6 +55,8 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable maxPlayersCount;
     /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
     IERC20 public immutable incentiveToken;
+    /// @notice winner counter to track no of winners
+    uint256 public winnerCount = 0;
 
     struct Player {
         address addr;
@@ -191,7 +193,7 @@ contract GoodGhosting is Ownable, Pausable {
         // when there are no winners, admin will be able to withdraw the
         // additional incentives sent to the pool, avoiding locking the funds.
         uint256 adminIncentiveAmount = 0;
-        if (winners.length == 0 && totalIncentiveAmount > 0) {
+        if (winnerCount == 0 && totalIncentiveAmount > 0) {
             adminIncentiveAmount = totalIncentiveAmount;
         }
 
@@ -229,6 +231,9 @@ contract GoodGhosting is Ownable, Pausable {
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
         activePlayersCount = activePlayersCount.sub(1);
+        if (winnerCount > 0) {
+            winnerCount --;
+        }
 
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
         uint256 withdrawAmount =
@@ -269,10 +274,10 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 playerIncentive = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
-            payout = payout.add(totalGameInterest.div(winners.length));
+            payout = payout.add(totalGameInterest.div(winnerCount));
             // If there's additional incentives, distributes them to winners
             if (totalIncentiveAmount > 0) {
-                playerIncentive = totalIncentiveAmount.div(winners.length);
+                playerIncentive = totalIncentiveAmount.div(winnerCount);
             }
         }
         emit Withdrawal(msg.sender, payout, 0, playerIncentive);
@@ -330,6 +335,7 @@ contract GoodGhosting is Ownable, Pausable {
         // check if this is deposit for the last segment. If yes, the player is a winner.
         if (currentSegment == lastSegment.sub(1)) {
             winners.push(msg.sender);
+            winnerCount ++;
         }
 
         emit Deposit(msg.sender, currentSegment, segmentPayment);
@@ -382,7 +388,7 @@ contract GoodGhosting is Ownable, Pausable {
         }
 
         // when there's no winners, admin takes all the interest + rewards
-        if (winners.length == 0) {
+        if (winnerCount == 0) {
             adminFeeAmount = grossInterest;
         } else {
             adminFeeAmount = _adminFeeAmount;
