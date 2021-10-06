@@ -930,7 +930,7 @@ contract("GoodGhosting", (accounts) => {
             );
         });
 
-        it("winner count reduces when a player withdraws before the end of the game", async () => {
+        it("winner count reduces when a player withdraws aftert the last segment", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
@@ -950,7 +950,29 @@ contract("GoodGhosting", (accounts) => {
         })
     });
 
-    describe("when an user tries to redeem from the external pool", async () => {
+    it("winner count does not reduces when a player withdraws during the last segment", async () => {
+        await approveDaiToContract(player1);
+        await goodGhosting.joinGame({ from: player1 });
+        // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+        for (let index = 1; index < segmentCount; index++) {
+            await timeMachine.advanceTime(weekInSecs);
+            await approveDaiToContract(player1);
+            if (index <  segmentCount - 1) {
+                await goodGhosting.makeDeposit({ from: player1 });
+            }
+            if (index == segmentCount - 1) {
+                const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
+                await goodGhosting.earlyWithdraw({ from: player1 });
+                const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
+                assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
+            }
+        }
+        // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+        // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+        await timeMachine.advanceTime(weekInSecs * 2);
+});
+
+describe("when an user tries to redeem from the external pool", async () => {
         it("reverts if game is not completed", async () => {
             await truffleAssert.reverts(goodGhosting.redeemFromExternalPool({ from: player1 }), "Game is not completed");
         });

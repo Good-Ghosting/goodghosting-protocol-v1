@@ -231,8 +231,8 @@ contract GoodGhosting is Ownable, Pausable {
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
         activePlayersCount = activePlayersCount.sub(1);
-        if (winnerCount > 0) {
-            winnerCount --;
+        if (winnerCount > 0 && player.mostRecentSegmentPaid == lastSegment.sub(1)) {
+            winnerCount = winnerCount.sub(uint(1));
         }
 
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
@@ -335,9 +335,8 @@ contract GoodGhosting is Ownable, Pausable {
         // check if this is deposit for the last segment. If yes, the player is a winner.
         if (currentSegment == lastSegment.sub(1)) {
             winners.push(msg.sender);
-            winnerCount ++;
+            winnerCount = winnerCount.add(uint(1));
         }
-
         emit Deposit(msg.sender, currentSegment, segmentPayment);
         _transferDaiToContract();
     }

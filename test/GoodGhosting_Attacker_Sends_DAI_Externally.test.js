@@ -56,6 +56,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
+    const userWithdrawingDuringLastSegment = players[1];
     const attacker = accounts[7];
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(segmentPaymentInt)); // equivalent to 10 DAI
@@ -82,7 +83,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                     .transfer(player, daiAmount)
                     .send({ from: unlockedDaiAccount });
                 const playerBalance = await token.methods.balanceOf(player).call({ from: admin });
-                console.log(`player${i+1}DAIBalance`, web3.utils.fromWei(playerBalance));
+                console.log(`player${i + 1}DAIBalance`, web3.utils.fromWei(playerBalance));
             }
             // DAI Transferred to the attacker
             await token.methods.transfer(attacker, daiAmount).send({ from: unlockedDaiAccount });
@@ -152,7 +153,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                             whitelistedPlayerConfig[i][player].proof,
                             { from: player }
                         );
-                            // got logs not defined error when keep the event assertion check outside of the if-else
+                        // got logs not defined error when keep the event assertion check outside of the if-else
                         truffleAssert.eventEmitted(
                             result,
                             "JoinedGame",
@@ -161,7 +162,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                                 paymentEvent = ev.amount;
                                 return (
                                     playerEvent === player &&
-                                        new BN(paymentEvent).eq(new BN(segmentPayment))
+                                    new BN(paymentEvent).eq(new BN(segmentPayment))
                                 );
                             },
                             `JoinedGame event should be emitted when an user joins the game with params\n
@@ -179,7 +180,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 await timeMachine.advanceTime(segmentLength);
                 // Player 1 (index 0 - loser), performs an early withdraw on first segment.
                 if (segmentIndex === 1) {
-                    const earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser});
+                    const earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser });
                     truffleAssert.eventEmitted(
                         earlyWithdrawResult,
                         "EarlyWithdrawal",
@@ -191,13 +192,23 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 // j must start at 1 - Player1 (index 0) early withdraw, so won't continue making deposits
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
-                    const depositResult = await goodGhosting.makeDeposit({ from: player });
-                    truffleAssert.eventEmitted(
-                        depositResult,
-                        "Deposit",
-                        (ev) => ev.player === player && ev.segment.toNumber() === segmentIndex,
-                        `player ${j} unable to deposit for segment ${segmentIndex}`,
-                    );
+                    // make the player to miss the last segement deposit
+                    if (segmentIndex < segmentCount - 1 && j == 1) {
+                        const depositResult = await goodGhosting.makeDeposit({ from: player });
+                        truffleAssert.eventEmitted(
+                            depositResult,
+                            "Deposit",
+                            (ev) => ev.player === player && ev.segment.toNumber() === segmentIndex,
+                            `player ${j} unable to deposit for segment ${segmentIndex}`,
+                        );
+                    }
+                }
+                // winner count does not reduces since the 2nd early withdrawal was made during the last segment
+                if (segmentIndex === segmentCount - 1) {
+                    const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
+                    await goodGhosting.earlyWithdraw({ from: userWithdrawingDuringLastSegment });
+                    const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
+                    assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
                 }
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -230,7 +241,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
 
         it("players withdraw from contract", async () => {
             // starts from 1, since player1 (loser), requested an early withdraw
-            for (let i = 1; i < players.length - 1; i++) {
+            for (let i = 2; i < players.length - 1; i++) {
                 const player = players[i];
                 const playerInfo = await goodGhosting.players(player, { from: player });
                 let rewardBalanceBefore = new BN(0);
