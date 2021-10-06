@@ -193,7 +193,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
                     // make the player to miss the last segement deposit
-                    if (segmentIndex < segmentCount - 1 && j == 1) {
+                    if (segmentIndex < segmentCount - 1) {
                         const depositResult = await goodGhosting.makeDeposit({ from: player });
                         truffleAssert.eventEmitted(
                             depositResult,
@@ -205,10 +205,23 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 }
                 // winner count does not reduces since the 2nd early withdrawal was made during the last segment
                 if (segmentIndex === segmentCount - 1) {
+                    // player 1 earlywithdraws during last segment
                     const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
                     await goodGhosting.earlyWithdraw({ from: userWithdrawingDuringLastSegment });
                     const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
                     assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
+                    // j must start at 2- Player2 (index 1) early withdrawa in last segment, so won't continue making deposits
+                    for (let j = 2; j < players.length - 1; j++) {
+                        const player = players[j];
+                        const depositResult = await goodGhosting.makeDeposit({ from: player });
+                        truffleAssert.eventEmitted(
+                            depositResult,
+                            "Deposit",
+                            (ev) => ev.player === player && ev.segment.toNumber() === segmentIndex,
+                            `player ${j} unable to deposit for segment ${segmentIndex}`,
+                        );
+                    }
+
                 }
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
