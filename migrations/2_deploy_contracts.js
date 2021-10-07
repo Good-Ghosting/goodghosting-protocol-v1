@@ -155,7 +155,7 @@ module.exports = function (deployer, network, accounts) {
         const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
-        const segmentPaymentWei = new BN(deployConfigs.segmentPayment).mul(new BN(10).pow(new BN(inboundCurrencyDecimals)));
+        const segmentPaymentWei = (deployConfigs.segmentPayment * 10 ** inboundCurrencyDecimals).toString();
         const incentiveController = poolConfigs.incentiveController;
         const wmatic = poolConfigs.wmatic;
         const maxPlayersCount = deployConfigs.maxPlayersCount;
@@ -204,7 +204,7 @@ module.exports = function (deployer, network, accounts) {
         await deployer.deploy(SafeMathLib);
         await deployer.link(SafeMathLib, goodGhostingContract);
         await deployer.deploy(...deploymentArgs);
-
+        
         // Prints deployment summary
         printSummary(
             {
