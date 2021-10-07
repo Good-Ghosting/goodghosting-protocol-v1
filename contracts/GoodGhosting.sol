@@ -327,11 +327,6 @@ contract GoodGhosting is Ownable, Pausable {
             "Player didn't pay the previous segment - game over!"
         );
 
-        // check if this is deposit for the last segment. If yes, the player is a winner.
-        if (currentSegment == lastSegment.sub(1)) {
-            winners.push(msg.sender);
-        }
-
         emit Deposit(msg.sender, currentSegment, segmentPayment);
         _transferDaiToContract();
     }
@@ -426,6 +421,11 @@ contract GoodGhosting is Ownable, Pausable {
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
             segmentPayment
         );
+        // check if this is deposit for the last segment. If yes, the player is a winner.
+        // since both join game and deposit method call this method so having it here
+        if (currentSegment == lastSegment.sub(1)) {
+            winners.push(msg.sender);
+        }
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
         require(
             daiToken.transferFrom(msg.sender, address(this), segmentPayment),

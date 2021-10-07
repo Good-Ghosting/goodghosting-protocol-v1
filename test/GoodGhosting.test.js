@@ -785,6 +785,29 @@ contract("GoodGhosting", (accounts) => {
             const winner = await goodGhosting.winners(new BN(0));
             assert(winner === player1);
         });
+
+        it("for a pool with 1 segment make sure that winner array get's populated", async() => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(token.address);
+            goodGhosting = await GoodGhosting.new(
+                token.address,
+                pap.address,
+                1,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                pap.address,
+                maxPlayersCount,
+                ZERO_ADDRESS,
+                { from: admin },
+            );
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame( { from: player1 });
+            const winner = await goodGhosting.winners(new BN(0));
+            assert(winner === player1);
+        })
     });
 
     describe("when a user withdraws before the end of the game", async () => {
