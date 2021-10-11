@@ -64,6 +64,7 @@ contract GoodGhosting is Ownable, Pausable {
         bool canRejoin;
         uint256 mostRecentSegmentPaid;
         uint256 amountPaid;
+        bool isWinner;
     }
     /// @notice Stores info about the players in the game
     mapping(address => Player) public players;
@@ -233,6 +234,7 @@ contract GoodGhosting is Ownable, Pausable {
         activePlayersCount = activePlayersCount.sub(1);
         if (winnerCount > 0 && player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             winnerCount = winnerCount.sub(uint(1));
+            player.isWinner = false;
         }
 
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
@@ -297,13 +299,14 @@ contract GoodGhosting is Ownable, Pausable {
 
     /// @notice Allows players to make deposits for the game segments, after joining the game.
     function makeDeposit() external whenNotPaused {
+        Player storage player = players[msg.sender];
         require(
-            !players[msg.sender].withdrawn,
+            !player.withdrawn,
             "Player already withdraw from game"
         );
         // only registered players can deposit
         require(
-            players[msg.sender].addr == msg.sender,
+            player.addr == msg.sender,
             "Sender is not a player"
         );
 
@@ -322,13 +325,13 @@ contract GoodGhosting is Ownable, Pausable {
 
         //check if current segment is currently unpaid
         require(
-            players[msg.sender].mostRecentSegmentPaid != currentSegment,
+            player.mostRecentSegmentPaid != currentSegment,
             "Player already paid current segment"
         );
 
         // check if player has made payments up to the previous segment
         require(
-            players[msg.sender].mostRecentSegmentPaid == currentSegment.sub(1),
+            player.mostRecentSegmentPaid == currentSegment.sub(1),
             "Player didn't pay the previous segment - game over!"
         );
 
@@ -336,6 +339,7 @@ contract GoodGhosting is Ownable, Pausable {
         if (currentSegment == lastSegment.sub(1)) {
             winners.push(msg.sender);
             winnerCount = winnerCount.add(uint(1));
+            player.isWinner = true;
         }
         emit Deposit(msg.sender, currentSegment, segmentPayment);
         _transferDaiToContract();
@@ -467,7 +471,8 @@ contract GoodGhosting is Ownable, Pausable {
                 mostRecentSegmentPaid: 0,
                 amountPaid: 0,
                 withdrawn: false,
-                canRejoin: false
+                canRejoin: false,
+                isWinner: false
             });
         players[msg.sender] = newPlayer;
         if (!canRejoin) {

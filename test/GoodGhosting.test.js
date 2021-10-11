@@ -930,7 +930,7 @@ contract("GoodGhosting", (accounts) => {
             );
         });
 
-        it("winner count reduces when a winner withdraws after the last segment", async () => {
+        it("winner count reduces when a potential winner withdraws after the last segment", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
@@ -949,7 +949,7 @@ contract("GoodGhosting", (accounts) => {
             assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)))
         })
 
-        it("winner count reduces when a winner withdraws during the last segment after the deposit", async () => {
+        it("winner count reduces when a potential winner withdraws during the last segment after the deposit", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
@@ -965,6 +965,30 @@ contract("GoodGhosting", (accounts) => {
                     const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
                     assert(winnerCountBeforeEarlyWithdraw.eq(new BN(1)))
                     assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)))
+                }
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs * 2);
+
+        });
+
+        it("winner flag changes to false when a potential winner withdraws during the last segment after the deposit", async () => {
+            await approveDaiToContract(player1);
+            await goodGhosting.joinGame({ from: player1 });
+            // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await approveDaiToContract(player1);
+                if (index < segmentCount - 1) {
+                    await goodGhosting.makeDeposit({ from: player1 });
+                } else {
+                    await goodGhosting.makeDeposit({ from: player1 });
+                    const playerInfoBeforeWithdraw = await goodGhosting.players(player1)
+                    await goodGhosting.earlyWithdraw({ from: player1 });
+                    const playerInfoAfterWithdraw = await goodGhosting.players(player1)
+                    assert(playerInfoBeforeWithdraw.isWinner)
+                    assert(!playerInfoAfterWithdraw.isWinner)
                 }
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
