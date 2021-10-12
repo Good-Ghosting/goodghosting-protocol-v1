@@ -59,12 +59,13 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public winnerCount = 0;
 
     struct Player {
-        address addr;
         bool withdrawn;
         bool canRejoin;
+        bool isWinner;
+        address addr;
         uint256 mostRecentSegmentPaid;
         uint256 amountPaid;
-        bool isWinner;
+        uint256 winnerIndex;
     }
     /// @notice Stores info about the players in the game
     mapping(address => Player) public players;
@@ -338,6 +339,8 @@ contract GoodGhosting is Ownable, Pausable {
         // check if this is deposit for the last segment. If yes, the player is a winner.
         if (currentSegment == lastSegment.sub(1)) {
             winners.push(msg.sender);
+            // array indexes start from 0
+            player.winnerIndex = winners.length.sub(uint(1));
             winnerCount = winnerCount.add(uint(1));
             player.isWinner = true;
         }
@@ -472,7 +475,8 @@ contract GoodGhosting is Ownable, Pausable {
                 amountPaid: 0,
                 withdrawn: false,
                 canRejoin: false,
-                isWinner: false
+                isWinner: false,
+                winnerIndex: 0
             });
         players[msg.sender] = newPlayer;
         if (!canRejoin) {
