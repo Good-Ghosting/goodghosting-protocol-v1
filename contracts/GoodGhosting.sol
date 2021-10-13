@@ -16,21 +16,21 @@ import "./aave/AToken.sol";
 contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
-    /// @notice Controls if tokens were redeemed or not from the pool
-    bool public redeemed;
     /// @notice Stores the total amount of net interest received in the game.
     uint256 public totalGameInterest;
     /// @notice total principal amount
     uint256 public totalGamePrincipal;
     /// @notice performance fee amount allocated to the admin
     uint256 public adminFeeAmount;
-    /// @notice controls if admin withdrew or not the performance fee.
-    bool public adminWithdraw;
     /// @notice total amount of incentive tokens to be distributed among winners
     uint256 public totalIncentiveAmount = 0;
     /// @notice Controls the amount of active players in the game (ignores players that early withdraw)
     uint256 public activePlayersCount = 0;
 
+    /// @notice controls if admin withdrew or not the performance fee.
+    bool public adminWithdraw;
+    /// @notice Controls if tokens were redeemed or not from the pool
+    bool public redeemed;
     /// @notice Address of the token used for depositing into the game by players (DAI)
     IERC20 public immutable daiToken;
     /// @notice Address of the interest bearing token received when funds are transferred to the external pool
@@ -39,6 +39,8 @@ contract GoodGhosting is Ownable, Pausable {
     ILendingPoolAddressesProvider public immutable lendingPoolAddressProvider;
     /// @notice Lending pool address
     ILendingPool public lendingPool;
+    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
+    IERC20 public immutable incentiveToken;
     /// @notice The amount to be paid on each segment
     uint256 public immutable segmentPayment;
     /// @notice The number of segments in the game (segment count)
@@ -53,8 +55,6 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable customFee;
     /// @notice Defines the max quantity of players allowed in the game
     uint256 public immutable maxPlayersCount;
-    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
-    IERC20 public immutable incentiveToken;
     /// @notice winner counter to track no of winners
     uint256 public winnerCount = 0;
 
@@ -233,7 +233,7 @@ contract GoodGhosting is Ownable, Pausable {
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
         activePlayersCount = activePlayersCount.sub(1);
-        if (winnerCount > 0 && player.mostRecentSegmentPaid == lastSegment.sub(1)) {
+        if (winnerCount > 0 && player.isWinner) {
             winnerCount = winnerCount.sub(uint(1));
             player.isWinner = false;
         }
