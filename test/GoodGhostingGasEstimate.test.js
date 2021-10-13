@@ -61,6 +61,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
+    const userWithdrawingAfterLastSegment = players[1];
     const daiDecimals = web3.utils.toBN(1000000000000000000);
     const segmentPayment = daiDecimals.mul(new BN(segmentPaymentInt)); // equivalent to 10 DAI
     let goodGhosting;
@@ -293,6 +294,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
             // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount() 
+            await goodGhosting.earlyWithdraw({ from: userWithdrawingAfterLastSegment });
+            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
+
+            assert(winnerCountBeforeEarlyWithdraw.eq(new BN(3)))
+            assert(winnerCountaAfterEarlyWithdraw.eq(new BN(2)))
             await timeMachine.advanceTime(segmentLength * 2);
         });
 
@@ -344,8 +351,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("players withdraw from contract", async () => {
-            // starts from 1, since player1 (loser), requested an early withdraw
-            for (let i = 1; i < players.length - 1; i++) {
+            // starts from 2, since player1 (loser), requested an early withdraw and player 2 withdrew after the last segment
+            for (let i = 2; i < players.length - 1; i++) {
                 const player = players[i];
                 let rewardBalanceBefore = new BN(0);
                 let rewardBalanceAfter = new BN(0);
