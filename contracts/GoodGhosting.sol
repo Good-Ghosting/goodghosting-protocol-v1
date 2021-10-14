@@ -26,21 +26,6 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public totalIncentiveAmount = 0;
     /// @notice Controls the amount of active players in the game (ignores players that early withdraw)
     uint256 public activePlayersCount = 0;
-
-    /// @notice controls if admin withdrew or not the performance fee.
-    bool public adminWithdraw;
-    /// @notice Controls if tokens were redeemed or not from the pool
-    bool public redeemed;
-    /// @notice Address of the token used for depositing into the game by players (DAI)
-    IERC20 public immutable daiToken;
-    /// @notice Address of the interest bearing token received when funds are transferred to the external pool
-    AToken public immutable adaiToken;
-    /// @notice Which Aave instance we use to swap DAI to interest bearing aDAI
-    ILendingPoolAddressesProvider public immutable lendingPoolAddressProvider;
-    /// @notice Lending pool address
-    ILendingPool public lendingPool;
-    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
-    IERC20 public immutable incentiveToken;
     /// @notice The amount to be paid on each segment
     uint256 public immutable segmentPayment;
     /// @notice The number of segments in the game (segment count)
@@ -57,6 +42,21 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable maxPlayersCount;
     /// @notice winner counter to track no of winners
     uint256 public winnerCount = 0;
+
+    /// @notice controls if admin withdrew or not the performance fee.
+    bool public adminWithdraw;
+    /// @notice Controls if tokens were redeemed or not from the pool
+    bool public redeemed;
+    /// @notice Address of the token used for depositing into the game by players (DAI)
+    IERC20 public immutable daiToken;
+    /// @notice Address of the interest bearing token received when funds are transferred to the external pool
+    AToken public immutable adaiToken;
+    /// @notice Which Aave instance we use to swap DAI to interest bearing aDAI
+    ILendingPoolAddressesProvider public immutable lendingPoolAddressProvider;
+    /// @notice Lending pool address
+    ILendingPool public lendingPool;
+    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
+    IERC20 public immutable incentiveToken;
 
     struct Player {
         bool withdrawn;
@@ -336,15 +336,7 @@ contract GoodGhosting is Ownable, Pausable {
             player.mostRecentSegmentPaid == currentSegment.sub(1),
             "Player didn't pay the previous segment - game over!"
         );
-
-        // check if this is deposit for the last segment. If yes, the player is a winner.
-        if (currentSegment == lastSegment.sub(1)) {
-            winners.push(msg.sender);
-            // array indexes start from 0
-            player.winnerIndex = winners.length.sub(uint(1));
-            winnerCount = winnerCount.add(uint(1));
-            player.isWinner = true;
-        }
+ 
         emit Deposit(msg.sender, currentSegment, segmentPayment);
         _transferDaiToContract();
     }
@@ -439,6 +431,16 @@ contract GoodGhosting is Ownable, Pausable {
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
             segmentPayment
         );
+        // check if this is deposit for the last segment. If yes, the player is a winner.
+        // since both join game and deposit method call this method so having it here
+        if (currentSegment == lastSegment.sub(1)) {
+            winners.push(msg.sender);
+            // array indexes start from 0
+            players[msg.sender].winnerIndex = winners.length.sub(uint(1));
+            winnerCount = winnerCount.add(uint(1));
+            players[msg.sender].isWinner = true;
+        }
+        
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
         require(
             daiToken.transferFrom(msg.sender, address(this), segmentPayment),
