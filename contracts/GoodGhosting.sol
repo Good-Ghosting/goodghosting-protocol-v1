@@ -236,6 +236,7 @@ contract GoodGhosting is Ownable, Pausable {
         if (winnerCount > 0 && player.isWinner) {
             winnerCount = winnerCount.sub(uint(1));
             player.isWinner = false;
+            winners[player.winnerIndex] = address(0);
         }
 
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
