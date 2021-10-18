@@ -40,13 +40,13 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     /// @notice winner counter to track no of winners
     uint256 public winnerCount = 0;
     /// @notice total tokens in a pool
-    uint256 numTokens;
+    uint256 constant numTokens = 3;
     /// for some reason the curve contracts have int128 as param in the withdraw function
     /// hence the two types since type conversion is not possible
     /// @notice token index in the pool in int form
     int128 inboundTokenIndexInt;
     /// @notice token index in the pool in uint form
-    uint128 inboundTokenIndexUint;
+    uint256 inboundTokenIndexUint;
 
     /// @notice controls if admin withdrew or not the performance fee.
     bool public adminWithdraw;
@@ -95,6 +95,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         address indexed player,
         uint256 amount,
         uint256 playerReward,
+        uint256 playerCurveReward,
         uint256 playerIncentive
     );
     event FundsRedeemedFromExternalPool(
@@ -102,6 +103,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         uint256 totalGamePrincipal,
         uint256 totalGameInterest,
         uint256 rewards,
+        uint256 curveRewards,
         uint256 totalIncentiveAmount
     );
     event WinnersAnnouncement(address[] winners);
@@ -143,7 +145,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     constructor(
         IERC20 _inboundCurrency,
         ICurvePool _pool,
-        uint256 _numTokens,
         int128 _inboundTokenIndexInt,
         uint128 _inboundTokenIndexUint,
         ICurveGauge _gauge,
@@ -165,7 +166,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         require(_segmentCount > 0, "_segmentCount must be greater than zero");
         require(_segmentLength > 0, "_segmentLength must be greater than zero");
         require(_segmentPayment > 0, "_segmentPayment must be greater than zero");
-        require(_numTokens > 0, "invalid _numTokens");
         require(address(_pool) != address(0), "invalid _pool address");
         require(address(_gauge) != address(0), "invalid _gauge address");
         require(address(_curve) != address(0), "invalid _curve address");
@@ -175,7 +175,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         gauge = _gauge;
         curve = _curve;
         matic = _matic;
-        numTokens = _numTokens;
         inboundTokenIndexInt = _inboundTokenIndexInt;
         inboundTokenIndexUint = _inboundTokenIndexUint;
         firstSegmentStart = block.timestamp; //gets current time
@@ -237,11 +236,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
-        uint256 _minAmount = pool.calc_withdraw_one_coin(withdrawAmount, inboundTokenIndexInt);
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = _minAmount;
+
         gauge.withdraw(withdrawAmount, false);
-        pool.remove_liquidity_one_coin(withdrawAmount, inboundTokenIndexInt, _minAmount, true);
+        pool.remove_liquidity_one_coin(withdrawAmount, inboundTokenIndexInt, 0, true);
 
         // lendingPool.withdraw(address(daiToken), withdrawAmount, address(this));
         require(
@@ -301,7 +298,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             daiToken.approve(address(pool), contractBalance),
             "Fail to approve allowance to pool"
         );
-        uint256[] memory amounts = new uint256[](numTokens);
+        uint256[numTokens] memory amounts;
         for (uint256 i = 0; i < numTokens; i++) {
             if (i == inboundTokenIndexUint) {
                 amounts[i] = segmentPayment;
@@ -435,6 +432,14 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 "Fail to transfer ERC20 rewards tokens to admin"
             );
         }
+
+        if (curveRewardsPerPlayer == 0) {
+            uint256 balance = IERC20(curve).balanceOf(address(this));
+            require(
+                IERC20(curve).transfer(owner(), balance),
+                "Fail to transfer ERC20 rewards tokens to admin"
+            );
+        }
     }
 
     /// @notice Allows player to withdraw their funds after the game ends with no loss (fee). Winners get a share of the interest earned.
@@ -463,7 +468,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 playerIncentive = totalIncentiveAmount.div(winnerCount);
             }
         }
-        emit Withdrawal(msg.sender, payout, playerReward, playerIncentive);
+        emit Withdrawal(msg.sender, payout, playerReward, playerCurveReward, playerIncentive);
 
         require(
             IERC20(daiToken).transfer(msg.sender, payout),
@@ -545,6 +550,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             totalGamePrincipal,
             totalGameInterest,
             rewardsAmount,
+            curveRewardAmount,
             totalIncentiveAmount
         );
         emit WinnersAnnouncement(winners);

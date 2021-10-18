@@ -2,7 +2,7 @@ pragma solidity 0.6.11;
 
 interface ICurvePool {
     function add_liquidity(
-        uint256[] calldata _amounts,
+        uint256[3] calldata _amounts,
         uint256 _min_mint_amount,
         bool _use_underlying
     ) external returns (uint256);
