@@ -26,7 +26,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
     let whitelistedPlayerConfig;
 
     // Only executes this test file IF NOT a local network fork
-    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
+    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork",  "local-polygon-vigil-fork-curve", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
 
     if (process.env.NETWORK.toLowerCase().includes("coverage")) {
         whitelistedPlayerConfig = coveragePlayerConfig;

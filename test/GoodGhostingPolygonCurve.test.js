@@ -1,24 +1,25 @@
 /* global context */
-const IERC20 = artifacts.require("IERC20");
 const ERC20Mintable = artifacts.require("MockERC20Mintable");
-const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
+const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
 const IncentiveControllerMock = artifacts.require("IncentiveControllerMock");
-
-const LendingPoolAddressesProviderMock = artifacts.require("LendingPoolAddressesProviderMock");
+const MockCurvePool = artifacts.require("MockCurvePool")
+const MockCurveGauge = artifacts.require("MockCurveGauge")
+const ethers = require('ethers')
 const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 
-contract("GoodGhostingPolygon", (accounts) => {
+contract("GoodGhostingPolygonCurve", (accounts) => {
     // Only executes this test file IF NOT a local network fork
     if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork",  "local-polygon-vigil-fork-curve", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
 
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     const admin = accounts[0];
     let token;
-    let aToken;
+    let pool;
+    let gauge;
+    let curve;
     let goodGhosting;
-    let pap;
     let incentiveController;
     let player1 = accounts[1];
     let player2 = accounts[2];
@@ -32,35 +33,40 @@ contract("GoodGhostingPolygon", (accounts) => {
     const segmentCount = 6;
     const segmentLength = 180;
     const maxPlayersCount = new BN(100);
+    const tokenPosition = 0;
     const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
     beforeEach(async () => {
         global.web3 = web3;
+        incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
         token = await ERC20Mintable.new("MINT", "MINT", { from: admin });
+        curve = await ERC20Mintable.new("CURVE", "CURVE", { from: admin });
+        pool = await  MockCurvePool.new("LP", "LP", token.address, { from: admin});
+        gauge = await  MockCurveGauge.new("GAUGE", "GAUGE", curve.address, pool.address, incentiveController.address, { from: admin});
         // creates dai for player1 to hold.
         // Note DAI contract returns value to 18 Decimals
         // so token.balanceOf(address) should be converted with BN
         // and then divided by 10 ** 18
         await mintTokensFor(player1);
         await mintTokensFor(player2);
-        pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-        aToken = await IERC20.at(await pap.getLendingPool.call());
-        await pap.setUnderlyingAssetAddress(token.address);
-        incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+        await mintRewardsFor(gauge.address)
+        await curve.mint(gauge.address, toWad(1000), { from: admin });
 
-        goodGhosting = await GoodGhostingPolygon.new(
+        goodGhosting = await GoodGhostingPolygonCurve.new(
             token.address,
-            pap.address,
+            pool.address,
+            tokenPosition,
+            tokenPosition,
+            gauge.address,
             segmentCount,
             segmentLength,
             segmentPayment,
             fee,
             adminFee,
-            pap.address,
             maxPlayersCount,
+            curve.address,
+            incentiveController.address,
             ZERO_ADDRESS,
-            incentiveController.address,
-            incentiveController.address,
             { from: admin },
         );
     });
@@ -90,12 +96,12 @@ contract("GoodGhostingPolygon", (accounts) => {
             contract = goodGhosting;
         }
         await approveDaiToContract(player);
-        await contract.joinGame( { from: player });
+        await contract.joinGame(0, { from: player });
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
         for (let index = 1; index < segmentCount; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
-            await contract.makeDeposit({ from: player });
+            await contract.makeDeposit(0,{ from: player });
         }
         // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
         // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
@@ -104,12 +110,12 @@ contract("GoodGhostingPolygon", (accounts) => {
 
     async function joinGameMissLastPaymentAndComplete(player) {
         await approveDaiToContract(player);
-        await goodGhosting.joinGame( { from: player });
+        await goodGhosting.joinGame(0, { from: player });
         // pay all remaining segments except last one
         for (let index = 1; index < segmentCount - 1; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
-            await goodGhosting.makeDeposit({ from: player });
+            await goodGhosting.makeDeposit(0 ,{ from: player });
         }
         // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 2.
         // now, we move 3 more segments (segmentCount-2, segmentCount-1 and segmentCount) to complete the game.
@@ -117,24 +123,6 @@ contract("GoodGhostingPolygon", (accounts) => {
     }
 
     describe("pre-flight checks", async () => {
-        it("checks if DAI and aDAI contracts have distinct addresses", async () => {
-            const daiAdd = token.address;
-            const aDaiAdd = pap.address;
-            assert(daiAdd !== aDaiAdd, `DAI ${daiAdd} and ADAI ${aDaiAdd} shouldn't be the same address`);
-        });
-
-        it("checks that contract starts holding 0 Dai and 0 aDai", async () => {
-            const daiBalance = await token.balanceOf(goodGhosting.address);
-            const aDaiBalance = await pap.balanceOf(goodGhosting.address);
-            assert(
-                daiBalance.toNumber() === 0,
-                `On start, smart contract's DAI balance should be 0 DAI - got ${daiBalance.toNumber()} DAI`,
-            );
-            assert(
-                aDaiBalance.toNumber() === 0,
-                `on start, smart contract's aDAI balance should be 0 aDAI - got ${aDaiBalance.toNumber()} aDAI`,
-            );
-        });
 
         it("checks if player1 received minted DAI tokens", async () => {
             const usersDaiBalance = await token.balanceOf(player1);
@@ -142,379 +130,94 @@ contract("GoodGhostingPolygon", (accounts) => {
             assert(usersDaiBalance.div(daiDecimals).gte(new BN(1000)), `Player1 balance should be greater than or equal to 100 DAI at start - current balance: ${usersDaiBalance}`);
         });
 
-        it("reverts if the contract is deployed with 0% early withdraw fee", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
+        it("reverts if the contract is deployed with invalid pool address", async () => {
+            await truffleAssert.reverts(GoodGhostingPolygonCurve.new(
                 token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                0,
-                adminFee,
-                pap.address,
-                maxPlayersCount,
                 ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "_earlyWithdrawalFee must be greater than zero");
-        });
-
-        it("reverts if the contract is deployed with early withdraw fee more than 10%", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                15,
-                adminFee,
-                pap.address,
-                maxPlayersCount,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "_earlyWithdrawalFee must be less than or equal to 10%");
-        });
-
-        it("reverts if the contract is deployed with admin fee more than 20%", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                pap.address,
+                tokenPosition,
+                tokenPosition,
+                gauge.address,
                 segmentCount,
                 segmentLength,
                 segmentPayment,
                 fee,
-                30,
-                pap.address,
-                maxPlayersCount,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "_customFee must be less than or equal to 20%");
-        });
-
-        it("reverts if the contract is deployed with max player count equal to zero", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(
-                GoodGhostingPolygon.new(
-                    token.address,
-                    pap.address,
-                    segmentCount,
-                    segmentLength,
-                    segmentPayment,
-                    fee,
-                    0,
-                    pap.address,
-                    new BN(0), // set to 0 to force revert
-                    ZERO_ADDRESS,
-                    incentiveController.address,
-                    incentiveController.address,
-                    { from: admin },
-                ),
-                "_maxPlayersCount must be greater than zero"
-            );
-        });
-
-        it("reverts if the contract is deployed with invalid inbound token address", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                ZERO_ADDRESS,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                3,
                 adminFee,
-                pap.address,
                 maxPlayersCount,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "invalid _inboundCurrency address");
-        });
-
-        it("reverts if the contract is deployed with invalid lending pool address", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                ZERO_ADDRESS,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                3,
-                adminFee,
-                pap.address,
-                maxPlayersCount,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "invalid _lendingPoolAddressProvider address");
-        });
-
-        it("reverts if the contract is deployed with segment count as 0", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                pap.address,
-                new BN(0),
-                segmentLength,
-                segmentPayment,
-                3,
-                adminFee,
-                pap.address,
-                maxPlayersCount,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "_segmentCount must be greater than zero");
-        });
-
-        it("reverts if the contract is deployed with segment length as 0", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                new BN(0),
-                segmentPayment,
-                3,
-                adminFee,
-                pap.address,
-                maxPlayersCount,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "_segmentLength must be greater than zero");
-        });
-
-        it("reverts if the contract is deployed with segment payment as 0", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                new BN(0),
-                1,
-                adminFee,
-                pap.address,
-                maxPlayersCount,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "_segmentPayment must be greater than zero");
-        });
-
-        it("reverts if the contract is deployed with invalid data provider address", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                1,
-                adminFee,
-                ZERO_ADDRESS,
-                maxPlayersCount,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "invalid _dataProvider address");
-        });
-
-        it("reverts if the contract is deployed with invalid incentive controller address", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                3,
-                adminFee,
-                pap.address,
-                maxPlayersCount,
-                ZERO_ADDRESS,
-                ZERO_ADDRESS,
-                incentiveController.address,
-                { from: admin },
-            ),
-            "invalid _incentiveController address");
-        });
-
-        it("reverts if the contract is deployed with invalid matic token address", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            await truffleAssert.reverts(GoodGhostingPolygon.new(
-                token.address,
-                pap.address,
-                segmentCount,
-                segmentLength,
-                segmentPayment,
-                3,
-                adminFee,
-                pap.address,
-                maxPlayersCount,
-                ZERO_ADDRESS,
+                curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
                 { from: admin },
             ),
-            "invalid _matic address");
+            "invalid _pool address");
         });
 
-        it("accepts setting type(uint256).max as the max number of players", async () => {
-            const expectedValue = new BN(2).pow(new BN(256)).sub(new BN(1));
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            const contract = await GoodGhostingPolygon.new(
+        it("reverts if the contract is deployed with invalid gauge address", async () => {
+            await truffleAssert.reverts(GoodGhostingPolygonCurve.new(
                 token.address,
-                pap.address,
+                pool.address,       
+                tokenPosition,
+                tokenPosition,
+                ZERO_ADDRESS,
                 segmentCount,
                 segmentLength,
                 segmentPayment,
                 fee,
-                0,
-                pap.address,
-                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                { from: admin },
+            ),
+            "invalid _gauge address");
+        });
+
+        it("reverts if the contract is deployed with invalid curve address", async () => {
+            await truffleAssert.reverts(GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                tokenPosition,
+                tokenPosition,
+                gauge.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                maxPlayersCount,
                 ZERO_ADDRESS,
                 incentiveController.address,
-                incentiveController.address,
+                ZERO_ADDRESS,
                 { from: admin },
-            );
-            const result = new BN(await contract.maxPlayersCount.call());
-            assert(expectedValue.eq(result), "expected max number of players to equal type(uint256).max");
-        });
-    });
-
-    describe("when the contract is deployed", async () => {
-        it("checks if the contract's variables were properly initialized", async () => {
-            const inboundCurrencyResult = await goodGhosting.daiToken.call();
-            const interestCurrencyResult = await goodGhosting.adaiToken.call();
-            const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
-            const incentiveControllerResult = await goodGhosting.incentiveController.call();
-
-            const lastSegmentResult = await goodGhosting.lastSegment.call();
-            const segmentLengthResult = await goodGhosting.segmentLength.call();
-            const segmentPaymentResult = await goodGhosting.segmentPayment.call();
-            const maxPlayersCountResult = await goodGhosting.maxPlayersCount.call();
-            const incentiveToken = await goodGhosting.incentiveToken.call();
-
-            assert(incentiveControllerResult === incentiveController.address, `Incentive Controller address doesn't match. expected ${incentiveController.address}; got ${incentiveControllerResult}`);
-            assert(inboundCurrencyResult === token.address, `Inbound currency doesn't match. expected ${token.address}; got ${inboundCurrencyResult}`);
-            assert(interestCurrencyResult === aToken.address, `Interest currency doesn't match. expected ${aToken.address}; got ${interestCurrencyResult}`);
-            assert(lendingPoolAddressProviderResult === pap.address, `LendingPoolAddressesProvider doesn't match. expected ${pap.address}; got ${lendingPoolAddressProviderResult}`);
-            assert(new BN(lastSegmentResult).eq(new BN(segmentCount)), `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`);
-            assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
-            assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
-            assert(new BN(maxPlayersCountResult).eq(maxPlayersCount), `MaxPlayersCount doesn't match. expected ${maxPlayersCount.toString()}; got ${maxPlayersCountResult}`);
-            assert(incentiveToken === ZERO_ADDRESS);
-        });
-
-        it("checks if game starts at segment zero", async () => {
-            const expectedSegment = new BN(0);
-            const result = await goodGhosting.getCurrentSegment.call({ from: admin });
-            assert(
-                result.eq(new BN(0)),
-                `should start at segment ${expectedSegment} but started at ${result.toNumber()} instead.`,
-            );
+            ),
+            "invalid _curve address");
         });
     });
 
     describe("when an user tries to redeem from the external pool", async () => {
-        it("reverts if funds were already redeemed", async () => {
-            await joinGamePaySegmentsAndComplete(player1);
-            await goodGhosting.redeemFromExternalPool({ from: player1 });
-            await truffleAssert.reverts(goodGhosting.redeemFromExternalPool({ from: player1 }), "Redeem operation already happened for the game");
-        });
-
-        it("allows to redeem from external pool when game is completed", async () => {
-            await joinGamePaySegmentsAndComplete(player1);
-            truffleAssert.passes(goodGhosting.redeemFromExternalPool, "Couldn't redeem from external pool");
-        });
 
         it("transfer funds to contract then redeems from external pool", async () => {
-            const expectedBalance = web3.utils.toBN(segmentPayment * segmentCount);
             await joinGamePaySegmentsAndComplete(player1);
             let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(goodGhosting.address);
+            let contractCurveBalanceBeforeRedeem = await curve.balanceOf(goodGhosting.address);
+
             await goodGhosting.redeemFromExternalPool({ from: player2 });
             let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(goodGhosting.address);
+            let contractCurveBalanceAfterRedeem = await curve.balanceOf(goodGhosting.address);
             assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
-            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
-            // No interest is generated during tests so far, so contract balance must equals the amount deposited.
-            assert(expectedBalance.eq(contractsDaiBalance));
+            assert(contractCurveBalanceAfterRedeem.gt(contractCurveBalanceBeforeRedeem));
         });
 
         it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
             await joinGamePaySegmentsAndComplete(player1);
-            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(goodGhosting.address);
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
-            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(goodGhosting.address);
-            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
-            const contractsDaiBalance = await token.balanceOf(goodGhosting.address);
+            const contractCurveBalance = await curve.balanceOf(goodGhosting.address);
             truffleAssert.eventEmitted(
                 result,
                 "FundsRedeemedFromExternalPool",
-                (ev) => new BN(ev.totalAmount).eq(new BN(contractsDaiBalance)),
+                (ev) => new BN(ev.curveRewards).eq(new BN(contractCurveBalance)),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
-        });
-
-        it("emits WinnersAnnouncement event when redeem is successful", async () => { // having test with only 1 player for now
-            await joinGamePaySegmentsAndComplete(player1);
-            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(goodGhosting.address);
-            const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
-            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(goodGhosting.address);
-            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
-            truffleAssert.eventEmitted(result, "WinnersAnnouncement", (ev) => {
-                return ev.winners[0] === player1;
-            }, "WinnersAnnouncement event should be emitted when funds are redeemed from external pool");
         });
 
         it("allocates external rewards sent to contract to the players", async () => {
@@ -556,22 +259,21 @@ contract("GoodGhostingPolygon", (accounts) => {
 
             beforeEach(async () => {
                 incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-                aToken = await IERC20.at(await pap.getLendingPool.call());
-                await pap.setUnderlyingAssetAddress(token.address);
-                contract = await GoodGhostingPolygon.new(
+                contract = await GoodGhostingPolygonCurve.new(
                     token.address,
-                    pap.address,
+                    pool.address,
+                    tokenPosition,
+                    tokenPosition,
+                    gauge.address,
                     segmentCount,
                     segmentLength,
                     segmentPayment,
                     fee,
-                    0,
-                    pap.address,
-                    "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                    adminFee,
+                    maxPlayersCount,
+                    curve.address,
+                    incentiveController.address,
                     incentiveToken.address,
-                    incentiveController.address,
-                    incentiveController.address,
                     { from: admin },
                 );
             });
@@ -602,10 +304,12 @@ contract("GoodGhostingPolygon", (accounts) => {
             const result = await goodGhosting.redeemFromExternalPool({ from: player1 });
             const adminBalance = await token.balanceOf(admin);
             const principalBalance = await token.balanceOf(goodGhosting.address);
+            const matic = await incentiveController.balanceOf(goodGhosting.address)
+            console.log('maticcc', matic.toString())
             truffleAssert.eventEmitted(
                 result,
                 "FundsRedeemedFromExternalPool",
-                (ev) => new BN(ev.totalGameInterest).eq(new BN(adminBalance)) && new BN(ev.totalGamePrincipal).eq(new BN(principalBalance)) && new BN(ev.rewards/10**18).eq(new BN(1)),
+                (ev) => new BN(ev.totalGameInterest).eq(new BN(adminBalance)) && new BN(ev.totalGamePrincipal).eq(new BN(principalBalance)) && new BN(ev.rewards/10**18).eq(new BN(1000)),
                 "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
             );
         });
@@ -636,7 +340,7 @@ contract("GoodGhostingPolygon", (accounts) => {
 
         it("reverts if a non-player tries to withdraw", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame(0, { from: player1 });
             await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: nonPlayer }), "Player does not exist");
         });
 
@@ -663,14 +367,14 @@ contract("GoodGhostingPolygon", (accounts) => {
         it("makes sure the player that withdraws first before funds are redeemed from external pool gets equal interest (if winner)", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame( { from: player2 });
-            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame(0, { from: player2 });
+            await goodGhosting.joinGame(0, { from: player1 });
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.makeDeposit({ from: player1 });
-                await goodGhosting.makeDeposit({ from: player2 });
+                await goodGhosting.makeDeposit(0,{ from: player1 });
+                await goodGhosting.makeDeposit(0,{ from: player2 });
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
             // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
@@ -678,9 +382,10 @@ contract("GoodGhostingPolygon", (accounts) => {
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
             const incentiveAmount = toWad(1000);
-            await token.approve(pap.address, incentiveAmount, { from: admin });
-            await pap.deposit(token.address, incentiveAmount, pap.address, 0, { from: admin });
-            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+
+            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
+            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin });
+            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin });
 
             const player1BeforeWithdrawBalance = await token.balanceOf(player1);
             await goodGhosting.withdraw({ from: player1 });
@@ -707,15 +412,15 @@ contract("GoodGhostingPolygon", (accounts) => {
         it("makes sure the winners get equal interest", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame( { from: player2 });
-            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame(0, { from: player2 });
+            await goodGhosting.joinGame(0, { from: player1 });
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
 
-                await goodGhosting.makeDeposit({ from: player1 });
-                await goodGhosting.makeDeposit({ from: player2 });
+                await goodGhosting.makeDeposit(0,{ from: player1 });
+                await goodGhosting.makeDeposit(0,{ from: player2 });
 
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -723,9 +428,9 @@ contract("GoodGhostingPolygon", (accounts) => {
             await timeMachine.advanceTime(weekInSecs);
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
-            await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
-            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
+            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin });
+            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: admin });
 
             await goodGhosting.withdraw({ from: player1 });
@@ -739,7 +444,7 @@ contract("GoodGhostingPolygon", (accounts) => {
         it("pays a bonus to winners and losers get their principle back", async () => {
             // Player1 is out "loser" and their interest is Player2's bonus
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame( { from: player1 });
+            await goodGhosting.joinGame(0, { from: player1 });
 
             // Player2 pays in all segments and is our lucky winner!
             await mintTokensFor(player2);
@@ -747,9 +452,9 @@ contract("GoodGhostingPolygon", (accounts) => {
 
             // Simulate some interest by giving the contract more aDAI
             await mintTokensFor(admin);
-            await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
-            await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
+            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin });
+            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin });
 
             // Expect Player1 to get back the deposited amount
             const player1PreWithdrawBalance = await token.balanceOf(player1);
@@ -784,35 +489,35 @@ contract("GoodGhostingPolygon", (accounts) => {
             await goodGhosting.redeemFromExternalPool({ from: admin });
             const result = await goodGhosting.withdraw({ from: player1 });
             truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
-                return ev.player === player1 && new BN(ev.playerReward/10**18).eq(new BN(1));
+                return ev.player === player1 && new BN(ev.playerReward/10**18).eq(new BN(1000));
             }, "unable to withdraw amount");
         });
 
         context("when incentive token is defined", async () => {
             const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
             const incentiveAmount = new BN(toWad(10));
-            const rewardAmount = new BN(toWad(1));
+            const rewardAmount = new BN(toWad(1000));
             let contract;
             let incentiveToken;
 
             beforeEach(async () => {
                 incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-                aToken = await IERC20.at(await pap.getLendingPool.call());
-                await pap.setUnderlyingAssetAddress(token.address);
-                contract = await GoodGhostingPolygon.new(
+                contract = await GoodGhostingPolygonCurve.new(
                     token.address,
-                    pap.address,
+                    pool.address,
+                    
+                    tokenPosition,
+                    tokenPosition,
+                    gauge.address,
                     segmentCount,
                     segmentLength,
                     segmentPayment,
                     fee,
                     0,
-                    pap.address,
-                    "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                    maxPlayersCount,
+                    curve.address,
+                    incentiveController.address,
                     incentiveToken.address,
-                    incentiveController.address,
-                    incentiveController.address,
                     { from: admin },
                 );
             });
@@ -824,7 +529,7 @@ contract("GoodGhostingPolygon", (accounts) => {
 
                 const player1IncentiveBalanceBefore = await incentiveToken.balanceOf(player1);
                 const player2IncentiveBalanceBefore = await incentiveToken.balanceOf(player2);
-                await contract.joinGame({ from: player2 });
+                await contract.joinGame(0,{ from: player2 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
                 await contract.redeemFromExternalPool({ from: player1 });
 
@@ -866,7 +571,7 @@ contract("GoodGhostingPolygon", (accounts) => {
 
                 const player1IncentiveBalanceBefore = await incentiveToken.balanceOf(player1);
                 const player2IncentiveBalanceBefore = await incentiveToken.balanceOf(player2);
-                await contract.joinGame({ from: player2 });
+                await contract.joinGame(0,{ from: player2 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
                 await contract.redeemFromExternalPool({ from: player1 });
 
@@ -915,9 +620,9 @@ contract("GoodGhostingPolygon", (accounts) => {
                 await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
-                await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
-                await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 await goodGhosting.adminFeeWithdraw({ from: admin });
                 await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin }), "Admin has already withdrawn");
@@ -927,7 +632,7 @@ contract("GoodGhostingPolygon", (accounts) => {
         context("with no winners in the game", async () => {
             it("does not revert when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
                 await approveDaiToContract(player1);
-                await goodGhosting.joinGame( { from: player1 });
+                await goodGhosting.joinGame(0, { from: player1 });
                 await advanceToEndOfGame();
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 const ZERO = new BN(0);
@@ -942,8 +647,8 @@ contract("GoodGhostingPolygon", (accounts) => {
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame( { from: player1 });
-                await goodGhosting.joinGame( { from: player2 });
+                await goodGhosting.joinGame(0, { from: player1 });
+                await goodGhosting.joinGame(0, { from: player2 });
                 await timeMachine.advanceTimeAndBlock(weekInSecs);
                 await goodGhosting.earlyWithdraw({ from: player1 });
                 await advanceToEndOfGame();
@@ -960,7 +665,8 @@ contract("GoodGhostingPolygon", (accounts) => {
                 const result = await goodGhosting.adminFeeWithdraw({ from: admin });
                 let adminMaticBalanceAfterWithdraw = await incentiveController.balanceOf(admin);
                 // no external deposits
-                assert(adminMaticBalanceAfterWithdraw.eq(adminMaticBalanceBeforeWithdraw));
+                // the mock contract sends matic and curve rewards even if there is 1 deposit
+                assert(adminMaticBalanceAfterWithdraw.gt(adminMaticBalanceBeforeWithdraw));
                 truffleAssert.eventEmitted(
                     result,
                     "AdminWithdrawal",
@@ -973,13 +679,13 @@ contract("GoodGhostingPolygon", (accounts) => {
             it("withdraw fees when there's only interest generated by external pool", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame( { from: player1 });
-                await goodGhosting.joinGame( { from: player2 });
+                await goodGhosting.joinGame(0, { from: player1 });
+                await goodGhosting.joinGame(0, { from: player2 });
                 // mocks interest generation
                 await mintTokensFor(admin);
-                await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
-                await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin });
                 await advanceToEndOfGame();
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 const contractBalance = await token.balanceOf(goodGhosting.address);
@@ -1006,13 +712,13 @@ contract("GoodGhostingPolygon", (accounts) => {
             it("withdraw fees when there's both interest generated by external pool and early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame( { from: player1 });
-                await goodGhosting.joinGame( { from: player2 });
+                await goodGhosting.joinGame(0, { from: player1 });
+                await goodGhosting.joinGame(0, { from: player2 });
                 await goodGhosting.earlyWithdraw({ from: player1 });
                 await mintTokensFor(admin);
-                await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
-                await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin });
                 await timeMachine.advanceTimeAndBlock(weekInSecs);
                 await advanceToEndOfGame();
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
@@ -1040,28 +746,28 @@ contract("GoodGhostingPolygon", (accounts) => {
                 const incentiveAmount = new BN(toWad(10));
                 const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
                 const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-                aToken = await IERC20.at(await pap.getLendingPool.call());
-                await pap.setUnderlyingAssetAddress(token.address);
-                const contract = await GoodGhostingPolygon.new(
+                const contract = await GoodGhostingPolygonCurve.new(
                     token.address,
-                    pap.address,
+                    pool.address,
+                    
+                    tokenPosition,
+                    tokenPosition,
+                    gauge.address,
                     segmentCount,
                     segmentLength,
                     segmentPayment,
                     fee,
                     new BN(1),
-                    pap.address,
-                    "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                    maxPlayersCount,
+                    curve.address,
+                    incentiveController.address,
                     incentiveToken.address,
-                    incentiveController.address,
-                    incentiveController.address,
                     { from: admin },
                 );
 
                 await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
                 await token.approve(contract.address, approvalAmount, { from: player1 });
-                await contract.joinGame({ from: player1 });
+                await contract.joinGame(0,{ from: player1 });
                 await advanceToEndOfGame();
                 await contract.redeemFromExternalPool({ from: player1 });
                 const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
@@ -1096,7 +802,7 @@ contract("GoodGhostingPolygon", (accounts) => {
 
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame( { from: player2 });
+                await goodGhosting.joinGame(0, { from: player2 });
                 await goodGhosting.earlyWithdraw({ from: player2 });
                 await joinGamePaySegmentsAndComplete(player1);
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
@@ -1118,9 +824,9 @@ contract("GoodGhostingPolygon", (accounts) => {
                 await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
-                await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
-                await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
 
                 const contractBalance = await token.balanceOf(goodGhosting.address);
@@ -1140,15 +846,15 @@ contract("GoodGhostingPolygon", (accounts) => {
 
             it("withdraw fees when there's both interest generated by external pool and early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame( { from: player2 });
+                await goodGhosting.joinGame(0, { from: player2 });
                 await goodGhosting.earlyWithdraw({ from: player2 });
 
                 await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
-                await token.approve(pap.address, toWad(1000), { from: admin });
-                await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
-                await aToken.transfer(goodGhosting.address, toWad(1000), { from: admin });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin });
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
 
                 const contractBalance = await token.balanceOf(goodGhosting.address);
@@ -1177,22 +883,22 @@ contract("GoodGhostingPolygon", (accounts) => {
                 const incentiveAmount = new BN(toWad(10));
                 const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
                 const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-                aToken = await IERC20.at(await pap.getLendingPool.call());
-                await pap.setUnderlyingAssetAddress(token.address);
-                const contract = await GoodGhostingPolygon.new(
+                const contract = await GoodGhostingPolygonCurve.new(
                     token.address,
-                    pap.address,
+                    pool.address,
+                    
+                    tokenPosition,
+                    tokenPosition,
+                    gauge.address,
                     segmentCount,
                     segmentLength,
                     segmentPayment,
                     fee,
                     new BN(1),
-                    pap.address,
-                    "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                    maxPlayersCount,
+                    curve.address,
+                    incentiveController.address,
                     incentiveToken.address,
-                    incentiveController.address,
-                    incentiveController.address,
                     { from: admin },
                 );
 
@@ -1221,29 +927,30 @@ contract("GoodGhostingPolygon", (accounts) => {
 
     describe("admin tries to withdraw fees with admin percentage fee equal to 0 and no winners", async () => {
         it("does not revert when there is no interest generated", async () => {
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            await pap.setUnderlyingAssetAddress(token.address);
-            goodGhosting = await GoodGhostingPolygon.new(
+            goodGhosting = await GoodGhostingPolygonCurve.new(
                 token.address,
-                pap.address,
+                pool.address,
+                
+                tokenPosition,
+                tokenPosition,
+                gauge.address,
                 segmentCount,
                 segmentLength,
                 segmentPayment,
                 fee,
                 0,
-                pap.address,
                 maxPlayersCount,
+                curve.address,
+                incentiveController.address,
                 ZERO_ADDRESS,
-                incentiveController.address,
-                incentiveController.address,
                 { from: admin },
             );
             await joinGamePaySegmentsAndComplete(player1);
             //generating mock interest
             await mintTokensFor(goodGhosting.address);
             await mintTokensFor(admin);
-            await token.approve(pap.address, toWad(1000), { from: admin });
-            await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
+            // await token.approve(pap.address, toWad(1000), { from: admin });
+            // await pap.deposit(token.address, toWad(1000), pap.address, 0, { from: admin });
             await goodGhosting.redeemFromExternalPool({ from: player1 });
             const contractBalance = await token.balanceOf(goodGhosting.address);
             const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
@@ -1261,28 +968,28 @@ contract("GoodGhostingPolygon", (accounts) => {
             const incentiveAmount = new BN(toWad(10));
             const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
             const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
-            aToken = await IERC20.at(await pap.getLendingPool.call());
-            await pap.setUnderlyingAssetAddress(token.address);
-            const contract = await GoodGhostingPolygon.new(
+            const contract = await GoodGhostingPolygonCurve.new(
                 token.address,
-                pap.address,
+                pool.address,
+                
+                tokenPosition,
+                tokenPosition,
+                gauge.address,
                 segmentCount,
                 segmentLength,
                 segmentPayment,
                 fee,
-                new BN(0),
-                pap.address,
-                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                0,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
                 incentiveToken.address,
-                incentiveController.address,
-                incentiveController.address,
                 { from: admin },
             );
 
             await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
             await token.approve(contract.address, approvalAmount, { from: player1 });
-            await contract.joinGame({ from: player1 });
+            await contract.joinGame(0,{ from: player1 });
             await advanceToEndOfGame();
             await contract.redeemFromExternalPool({ from: player1 });
             const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
