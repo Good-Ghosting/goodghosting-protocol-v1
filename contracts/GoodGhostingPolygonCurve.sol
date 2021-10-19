@@ -146,7 +146,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         IERC20 _inboundCurrency,
         ICurvePool _pool,
         int128 _inboundTokenIndexInt,
-        uint128 _inboundTokenIndexUint,
+        uint256 _inboundTokenIndexUint,
         ICurveGauge _gauge,
         uint256 _segmentCount,
         uint256 _segmentLength,
@@ -238,9 +238,13 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
 
         gauge.withdraw(withdrawAmount, false);
+
         pool.remove_liquidity_one_coin(withdrawAmount, inboundTokenIndexInt, 0, true);
 
-        // lendingPool.withdraw(address(daiToken), withdrawAmount, address(this));
+        if (IERC20(daiToken).balanceOf(address(this)) < withdrawAmount) {
+            withdrawAmount = IERC20(daiToken).balanceOf(address(this));
+        }
+
         require(
             IERC20(daiToken).transfer(msg.sender, withdrawAmount),
             "Fail to transfer ERC20 tokens on early withdraw"
