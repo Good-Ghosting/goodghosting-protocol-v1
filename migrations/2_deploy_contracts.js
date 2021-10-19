@@ -5,6 +5,7 @@ var abi = require("ethereumjs-abi");
 const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
 const GoodGhostingPolygonContract = artifacts.require("GoodGhostingPolygon");
+const GoodGhostingPolygonCurveContract = artifacts.require("GoodGhostingPolygonCurve");
 const GoodGhostingPolygonWhitelisted = artifacts.require("GoodGhostingPolygonWhitelisted");
 const BN = web3.utils.BN;
 const { providers, deployConfigs } = require("../deploy.config");
@@ -21,6 +22,7 @@ function getNetworkName(network) {
     if (name.includes("kovan")) return "kovan";
     if (name.includes("ropsten")) return "ropsten";
     if (name.includes("mainnet")) return "mainnet";
+    if (name.includes("polygon-vigil-fork-curve")) return "polygon-curve";
     if (name.includes("polygon")) return "polygon";
     if (name.includes("alfajores")) return "alfajores";
     if (name.includes("celo")) return "celo";
@@ -44,6 +46,10 @@ function printSummary(
         incentiveController,
         wmatic,
         merkleRoot,
+        curve,
+        curvePool,
+        curvePoolTokenIndex,
+        curveGauge
     },
     // additional logging info
     {
@@ -56,6 +62,7 @@ function printSummary(
 
 ) {
     const isPolygon = networkName.toLowerCase() === "polygon";
+    const isPolygonCurve = networkName.toLowerCase() === "polygon-curve";
     const isPolygonWhitelisted = networkName.toLowerCase() === "polygon-whitelisted" || ["polygon-whitelisted"].includes(networkName.toLowerCase()); // for local network
 
     var parameterTypes = [
@@ -94,6 +101,42 @@ function printSummary(
         );
     }
 
+    if (isPolygonCurve) {
+        parameterTypes = [
+            "address",
+            "address",
+            "int128",
+            "uint256",
+            "address",
+            "uint256",
+            "uint256",
+            "uint256",
+            "uint256",
+            "uint256",
+            "uint256",
+            "address", 
+            "address",
+            "address"
+        ]
+
+        parameterValues = [
+            inboundCurrencyAddress,
+            curvePool,
+            curvePoolTokenIndex,
+            curvePoolTokenIndex,
+            curveGauge,
+            segmentCount,
+            segmentLength,
+            segmentPaymentWei,
+            earlyWithdrawFee,
+            customFee,
+            maxPlayersCount,
+            curve,
+            wmatic,
+            incentiveToken
+        ]
+    }
+
     if (isPolygonWhitelisted) {
         parameterTypes.push(
             "address", // IncentiveController
@@ -114,15 +157,18 @@ function printSummary(
     console.log("----------------------------------------------------\n");
     console.log(`Network Name: ${networkName}`);
     console.log(`Contract's Owner: ${owner}`);
-    console.log(`Lending Pool: ${selectedProvider}`);
-    console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
+    if (!isPolygonCurve) {
+        console.log(`Lending Pool: ${selectedProvider}`);
+        console.log(`Lending Pool Address Provider: ${lendingPoolAddressProvider}`);
+        console.log(`Data Provider/Lending Pool Address: ${aaveContractAddress}`);
+    }
+
     console.log(`Inbound Currency: ${inboundCurrencySymbol} at ${inboundCurrencyAddress}`);
     console.log(`Segment Count: ${segmentCount}`);
     console.log(`Segment Length: ${segmentLength} seconds`);
     console.log(`Segment Payment: ${segmentPayment} ${inboundCurrencySymbol} (${segmentPaymentWei} wei)`);
     console.log(`Early Withdrawal Fee: ${earlyWithdrawFee}%`);
     console.log(`Custom Pool Fee: ${customFee}%`);
-    console.log(`Data Provider/Lending Pool Address: ${aaveContractAddress}`);
     console.log(`Max Quantity of Players: ${maxPlayersCount}`);
     console.log(`Incentive Token: ${incentiveToken}`);
     if (isPolygon) {
@@ -133,7 +179,13 @@ function printSummary(
         console.log(`Incentive Controller: ${incentiveController}`);
         console.log(`Matic Token: ${wmatic}`);
         console.log(`Merkle Root: ${merkleRoot}`);
-
+    }
+    if (isPolygonCurve) {
+        console.log(`Curve Pool: ${curvePool}`);
+        console.log(`Curve Gauge: ${curveGauge}`);
+        console.log(`Curve Deposit Token Index: ${curvePoolTokenIndex}`);
+        console.log(`Curve Token: ${curve}`);
+        console.log(`Matic Token: ${wmatic}`);
     }
     console.log("\n\nConstructor Arguments ABI-Encoded:");
     console.log(encodedParameters.toString("hex"));
@@ -149,6 +201,7 @@ module.exports = function (deployer, network, accounts) {
     if (["test", "soliditycoverage"].includes(network)) return;
 
     deployer.then(async () => {
+        console.log('NETWORKKK', network)
 
         let networkName = getNetworkName(network);
         const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkName];
@@ -160,21 +213,23 @@ module.exports = function (deployer, network, accounts) {
         const wmatic = poolConfigs.wmatic;
         const maxPlayersCount = deployConfigs.maxPlayersCount;
         const incentiveToken = poolConfigs.incentiveToken;
-
         let aaveContractAddress = poolConfigs.dataProvider;
         let goodGhostingContract = GoodGhostingContract; // defaults to Ethereum version
         if (network.includes("polygon-whitelisted")) {
             networkName = "polygon-whitelisted";
         }
-
         if (networkName === "polygon") {
             goodGhostingContract = GoodGhostingPolygonContract;
         } else if (networkName === "polygon-whitelisted") {
             goodGhostingContract = GoodGhostingPolygonWhitelisted;
+        } else if (networkName === 'polygon-curve') {
+            goodGhostingContract = GoodGhostingPolygonCurveContract;
         }
 
+        console.log('NETWORKKK', networkName)
+
         // Prepares deployment arguments
-        const deploymentArgs = [
+        let deploymentArgs = [
             goodGhostingContract,
             inboundCurrencyAddress,
             lendingPoolAddressProvider,
@@ -198,13 +253,31 @@ module.exports = function (deployer, network, accounts) {
                 wmatic,
                 deployConfigs.merkleroot
             );
+        } else if (networkName === "polygon-curve") {
+            deploymentArgs = [
+                goodGhostingContract,
+                inboundCurrencyAddress,
+                poolConfigs.pool,
+                poolConfigs.tokenIndex,
+                poolConfigs.tokenIndex,
+                poolConfigs.gauge,
+                deployConfigs.segmentCount,
+                deployConfigs.segmentLength,
+                segmentPaymentWei,
+                deployConfigs.earlyWithdrawFee,
+                deployConfigs.customFee,
+                maxPlayersCount,
+                poolConfigs.curve,
+                wmatic,
+                incentiveToken
+            ];
         }
 
         // Deploys GoodGhosting contract based on network
         await deployer.deploy(SafeMathLib);
         await deployer.link(SafeMathLib, goodGhostingContract);
         await deployer.deploy(...deploymentArgs);
-        
+
         // Prints deployment summary
         printSummary(
             {
@@ -221,6 +294,10 @@ module.exports = function (deployer, network, accounts) {
                 incentiveController,
                 wmatic,
                 merkleRoot: deployConfigs.merkleroot,
+                curve: poolConfigs.curve,
+                curvePool: poolConfigs.pool,
+                curvePoolTokenIndex: poolConfigs.tokenIndex,
+                curveGauge: poolConfigs.gauge
             },
             {
                 networkName,
