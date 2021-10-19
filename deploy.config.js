@@ -28,6 +28,18 @@ exports.providers = {
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
+        'polygon-curve': {
+            pool: "0x445FE580eF8d70FF569aB36e80c647af338db351",
+            gauge: "0x19793B454D3AfC7b454F206Ffe95aDE26cA6912c",
+            curve: "0x172370d5cd63279efa6d502dab29171933a610af",
+            tokenIndex: 0,
+            wmatic: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+            dai: {
+                address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+                decimals: 18,
+            },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
+        },
         alfajores: {
             lendingPoolAddressProvider: "0xb3072f5F0d5e8B9036aEC29F37baB70E86EA0018",
             dataProvider: "0x31ccB9dC068058672D96E92BAf96B1607855822E",
