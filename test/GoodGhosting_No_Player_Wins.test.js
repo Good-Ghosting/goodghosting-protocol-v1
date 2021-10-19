@@ -3,6 +3,7 @@ const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonWhitelisted = artifacts.require(
     "GoodGhostingPolygonWhitelisted"
 );
+const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
@@ -26,6 +27,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             "local-celo-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
+            "local-polygon-vigil-fork-curve"
         ].includes(process.env.NETWORK)
     )
         return;
@@ -34,6 +36,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
     let providersConfigs;
     let GoodGhostingArtifact;
+    let curve;
     if (process.env.NETWORK === "local-mainnet-fork" || process.env.NETWORK === "local-celo-fork") {
         GoodGhostingArtifact = GoodGhosting;
         if (process.env.NETWORK === "local-mainnet-fork") {
@@ -44,7 +47,14 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs = configs.providers.aave.polygon;
-    } else {
+    } else if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+        GoodGhostingArtifact = GoodGhostingPolygonCurve;
+        providersConfigs = configs.providers.aave["polygon-curve"];
+        curve = new web3.eth.Contract(
+            daiABI,
+            providersConfigs.curve
+        );
+    }  else {
         GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
         providersConfigs = configs.providers.aave.polygon;
     }
@@ -94,9 +104,15 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                 if (
                     process.env.NETWORK === "local-mainnet-fork" ||
                     process.env.NETWORK === "local-celo-fork" ||
-                    process.env.NETWORK === "local-polygon-vigil-fork"
+                    process.env.NETWORK === "local-polygon-vigil-fork" ||
+                    process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player });
+                    let result;
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        result = await goodGhosting.joinGame("0", { from: player });
+                    } else {
+                        result = await goodGhosting.joinGame({ from: player });
+                    }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,

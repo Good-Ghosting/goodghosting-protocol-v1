@@ -3,6 +3,7 @@ const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonWhitelisted = artifacts.require(
     "GoodGhostingPolygonWhitelisted"
 );
+const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
@@ -26,6 +27,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
             "local-celo-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
+            "local-polygon-vigil-fork-curve"
         ].includes(process.env.NETWORK)
     )
         return;
@@ -34,6 +36,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
     let providersConfigs;
     let GoodGhostingArtifact;
+    let curve;
     if (process.env.NETWORK === "local-mainnet-fork" || process.env.NETWORK === "local-celo-fork") {
         GoodGhostingArtifact = GoodGhosting;
         if (process.env.NETWORK === "local-mainnet-fork") {
@@ -44,6 +47,13 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs = configs.providers.aave.polygon;
+    } else if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+        GoodGhostingArtifact = GoodGhostingPolygonCurve;
+        providersConfigs = configs.providers.aave["polygon-curve"];
+        curve = new web3.eth.Contract(
+            daiABI,
+            providersConfigs.curve
+        );
     } else {
         GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
         providersConfigs = configs.providers.aave.polygon;
@@ -86,14 +96,21 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
 
         it("checks if the contract's variables were properly initialized", async () => {
             const inboundCurrencyResult = await goodGhosting.daiToken.call();
-            const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
             const lastSegmentResult = await goodGhosting.lastSegment.call();
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
             const expectedSegment = new BN(0);
             const currentSegmentResult = await goodGhosting.getCurrentSegment.call({ from: admin });
             assert(inboundCurrencyResult === token.options.address, `Inbound currency doesn't match. expected ${token.options.address}; got ${inboundCurrencyResult}`);
-            assert(lendingPoolAddressProviderResult === providersConfigs.lendingPoolAddressProvider, `LendingPoolAddressesProvider doesn't match. expected ${providersConfigs.dataProvider}; got ${lendingPoolAddressProviderResult}`);
+            if (process.env.NETWORK !== "local-polygon-vigil-fork-curve") {
+                const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
+
+                assert(
+                    lendingPoolAddressProviderResult ===
+                    providersConfigs.lendingPoolAddressProvider,
+                    `LendingPoolAddressesProvider doesn't match. expected ${providersConfigs.dataProvider}; got ${lendingPoolAddressProviderResult}`
+                );
+            }
             assert(new BN(lastSegmentResult).eq(new BN(segmentCount)), `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`);
             assert(new BN(segmentLengthResult).eq(new BN(segmentLength)), `SegmentLength doesn't match. expected ${segmentLength}; got ${segmentLengthResult}`);
             assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
@@ -111,9 +128,15 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                 if (
                     process.env.NETWORK === "local-mainnet-fork" ||
                     process.env.NETWORK === "local-celo-fork" ||
-                    process.env.NETWORK === "local-polygon-vigil-fork"
+                    process.env.NETWORK === "local-polygon-vigil-fork" ||
+                    process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player });
+                    let result;
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        result = await goodGhosting.joinGame("0", { from: player });
+                    } else {
+                        result = await goodGhosting.joinGame({ from: player });
+                    }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,
@@ -168,8 +191,10 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
         });
 
         it("runs the game - 'player1' early withdraws and other players complete game successfully", async () => {
+            let depositResult;
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
             for (let segmentIndex = 1; segmentIndex < segmentCount; segmentIndex++) {
+                
                 await timeMachine.advanceTime(segmentLength);
                 // Player 1 (index 0 - loser), performs an early withdraw on first segment.
                 if (segmentIndex === 1) {
@@ -186,7 +211,11 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     // All players pay for the 1st segment
                     for (let j = 1; j < players.length - 1; j++) {
                         const player = players[j];
-                        const depositResult = await goodGhosting.makeDeposit({ from: player });
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                            depositResult = await goodGhosting.makeDeposit("0", {from: player});                    
+                        } else {
+                            depositResult = await goodGhosting.makeDeposit({from: player});                    
+                        }  
                         truffleAssert.eventEmitted(
                             depositResult,
                             "Deposit",
@@ -207,7 +236,11 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     }
                     for (let j = 2; j < players.length - 1; j++) {
                         const player = players[j];
-                        const depositResult = await goodGhosting.makeDeposit({ from: player });
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                            depositResult = await goodGhosting.makeDeposit("0", {from: player});                    
+                        } else {
+                            depositResult = await goodGhosting.makeDeposit({from: player});                    
+                        }  
                         truffleAssert.eventEmitted(
                             depositResult,
                             "Deposit",

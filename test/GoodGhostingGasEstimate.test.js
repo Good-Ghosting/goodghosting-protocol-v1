@@ -3,7 +3,7 @@ const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonWhitelisted = artifacts.require(
     "GoodGhostingPolygonWhitelisted"
 );
-
+const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
@@ -25,7 +25,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             "local-mainnet-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
-            "local-celo-fork"
+            "local-celo-fork",
+            "local-polygon-vigil-fork-curve"
         ].includes(process.env.NETWORK)
     )
         return;
@@ -34,6 +35,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
     let providersConfigs;
     let GoodGhostingArtifact;
+    let curve;
     if (process.env.NETWORK === "local-mainnet-fork" || process.env.NETWORK === "local-celo-fork") {
         GoodGhostingArtifact = GoodGhosting;
         if (process.env.NETWORK === "local-mainnet-fork") {
@@ -44,6 +46,13 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs = configs.providers.aave.polygon;
+    } else if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+        GoodGhostingArtifact = GoodGhostingPolygonCurve;
+        providersConfigs = configs.providers.aave["polygon-curve"];
+        curve = new web3.eth.Contract(
+            daiABI,
+            providersConfigs.curve
+        );
     } else {
         GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
         providersConfigs = configs.providers.aave.polygon;
@@ -116,7 +125,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
         it("checks if the contract's variables were properly initialized", async () => {
             const inboundCurrencyResult = await goodGhosting.daiToken.call();
-            const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
             const lastSegmentResult = await goodGhosting.lastSegment.call();
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
@@ -127,11 +135,16 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 inboundCurrencyResult === token.options.address,
                 `Inbound currency doesn't match. expected ${token.options.address}; got ${inboundCurrencyResult}`
             );
-            assert(
-                lendingPoolAddressProviderResult ===
-                providersConfigs.lendingPoolAddressProvider,
-                `LendingPoolAddressesProvider doesn't match. expected ${providersConfigs.dataProvider}; got ${lendingPoolAddressProviderResult}`
-            );
+            if (process.env.NETWORK !== "local-polygon-vigil-fork-curve") {
+                const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
+
+                assert(
+                    lendingPoolAddressProviderResult ===
+                    providersConfigs.lendingPoolAddressProvider,
+                    `LendingPoolAddressesProvider doesn't match. expected ${providersConfigs.dataProvider}; got ${lendingPoolAddressProviderResult}`
+                );
+            }
+
             assert(
                 new BN(lastSegmentResult).eq(new BN(segmentCount)),
                 `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`
@@ -169,9 +182,16 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 if (
                     process.env.NETWORK === "local-mainnet-fork" ||
                     process.env.NETWORK === "local-celo-fork" ||
-                    process.env.NETWORK === "local-polygon-vigil-fork"
+                    process.env.NETWORK === "local-polygon-vigil-fork" ||
+                    process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player });
+                    let result;
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        result = await goodGhosting.joinGame("0", { from: player });
+                    } else {
+                        result = await goodGhosting.joinGame({ from: player });
+                    }
+ 
                     // player 1 early withdraws in segment 0 and joins again
                     if (i == 1) {
                         await goodGhosting.earlyWithdraw({ from: player });
@@ -183,7 +203,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                                     .toString()
                             )
                             .send({ from: player });
-                        await goodGhosting.joinGame({ from: player });
+
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                                await goodGhosting.joinGame("0", { from: player });
+                        } else {
+                                await goodGhosting.joinGame({ from: player });
+                        }
                     }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
@@ -266,9 +291,14 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 // j must start at 1 - Player1 (index 0) early withdraws after everyone else deposits, so won't continue making deposits
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
-                    const depositResult = await goodGhosting.makeDeposit({
-                        from: player,
-                    });
+                    let depositResult;
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+
+                        depositResult = await goodGhosting.makeDeposit("0", {from: player});                    
+                    } else {
+                        depositResult = await goodGhosting.makeDeposit({from: player});                    
+                    }
+
                     truffleAssert.eventEmitted(
                         depositResult,
                         "Deposit",
@@ -304,10 +334,24 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("redeems funds from external pool", async () => {
+            let curveBalanceBeforeRedeem, wmaticBalanceBeforeRedeem, curveBalanceAfterRedeem, wmaticBalanceAfterRedeem;
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {    
+                curveBalanceBeforeRedeem = await curve.methods.balanceOf(goodGhosting.address).call()
+                wmaticBalanceBeforeRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call()
+            }
+
             let eventAmount = new BN(0);
             const result = await goodGhosting.redeemFromExternalPool({
                 from: admin,
             });
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                curveBalanceAfterRedeem = await curve.methods.balanceOf(goodGhosting.address).call()
+                wmaticBalanceAfterRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call()
+                // curve rewards accure slowly
+                assert(new BN(curveBalanceBeforeRedeem).lte(new BN(curveBalanceAfterRedeem)))
+                assert(new BN(wmaticBalanceBeforeRedeem).lt(new BN(wmaticBalanceAfterRedeem)))
+            }
+
             const contractsDaiBalance = new BN(
                 await token.methods
                     .balanceOf(goodGhosting.address)
@@ -356,9 +400,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 const player = players[i];
                 let rewardBalanceBefore = new BN(0);
                 let rewardBalanceAfter = new BN(0);
+                let curveRewardBalanceBefore = new BN(0);
+                let curveRewardBalanceAfter = new BN(0);
+
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
-                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
+                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted || GoodGhostingArtifact === GoodGhostingPolygonCurve
                 ) {
                     rewardBalanceBefore = new BN(
                         await rewardToken.methods
@@ -366,7 +413,28 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             .call({ from: admin })
                     );
                 }
+
+                if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
+                    curveRewardBalanceBefore = new BN(
+                        await curve.methods
+                            .balanceOf(player)
+                            .call({ from: admin })
+                    );
+                }
                 const result = await goodGhosting.withdraw({ from: player });
+
+                if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
+                    curveRewardBalanceAfter = new BN(
+                        await curve.methods
+                            .balanceOf(player)
+                            .call({ from: admin })
+                    );
+                    // curve rewards accure slowly
+                    assert(
+                        curveRewardBalanceAfter.gte(curveRewardBalanceBefore),
+                        "expected curve balance after withdrawal to be greater than before withdrawal"
+                    );
+                }
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
                     || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
@@ -425,10 +493,20 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
                 let rewardBalanceBefore = new BN(0);
                 let rewardBalanceAfter = new BN(0);
+                let curveRewardBalanceBefore = new BN(0);
+                let curveRewardBalanceAfter = new BN(0);
+
+                if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
+                    curveRewardBalanceBefore = new BN(
+                        await curve.methods
+                            .balanceOf(admin)
+                            .call({ from: admin })
+                    );
+                }
 
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
-                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
+                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted || GoodGhostingArtifact === GoodGhostingPolygonCurve
                 ) {
                     rewardBalanceBefore = new BN(
                         await rewardToken.methods
@@ -440,6 +518,18 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 const result = await goodGhosting.adminFeeWithdraw({
                     from: admin,
                 });
+
+                if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
+                    curveRewardBalanceAfter = new BN(
+                        await curve.methods
+                            .balanceOf(admin)
+                            .call({ from: admin })
+                    );
+                    assert(
+                        curveRewardBalanceAfter.eq(curveRewardBalanceBefore),
+                        "expected curve balance after withdrawal to be greater than before withdrawal"
+                    );
+                }
 
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
