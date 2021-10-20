@@ -977,7 +977,7 @@ contract("GoodGhosting", (accounts) => {
             );
         });
 
-        it("winner count reduces when a potential winner withdraws after the last segment", async () => {
+        it("winner count reduces when a potential winner withdraws after the last deposit", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
