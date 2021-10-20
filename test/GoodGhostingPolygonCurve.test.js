@@ -96,12 +96,12 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             contract = goodGhosting;
         }
         await approveDaiToContract(player);
-        await contract.joinGame(0, { from: player });
+        await contract.joinGame( { from: player });
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
         for (let index = 1; index < segmentCount; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
-            await contract.makeDeposit(0,{ from: player });
+            await contract.makeDeposit({ from: player });
         }
         // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
         // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
@@ -110,12 +110,12 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
     async function joinGameMissLastPaymentAndComplete(player) {
         await approveDaiToContract(player);
-        await goodGhosting.joinGame(0, { from: player });
+        await goodGhosting.joinGame( { from: player });
         // pay all remaining segments except last one
         for (let index = 1; index < segmentCount - 1; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
-            await goodGhosting.makeDeposit(0 ,{ from: player });
+            await goodGhosting.makeDeposit({ from: player });
         }
         // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 2.
         // now, we move 3 more segments (segmentCount-2, segmentCount-1 and segmentCount) to complete the game.
@@ -340,7 +340,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
         it("reverts if a non-player tries to withdraw", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(0, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
             await truffleAssert.reverts(goodGhosting.earlyWithdraw({ from: nonPlayer }), "Player does not exist");
         });
 
@@ -367,14 +367,14 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("makes sure the player that withdraws first before funds are redeemed from external pool gets equal interest (if winner)", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(0, { from: player2 });
-            await goodGhosting.joinGame(0, { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.makeDeposit(0,{ from: player1 });
-                await goodGhosting.makeDeposit(0,{ from: player2 });
+                await goodGhosting.makeDeposit({ from: player1 });
+                await goodGhosting.makeDeposit({ from: player2 });
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
             // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
@@ -412,15 +412,15 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("makes sure the winners get equal interest", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(0, { from: player2 });
-            await goodGhosting.joinGame(0, { from: player1 });
+            await goodGhosting.joinGame( { from: player2 });
+            await goodGhosting.joinGame( { from: player1 });
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
 
-                await goodGhosting.makeDeposit(0,{ from: player1 });
-                await goodGhosting.makeDeposit(0,{ from: player2 });
+                await goodGhosting.makeDeposit({ from: player1 });
+                await goodGhosting.makeDeposit({ from: player2 });
 
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -444,7 +444,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("pays a bonus to winners and losers get their principle back", async () => {
             // Player1 is out "loser" and their interest is Player2's bonus
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(0, { from: player1 });
+            await goodGhosting.joinGame( { from: player1 });
 
             // Player2 pays in all segments and is our lucky winner!
             await mintTokensFor(player2);
@@ -529,7 +529,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
                 const player1IncentiveBalanceBefore = await incentiveToken.balanceOf(player1);
                 const player2IncentiveBalanceBefore = await incentiveToken.balanceOf(player2);
-                await contract.joinGame(0,{ from: player2 });
+                await contract.joinGame({ from: player2 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
                 await contract.redeemFromExternalPool({ from: player1 });
 
@@ -571,7 +571,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
                 const player1IncentiveBalanceBefore = await incentiveToken.balanceOf(player1);
                 const player2IncentiveBalanceBefore = await incentiveToken.balanceOf(player2);
-                await contract.joinGame(0,{ from: player2 });
+                await contract.joinGame({ from: player2 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
                 await contract.redeemFromExternalPool({ from: player1 });
 
@@ -632,7 +632,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         context("with no winners in the game", async () => {
             it("does not revert when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
                 await approveDaiToContract(player1);
-                await goodGhosting.joinGame(0, { from: player1 });
+                await goodGhosting.joinGame( { from: player1 });
                 await advanceToEndOfGame();
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
                 const ZERO = new BN(0);
@@ -647,8 +647,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player1 });
-                await goodGhosting.joinGame(0, { from: player2 });
+                await goodGhosting.joinGame( { from: player1 });
+                await goodGhosting.joinGame( { from: player2 });
                 await timeMachine.advanceTimeAndBlock(weekInSecs);
                 await goodGhosting.earlyWithdraw({ from: player1 });
                 await advanceToEndOfGame();
@@ -679,8 +679,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("withdraw fees when there's only interest generated by external pool", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player1 });
-                await goodGhosting.joinGame(0, { from: player2 });
+                await goodGhosting.joinGame( { from: player1 });
+                await goodGhosting.joinGame( { from: player2 });
                 // mocks interest generation
                 await mintTokensFor(admin);
                 await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
@@ -712,8 +712,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("withdraw fees when there's both interest generated by external pool and early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player1 });
-                await goodGhosting.joinGame(0, { from: player2 });
+                await goodGhosting.joinGame( { from: player1 });
+                await goodGhosting.joinGame( { from: player2 });
                 await goodGhosting.earlyWithdraw({ from: player1 });
                 await mintTokensFor(admin);
                 await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin });
@@ -767,7 +767,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
                 await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
                 await token.approve(contract.address, approvalAmount, { from: player1 });
-                await contract.joinGame(0,{ from: player1 });
+                await contract.joinGame({ from: player1 });
                 await advanceToEndOfGame();
                 await contract.redeemFromExternalPool({ from: player1 });
                 const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
@@ -802,7 +802,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player2 });
+                await goodGhosting.joinGame( { from: player2 });
                 await goodGhosting.earlyWithdraw({ from: player2 });
                 await joinGamePaySegmentsAndComplete(player1);
                 await goodGhosting.redeemFromExternalPool({ from: player1 });
@@ -846,7 +846,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
             it("withdraw fees when there's both interest generated by external pool and early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player2 });
+                await goodGhosting.joinGame( { from: player2 });
                 await goodGhosting.earlyWithdraw({ from: player2 });
 
                 await joinGamePaySegmentsAndComplete(player1);
@@ -989,7 +989,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
             await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin });
             await token.approve(contract.address, approvalAmount, { from: player1 });
-            await contract.joinGame(0,{ from: player1 });
+            await contract.joinGame({ from: player1 });
             await advanceToEndOfGame();
             await contract.redeemFromExternalPool({ from: player1 });
             const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
