@@ -996,7 +996,7 @@ contract("GoodGhosting", (accounts) => {
             assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)))
         })
 
-        it("winner address in the winner array changes to zero address when a potential winner withdraws after the last segment", async () => {
+        it("winner address in the winner array changes to zero address when a potential winner withdraws after the last deposit", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
