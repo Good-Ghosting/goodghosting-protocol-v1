@@ -203,7 +203,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                         );
                     }
                 }
-                // winner count does not reduces since the 2nd early withdrawal was made during the last segment
+                // winner count does not reduces since the 2nd early withdrawal was made during the last segment before making the final deposit
                 if (segmentIndex === segmentCount - 1) {
                     // player 1 earlywithdraws during last segment
                     const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
