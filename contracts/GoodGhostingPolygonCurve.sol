@@ -10,7 +10,6 @@ import "./curve/ICurveGauge.sol";
 contract GoodGhostingPolygonCurve is Ownable, Pausable {
     using SafeMath for uint256;
 
-
     uint256 public curveRewardsPerPlayer;
     uint256 public rewardsPerPlayer;
     /// @notice Stores the total amount of net interest received in the game.
@@ -66,7 +65,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     IERC20 public lpToken;
     /// @notice wmatic token
     IERC20 public immutable matic;
-
 
     struct Player {
         bool withdrawn;
@@ -158,14 +156,32 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         IERC20 _matic,
         IERC20 _incentiveToken
     ) public {
-        require(_customFee <= 20, "_customFee must be less than or equal to 20%");
-        require(_earlyWithdrawalFee <= 10, "_earlyWithdrawalFee must be less than or equal to 10%");
-        require(_earlyWithdrawalFee > 0,  "_earlyWithdrawalFee must be greater than zero");
-        require(_maxPlayersCount > 0, "_maxPlayersCount must be greater than zero");
-        require(address(_inboundCurrency) != address(0), "invalid _inboundCurrency address");
+        require(
+            _customFee <= 20,
+            "_customFee must be less than or equal to 20%"
+        );
+        require(
+            _earlyWithdrawalFee <= 10,
+            "_earlyWithdrawalFee must be less than or equal to 10%"
+        );
+        require(
+            _earlyWithdrawalFee > 0,
+            "_earlyWithdrawalFee must be greater than zero"
+        );
+        require(
+            _maxPlayersCount > 0,
+            "_maxPlayersCount must be greater than zero"
+        );
+        require(
+            address(_inboundCurrency) != address(0),
+            "invalid _inboundCurrency address"
+        );
         require(_segmentCount > 0, "_segmentCount must be greater than zero");
         require(_segmentLength > 0, "_segmentLength must be greater than zero");
-        require(_segmentPayment > 0, "_segmentPayment must be greater than zero");
+        require(
+            _segmentPayment > 0,
+            "_segmentPayment must be greater than zero"
+        );
         require(address(_pool) != address(0), "invalid _pool address");
         require(address(_gauge) != address(0), "invalid _gauge address");
         require(address(_curve) != address(0), "invalid _curve address");
@@ -200,12 +216,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     }
 
     /// @notice Allows a player to join the game
-    function joinGame(uint256 _minAmount)
-        external
-        virtual
-        whenNotPaused
-    {
-        _joinGame(_minAmount);
+    function joinGame() external virtual whenNotPaused {
+        _joinGame();
     }
 
     /// @notice Allows a player to withdraws funds before the game ends. An early withdrawl fee is charged.
@@ -217,15 +229,14 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         player.withdrawn = true;
         activePlayersCount = activePlayersCount.sub(1);
         if (winnerCount > 0 && player.isWinner) {
-            winnerCount = winnerCount.sub(uint(1));
+            winnerCount = winnerCount.sub(uint256(1));
             player.isWinner = false;
         }
 
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
-        uint256 withdrawAmount =
-            player.amountPaid.sub(
-                player.amountPaid.mul(earlyWithdrawalFee).div(100)
-            );
+        uint256 withdrawAmount = player.amountPaid.sub(
+            player.amountPaid.mul(earlyWithdrawalFee).div(100)
+        );
         // Decreases the totalGamePrincipal on earlyWithdraw
         totalGamePrincipal = totalGamePrincipal.sub(player.amountPaid);
         uint256 currentSegment = getCurrentSegment();
@@ -239,10 +250,23 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
         gauge.withdraw(withdrawAmount, false);
 
-        pool.remove_liquidity_one_coin(withdrawAmount, inboundTokenIndexInt, 0, true);
+        if (lpToken.balanceOf(address(this)) < withdrawAmount) {
+            withdrawAmount = lpToken.balanceOf(address(this));
+        }
 
-        if (IERC20(daiToken).balanceOf(address(this)) < withdrawAmount) {
-            withdrawAmount = IERC20(daiToken).balanceOf(address(this));
+        uint256 _minAmount = pool.calc_withdraw_one_coin(
+            withdrawAmount,
+            inboundTokenIndexInt
+        );
+        pool.remove_liquidity_one_coin(
+            withdrawAmount,
+            inboundTokenIndexInt,
+            _minAmount,
+            true
+        );
+
+        if (daiToken.balanceOf(address(this)) < withdrawAmount) {
+            withdrawAmount = daiToken.balanceOf(address(this));
         }
 
         require(
@@ -250,7 +274,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             "Fail to transfer ERC20 tokens on early withdraw"
         );
     }
-
 
     /// @notice Calculates the current segment of the game.
     /// @return current game segment
@@ -265,10 +288,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         return getCurrentSegment() > lastSegment;
     }
 
-
-    function _transferDaiToContract(uint256 _minAmount) internal {
-        require(_minAmount < segmentPayment, "invalid _minAmount value");
-
+    function _transferDaiToContract() internal {
         require(
             daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
             "You need to have allowance to do transfer DAI on the smart contract"
@@ -284,17 +304,16 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         if (currentSegment == lastSegment.sub(1)) {
             winners.push(msg.sender);
             // array indexes start from 0
-            players[msg.sender].winnerIndex = winners.length.sub(uint(1));
-            winnerCount = winnerCount.add(uint(1));
+            players[msg.sender].winnerIndex = winners.length.sub(uint256(1));
+            winnerCount = winnerCount.add(uint256(1));
             players[msg.sender].isWinner = true;
         }
-        
+
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
         require(
             daiToken.transferFrom(msg.sender, address(this), segmentPayment),
             "Transfer failed"
         );
-
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 contractBalance = daiToken.balanceOf(address(this));
@@ -310,6 +329,11 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 amounts[i] = 0;
             }
         }
+
+        uint _minAmount = pool.calc_token_amount(amounts, true);
+        // reduce the min. amount by 0.1 % since the _minAmount is pretty dynamic so to avoid any sort of tx reverts
+        _minAmount = _minAmount.sub(_minAmount.mul(uint256(10)).div(uint256(10000)));
+
         pool.add_liquidity(amounts, _minAmount, true);
         require(
             lpToken.approve(address(gauge), lpToken.balanceOf(address(this))),
@@ -318,7 +342,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         gauge.deposit(lpToken.balanceOf(address(this)), address(this), false);
     }
 
-    function _joinGame(uint256 _minAmount) internal {
+    function _joinGame() internal {
         require(getCurrentSegment() == 0, "Game has already started");
         require(
             players[msg.sender].addr != msg.sender ||
@@ -327,38 +351,34 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         );
 
         activePlayersCount = activePlayersCount.add(1);
-        require(activePlayersCount <= maxPlayersCount, "Reached max quantity of players allowed");
+        require(
+            activePlayersCount <= maxPlayersCount,
+            "Reached max quantity of players allowed"
+        );
 
         bool canRejoin = players[msg.sender].canRejoin;
-        Player memory newPlayer =
-            Player({
-                addr: msg.sender,
-                mostRecentSegmentPaid: 0,
-                amountPaid: 0,
-                withdrawn: false,
-                canRejoin: false,
-                isWinner: false,
-                winnerIndex: 0
-            });
+        Player memory newPlayer = Player({
+            addr: msg.sender,
+            mostRecentSegmentPaid: 0,
+            amountPaid: 0,
+            withdrawn: false,
+            canRejoin: false,
+            isWinner: false,
+            winnerIndex: 0
+        });
         players[msg.sender] = newPlayer;
         if (!canRejoin) {
             iterablePlayers.push(msg.sender);
         }
         emit JoinedGame(msg.sender, segmentPayment);
-        _transferDaiToContract(_minAmount);
+        _transferDaiToContract();
     }
 
-    function makeDeposit(uint256 _minAmount) external whenNotPaused {
+    function makeDeposit() external whenNotPaused {
         Player storage player = players[msg.sender];
-        require(
-            !player.withdrawn,
-            "Player already withdraw from game"
-        );
+        require(!player.withdrawn, "Player already withdraw from game");
         // only registered players can deposit
-        require(
-            player.addr == msg.sender,
-            "Sender is not a player"
-        );
+        require(player.addr == msg.sender, "Sender is not a player");
 
         uint256 currentSegment = getCurrentSegment();
         // User can only deposit between segment 1 and segment n-1 (where n is the number of segments for the game).
@@ -384,9 +404,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             player.mostRecentSegmentPaid == currentSegment.sub(1),
             "Player didn't pay the previous segment - game over!"
         );
- 
+
         emit Deposit(msg.sender, currentSegment, segmentPayment);
-        _transferDaiToContract(_minAmount);
+        _transferDaiToContract();
     }
 
     /// @notice gets the number of players in the game
@@ -397,11 +417,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
     /// @notice Allows the admin to withdraw the performance fee, if applicable. This function can be called only by the contract's admin.
     /// @dev Cannot be called before the game ends.
-    function adminFeeWithdraw()
-        external
-        onlyOwner
-        whenGameIsCompleted
-    {
+    function adminFeeWithdraw() external onlyOwner whenGameIsCompleted {
         require(redeemed, "Funds not redeemed from external pool");
         require(!adminWithdraw, "Admin has already withdrawn");
         adminWithdraw = true;
@@ -413,7 +429,12 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             adminIncentiveAmount = totalIncentiveAmount;
         }
 
-        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount, adminIncentiveAmount);
+        emit AdminWithdrawal(
+            owner(),
+            totalGameInterest,
+            adminFeeAmount,
+            adminIncentiveAmount
+        );
 
         if (adminFeeAmount > 0) {
             require(
@@ -472,7 +493,13 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 playerIncentive = totalIncentiveAmount.div(winnerCount);
             }
         }
-        emit Withdrawal(msg.sender, payout, playerReward, playerCurveReward, playerIncentive);
+        emit Withdrawal(
+            msg.sender,
+            payout,
+            playerReward,
+            playerCurveReward,
+            playerIncentive
+        );
 
         require(
             IERC20(daiToken).transfer(msg.sender, payout),
@@ -509,15 +536,25 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         uint256 lpBalance = gauge.balanceOf(address(this));
         gauge.withdraw(lpBalance, true);
 
-        uint256 _minAmount = pool.calc_withdraw_one_coin(lpToken.balanceOf(address(this)), inboundTokenIndexInt);
-        pool.remove_liquidity_one_coin(lpToken.balanceOf(address(this)), inboundTokenIndexInt, _minAmount, true);
+        uint256 _minAmount = pool.calc_withdraw_one_coin(
+            lpToken.balanceOf(address(this)),
+            inboundTokenIndexInt
+        );
+        pool.remove_liquidity_one_coin(
+            lpToken.balanceOf(address(this)),
+            inboundTokenIndexInt,
+            _minAmount,
+            true
+        );
 
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
         uint256 curveRewardAmount = IERC20(curve).balanceOf(address(this));
         // If there's an incentive token address defined, sets the total incentive amount to be distributed among winners.
         if (address(incentiveToken) != address(0)) {
-            totalIncentiveAmount = IERC20(incentiveToken).balanceOf(address(this));
+            totalIncentiveAmount = IERC20(incentiveToken).balanceOf(
+                address(this)
+            );
         }
         // calculates gross interest
         uint256 grossInterest = 0;

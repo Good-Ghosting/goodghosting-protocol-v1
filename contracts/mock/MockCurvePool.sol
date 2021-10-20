@@ -39,6 +39,11 @@ contract MockCurvePool is MockERC20Mintable {
         return IERC20(address(this)).balanceOf(msg.sender);
     }
 
+    function calc_token_amount(uint256[3] calldata _amounts, bool is_deposit) external view returns (uint256) {
+        return IERC20(address(this)).balanceOf(msg.sender);
+    }
+
+
     function lp_token() external view returns (address) {
         return address(this);
     }
