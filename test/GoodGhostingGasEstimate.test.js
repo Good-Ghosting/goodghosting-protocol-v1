@@ -185,12 +185,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    let result;
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-                        result = await goodGhosting.joinGame("0", { from: player });
-                    } else {
-                        result = await goodGhosting.joinGame({ from: player });
-                    }
+                    const result = await goodGhosting.joinGame({ from: player });
  
                     // player 1 early withdraws in segment 0 and joins again
                     if (i == 1) {
@@ -204,11 +199,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             )
                             .send({ from: player });
 
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-                                await goodGhosting.joinGame("0", { from: player });
-                        } else {
-                                await goodGhosting.joinGame({ from: player });
-                        }
+                        await goodGhosting.joinGame({ from: player });
+
                     }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
@@ -291,13 +283,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 // j must start at 1 - Player1 (index 0) early withdraws after everyone else deposits, so won't continue making deposits
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
-                    let depositResult;
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-
-                        depositResult = await goodGhosting.makeDeposit("0", {from: player});                    
-                    } else {
-                        depositResult = await goodGhosting.makeDeposit({from: player});                    
-                    }
+                    const  depositResult = await goodGhosting.makeDeposit({from: player});  
 
                     truffleAssert.eventEmitted(
                         depositResult,

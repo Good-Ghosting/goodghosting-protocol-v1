@@ -107,12 +107,8 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    let result;
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-                        result = await goodGhosting.joinGame("0", { from: player });
-                    } else {
-                        result = await goodGhosting.joinGame({ from: player });
-                    }
+                    const result = await goodGhosting.joinGame({ from: player });
+
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,

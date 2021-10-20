@@ -201,8 +201,6 @@ module.exports = function (deployer, network, accounts) {
     if (["test", "soliditycoverage"].includes(network)) return;
 
     deployer.then(async () => {
-        console.log('NETWORKKK', network)
-
         let networkName = getNetworkName(network);
         const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkName];
         const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
@@ -225,8 +223,6 @@ module.exports = function (deployer, network, accounts) {
         } else if (networkName === 'polygon-curve') {
             goodGhostingContract = GoodGhostingPolygonCurveContract;
         }
-
-        console.log('NETWORKKK', networkName)
 
         // Prepares deployment arguments
         let deploymentArgs = [

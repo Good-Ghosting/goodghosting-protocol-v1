@@ -131,12 +131,8 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    let result;
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-                        result = await goodGhosting.joinGame("0", { from: player });
-                    } else {
-                        result = await goodGhosting.joinGame({ from: player });
-                    }
+                    const result = await goodGhosting.joinGame({ from: player });
+
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,
@@ -211,11 +207,8 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     // All players pay for the 1st segment
                     for (let j = 1; j < players.length - 1; j++) {
                         const player = players[j];
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-                            depositResult = await goodGhosting.makeDeposit("0", {from: player});                    
-                        } else {
-                            depositResult = await goodGhosting.makeDeposit({from: player});                    
-                        }  
+                        const  depositResult = await goodGhosting.makeDeposit({from: player});  
+
                         truffleAssert.eventEmitted(
                             depositResult,
                             "Deposit",
@@ -236,11 +229,8 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     }
                     for (let j = 2; j < players.length - 1; j++) {
                         const player = players[j];
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-                            depositResult = await goodGhosting.makeDeposit("0", {from: player});                    
-                        } else {
-                            depositResult = await goodGhosting.makeDeposit({from: player});                    
-                        }  
+                        const  depositResult = await goodGhosting.makeDeposit({from: player});  
+
                         truffleAssert.eventEmitted(
                             depositResult,
                             "Deposit",
