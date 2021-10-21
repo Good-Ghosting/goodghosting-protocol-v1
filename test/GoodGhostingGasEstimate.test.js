@@ -8,7 +8,9 @@ const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
+const poolABI = require("../abi-external/curve-pool-abi.json");
 const configs = require("../deploy.config");
+const { isBN } = require("bn.js");
 const whitelistedPlayerConfig = [
     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
     { "0x4e7F88e38A05fFed54E0bE6d614C48138cE605Cf": { index: 1, proof: ["0xefc82954f8d1549053814986f191e870bb8e2b4efae54964a8831ddd1eaf6267", "0x10b900833bd5f4efa3f47f034cf1d4afd8f4de59b50e0cdc2f0c2e0847caecef"] } },
@@ -67,6 +69,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
     let rewardToken;
+    let pool;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
@@ -77,6 +80,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
     describe("simulates a full game with 5 players and 4 of them winning the game and with admin fee % as 0", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
+            pool = new web3.eth.Contract(poolABI, providersConfigs.pool)
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             rewardToken = new web3.eth.Contract(
                 daiABI,
@@ -169,6 +173,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("players approve DAI to contract and join the game", async () => {
+            const userSlippageOptions = [1, 0.5, 0.5, 2, 1]
             for (let i = 0; i < players.length; i++) {
                 const player = players[i];
                 await token.methods
@@ -185,7 +190,18 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player });
+                    let result;
+
+                    const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)))
+                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
+
+                    const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
+
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                    } else {
+                        result = await goodGhosting.joinGame({ from: player });
+                    }
  
                     // player 1 early withdraws in segment 0 and joins again
                     if (i == 1) {
@@ -199,8 +215,11 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             )
                             .send({ from: player });
 
-                        await goodGhosting.joinGame({ from: player });
-
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                                await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                        } else {
+                                await goodGhosting.joinGame({ from: player });
+                        }
                     }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
@@ -273,6 +292,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("runs the game - 'player1' early withdraws and other players complete game successfully", async () => {
+            const userSlippageOptions = [3, 5, 1, 2.5, 1.5]
+
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
             for (
                 let segmentIndex = 1;
@@ -283,7 +304,17 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 // j must start at 1 - Player1 (index 0) early withdraws after everyone else deposits, so won't continue making deposits
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
-                    const  depositResult = await goodGhosting.makeDeposit({from: player});  
+                    let depositResult;
+                    const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)))
+                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
+
+                    const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+
+                        depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), {from: player});                    
+                    } else {
+                        depositResult = await goodGhosting.makeDeposit({from: player});                    
+                    }
 
                     truffleAssert.eventEmitted(
                         depositResult,

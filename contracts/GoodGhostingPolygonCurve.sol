@@ -39,7 +39,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     /// @notice winner counter to track no of winners
     uint256 public winnerCount = 0;
     /// @notice total tokens in a pool
-    uint256 constant numTokens = 3;
+    uint256 public constant numTokens = 3;
     /// for some reason the curve contracts have int128 as param in the withdraw function
     /// hence the two types since type conversion is not possible
     /// @notice token index in the pool in int form
@@ -216,8 +216,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     }
 
     /// @notice Allows a player to join the game
-    function joinGame() external virtual whenNotPaused {
-        _joinGame();
+    function joinGame(uint _minAmount) external virtual whenNotPaused {
+        _joinGame(_minAmount);
     }
 
     /// @notice Allows a player to withdraws funds before the game ends. An early withdrawl fee is charged.
@@ -288,7 +288,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         return getCurrentSegment() > lastSegment;
     }
 
-    function _transferDaiToContract() internal {
+    function _transferDaiToContract(uint _minAmount) internal {
         require(
             daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
             "You need to have allowance to do transfer DAI on the smart contract"
@@ -330,10 +330,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             }
         }
 
-        uint _minAmount = pool.calc_token_amount(amounts, true);
-        // reduce the min. amount by 0.1 % since the _minAmount is pretty dynamic so to avoid any sort of tx reverts
-        _minAmount = _minAmount.sub(_minAmount.mul(uint256(10)).div(uint256(10000)));
-
         pool.add_liquidity(amounts, _minAmount, true);
         require(
             lpToken.approve(address(gauge), lpToken.balanceOf(address(this))),
@@ -342,7 +338,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         gauge.deposit(lpToken.balanceOf(address(this)), address(this), false);
     }
 
-    function _joinGame() internal {
+    function _joinGame(uint _minAmount) internal {
         require(getCurrentSegment() == 0, "Game has already started");
         require(
             players[msg.sender].addr != msg.sender ||
@@ -371,10 +367,10 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             iterablePlayers.push(msg.sender);
         }
         emit JoinedGame(msg.sender, segmentPayment);
-        _transferDaiToContract();
+        _transferDaiToContract(_minAmount);
     }
 
-    function makeDeposit() external whenNotPaused {
+    function makeDeposit(uint _minAmount) external whenNotPaused {
         Player storage player = players[msg.sender];
         require(!player.withdrawn, "Player already withdraw from game");
         // only registered players can deposit
@@ -406,7 +402,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         );
 
         emit Deposit(msg.sender, currentSegment, segmentPayment);
-        _transferDaiToContract();
+        _transferDaiToContract(_minAmount);
     }
 
     /// @notice gets the number of players in the game

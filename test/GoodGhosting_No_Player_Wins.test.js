@@ -8,6 +8,8 @@ const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
+const poolABI = require("../abi-external/curve-pool-abi.json");
+
 const configs = require("../deploy.config");
 const whitelistedPlayerConfig = [
     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
@@ -36,7 +38,6 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
     let providersConfigs;
     let GoodGhostingArtifact;
-    let curve;
     if (process.env.NETWORK === "local-mainnet-fork" || process.env.NETWORK === "local-celo-fork") {
         GoodGhostingArtifact = GoodGhosting;
         if (process.env.NETWORK === "local-mainnet-fork") {
@@ -63,6 +64,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
     let rewardToken;
+    let pool;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const daiDecimals = web3.utils.toBN(1000000000000000000);
@@ -73,6 +75,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
+            pool = new web3.eth.Contract(poolABI, providersConfigs.pool)
 
             goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
@@ -94,6 +97,8 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         });
 
         it("players approve DAI to contract and join the game", async () => {
+            const userSlippageOptions = [3, 5, 1, 2.5, 1.5]
+
             for (let i = 0; i < players.length; i++) {
                 const player = players[i];
                 await token.methods
@@ -107,8 +112,16 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player });
+                    let result;
+                    const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)))
+                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
 
+                    const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                    } else {
+                        result = await goodGhosting.joinGame({ from: player });
+                    }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,
@@ -163,6 +176,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         });
 
         it("redeems funds from external pool", async () => {
+
             // none of the players made additional deposits, so it completes the game before redeeming from external pool
             await timeMachine.advanceTime(segmentLength * (segmentCount + 1));
             let eventAmount = new BN(0);

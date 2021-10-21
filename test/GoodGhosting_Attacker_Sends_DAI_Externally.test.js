@@ -8,6 +8,8 @@ const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
+const poolABI = require("../abi-external/curve-pool-abi.json");
+
 const configs = require("../deploy.config");
 const whitelistedPlayerConfig = [
     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
@@ -63,6 +65,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
     let rewardToken;
+    let pool;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
@@ -75,6 +78,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
 
     describe("simulates a full game with 5 players and 4 of them winning the game but considering an attacker sends extra funds transferred directly", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
+            pool = new web3.eth.Contract(poolABI, providersConfigs.pool)
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
             goodGhosting = await GoodGhostingArtifact.deployed();
@@ -127,6 +131,8 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
         });
 
         it("players approve DAI to contract and join the game", async () => {
+            const userSlippageOptions = [3, 5, 1, 2.5, 1.5]
+
             for (let i = 0; i < players.length; i++) {
                 const player = players[i];
                 await token.methods
@@ -140,8 +146,16 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player });
+                    let result;
+                    const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)))
+                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
 
+                    const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                    } else {
+                        result = await goodGhosting.joinGame({ from: player });
+                    }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,
@@ -196,6 +210,8 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
         });
 
         it("runs the game - 'player1' early withdraws and other players complete game successfully", async () => {
+            const userSlippageOptions = [3, 5, 1, 2.5, 1.5]
+
             let depositResult;
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
             for (let segmentIndex = 1; segmentIndex < segmentCount; segmentIndex++) {
@@ -211,13 +227,20 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                     );
                 }
                 // j must start at 1 - Player1 (index 0) early withdraw, so won't continue making deposits
+                let userProvidedMinAmount, slippageFromContract, minAmountWithFees
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
+                    userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)))
+                    slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
 
+                    minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
                     // make the player to miss the last segement deposit
                     if (segmentIndex < segmentCount - 1) {
-                        const  depositResult = await goodGhosting.makeDeposit({from: player});  
-                     
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                            depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), {from: player});                    
+                        } else {
+                            depositResult = await goodGhosting.makeDeposit({from: player});                    
+                        }                        
                         truffleAssert.eventEmitted(
                             depositResult,
                             "Deposit",
@@ -235,9 +258,16 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                     assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
                     // j must start at 2- Player2 (index 1) early withdrawa in last segment, so won't continue making deposits
                     for (let j = 2; j < players.length - 1; j++) {
-                        const player = players[j];
-                        const  depositResult = await goodGhosting.makeDeposit({from: player});  
+                        userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)))
+                        slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
 
+                        minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
+                        const player = players[j];
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                            depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), {from: player});                    
+                        } else {
+                            depositResult = await goodGhosting.makeDeposit({from: player});                    
+                        } 
                         truffleAssert.eventEmitted(
                             depositResult,
                             "Deposit",
