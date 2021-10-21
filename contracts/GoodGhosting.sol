@@ -188,7 +188,7 @@ contract GoodGhosting is Ownable, Pausable {
     /// @notice Renounces Ownership.
     function renounceOwnership() public override onlyOwner {
         require(allowRenouncingOwnership, "Not allowed");
-        renounceOwnership();
+        super.renounceOwnership();
     }
 
     /// @notice Unlocks renounceOwnership.
