@@ -1966,6 +1966,7 @@ contract("GoodGhosting", (accounts) => {
         });
     });
 
+
     describe("as a Pausable contract", async () => {
         describe("checks Pausable access control", async () => {
             it("does not revert when admin invokes pause()", async () => {
@@ -2006,5 +2007,16 @@ contract("GoodGhosting", (accounts) => {
             });
         });
     });
+
+    describe("as a Ownable Contract", async () => {
+        it("reverts when admins allows to renounceOwnership without unlocking it first", async () => {
+            await truffleAssert.reverts(goodGhosting.renounceOwnership({ from: admin }), "Not allowed");
+        })
+
+        it("allows admin to renounceOwnership after unlocking it first", async () => {
+            await goodGhosting.unlockRenounceOwnership({ from: admin })
+            truffleAssert.passes(goodGhosting.renounceOwnership({ from: admin }), "Unexpected Error");
+        })
+    })
 
 });

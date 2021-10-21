@@ -16,21 +16,12 @@ import "./aave/AToken.sol";
 contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
+    /// @notice Ownership Control flag
+    bool public allowRenouncingOwnership = false;
     /// @notice Controls if tokens were redeemed or not from the pool
     bool public redeemed;
-    /// @notice Stores the total amount of net interest received in the game.
-    uint256 public totalGameInterest;
-    /// @notice total principal amount
-    uint256 public totalGamePrincipal;
-    /// @notice performance fee amount allocated to the admin
-    uint256 public adminFeeAmount;
     /// @notice controls if admin withdrew or not the performance fee.
     bool public adminWithdraw;
-    /// @notice total amount of incentive tokens to be distributed among winners
-    uint256 public totalIncentiveAmount = 0;
-    /// @notice Controls the amount of active players in the game (ignores players that early withdraw)
-    uint256 public activePlayersCount = 0;
-
     /// @notice Address of the token used for depositing into the game by players (DAI)
     IERC20 public immutable daiToken;
     /// @notice Address of the interest bearing token received when funds are transferred to the external pool
@@ -39,6 +30,19 @@ contract GoodGhosting is Ownable, Pausable {
     ILendingPoolAddressesProvider public immutable lendingPoolAddressProvider;
     /// @notice Lending pool address
     ILendingPool public lendingPool;
+    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
+    IERC20 public immutable incentiveToken;
+
+    /// @notice total amount of incentive tokens to be distributed among winners
+    uint256 public totalIncentiveAmount = 0;
+    /// @notice Controls the amount of active players in the game (ignores players that early withdraw)
+    uint256 public activePlayersCount = 0;
+    /// @notice Stores the total amount of net interest received in the game.
+    uint256 public totalGameInterest;
+    /// @notice total principal amount
+    uint256 public totalGamePrincipal;
+    /// @notice performance fee amount allocated to the admin
+    uint256 public adminFeeAmount;
     /// @notice The amount to be paid on each segment
     uint256 public immutable segmentPayment;
     /// @notice The number of segments in the game (segment count)
@@ -47,14 +51,13 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable firstSegmentStart;
     /// @notice The time duration (in seconds) of each segment
     uint256 public immutable segmentLength;
-    /// @notice The early withdrawal fee (percentage)
-    uint256 public immutable earlyWithdrawalFee;
-    /// @notice The performance admin fee (percentage)
-    uint256 public immutable customFee;
     /// @notice Defines the max quantity of players allowed in the game
     uint256 public immutable maxPlayersCount;
-    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
-    IERC20 public immutable incentiveToken;
+    /// @notice The early withdrawal fee (percentage)
+    uint128 public immutable earlyWithdrawalFee;
+    /// @notice The performance admin fee (percentage)
+    uint128 public immutable customFee;
+
 
     struct Player {
         address addr;
@@ -63,6 +66,7 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 mostRecentSegmentPaid;
         uint256 amountPaid;
     }
+
     /// @notice Stores info about the players in the game
     mapping(address => Player) public players;
     /// @notice controls the amount deposited in each segment that was not yet transferred to the external underlying pool
@@ -132,8 +136,8 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _segmentCount,
         uint256 _segmentLength,
         uint256 _segmentPayment,
-        uint256 _earlyWithdrawalFee,
-        uint256 _customFee,
+        uint128 _earlyWithdrawalFee,
+        uint128 _customFee,
         address _dataProvider,
         uint256 _maxPlayersCount,
         IERC20 _incentiveToken
@@ -179,6 +183,17 @@ contract GoodGhosting is Ownable, Pausable {
     /// @notice unpauses the game. This function can be called only by the contract's admin.
     function unpause() external onlyOwner whenPaused {
         _unpause();
+    }
+
+    /// @notice Renounces Ownership.
+    function renounceOwnership() public override onlyOwner {
+        require(allowRenouncingOwnership, "Not allowed");
+        renounceOwnership();
+    }
+
+    /// @notice Unlocks renounceOwnership.
+    function unlockRenounceOwnership() external onlyOwner {
+        allowRenouncingOwnership = true;
     }
 
     /// @notice Allows the admin to withdraw the performance fee, if applicable. This function can be called only by the contract's admin.

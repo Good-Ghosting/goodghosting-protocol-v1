@@ -164,13 +164,7 @@ module.exports = {
 
     compilers: {
         solc: {
-            version: "0.6.11",
-            settings: {
-                optimizer: {
-                    enabled: true,
-                    runs: 1500
-                }
-            }
+            version: "0.6.11"
             // A version or constraint - Ex. "^0.5.0"
             // Can also be set to "native" to use a native solc
             //docker: false, // Use a version obtained through docker
