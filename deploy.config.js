@@ -26,6 +26,10 @@ exports.providers = {
                 address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
                 decimals: 18,
             },
+            weth: {
+                address: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+                decimals: 18,
+            },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         alfajores: {
@@ -33,15 +37,6 @@ exports.providers = {
             dataProvider: "0x31ccB9dC068058672D96E92BAf96B1607855822E",
             dai: {
                 address: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
-                decimals: 18,
-            },
-            incentiveToken: "0x0000000000000000000000000000000000000000",
-        },
-        celo: {
-            lendingPoolAddressProvider: "0xD1088091A174d33412a968Fa34Cb67131188B332",
-            dataProvider: "0x43d067ed784D9DD2ffEda73775e2CC4c560103A1",
-            dai: {
-                address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
                 decimals: 18,
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
@@ -62,6 +57,22 @@ exports.providers = {
                 decimals: 18,
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
+        },
+    },
+    moola: {
+        celo: {
+            lendingPoolAddressProvider: "0xD1088091A174d33412a968Fa34Cb67131188B332",
+            dataProvider: "0x43d067ed784D9DD2ffEda73775e2CC4c560103A1",
+            dai: {
+                address: "0xE4fE50cdD716522A56204352f00AA110F731932d",
+                decimals: 18,
+            },
+            cusd: {
+                address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+                decimals: 18,
+            },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
+            // incentiveToken: "0x471EcE3750Da237f93B8E339c536989b8978a438", // CELO
         },
     }
 };
