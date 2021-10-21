@@ -2011,12 +2011,16 @@ contract("GoodGhosting", (accounts) => {
     describe("as a Ownable Contract", async () => {
         it("reverts when admins tries to renounceOwnership without unlocking it first", async () => {
             await truffleAssert.reverts(goodGhosting.renounceOwnership({ from: admin }), "Not allowed");
-        })
+        });
 
         it("allows admin to renounceOwnership after unlocking it first", async () => {
-            await goodGhosting.unlockRenounceOwnership({ from: admin })
+            await goodGhosting.unlockRenounceOwnership({ from: admin });
+            const currentOwner = await goodGhosting.owner({ from: admin });
+            assert(currentOwner, admin);
             truffleAssert.passes(goodGhosting.renounceOwnership({ from: admin }), "Unexpected Error");
-        })
-    })
+            const newOwner = await goodGhosting.owner({ from: admin });
+            assert(newOwner, ZERO_ADDRESS);
+        });
+    });
 
 });
