@@ -2009,7 +2009,7 @@ contract("GoodGhosting", (accounts) => {
     });
 
     describe("as a Ownable Contract", async () => {
-        it("reverts when admins allows to renounceOwnership without unlocking it first", async () => {
+        it("reverts when admins tries to renounceOwnership without unlocking it first", async () => {
             await truffleAssert.reverts(goodGhosting.renounceOwnership({ from: admin }), "Not allowed");
         })
 
