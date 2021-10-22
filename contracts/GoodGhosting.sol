@@ -53,14 +53,12 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable segmentLength;
     /// @notice Defines the max quantity of players allowed in the game
     uint256 public immutable maxPlayersCount;
-    /// @notice The early withdrawal fee (percentage)
-    uint128 public immutable earlyWithdrawalFee;
-    /// @notice The performance admin fee (percentage)
-    uint128 public immutable customFee;
     /// @notice winner counter to track no of winners
     uint256 public winnerCount = 0;
-
-
+    /// @notice The early withdrawal fee (percentage)
+    uint8 public immutable earlyWithdrawalFee;
+    /// @notice The performance admin fee (percentage)
+    uint8 public immutable customFee;
 
     struct Player {
         bool withdrawn;
@@ -141,8 +139,8 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _segmentCount,
         uint256 _segmentLength,
         uint256 _segmentPayment,
-        uint128 _earlyWithdrawalFee,
-        uint128 _customFee,
+        uint8 _earlyWithdrawalFee,
+        uint8 _customFee,
         address _dataProvider,
         uint256 _maxPlayersCount,
         IERC20 _incentiveToken
