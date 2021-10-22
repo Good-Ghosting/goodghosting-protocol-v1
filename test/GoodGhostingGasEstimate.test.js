@@ -39,7 +39,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         if (process.env.NETWORK === "local-mainnet-fork") {
             providersConfigs = configs.providers.aave.mainnet;
         } else if (process.env.NETWORK === "local-celo-fork") {
-            providersConfigs = configs.providers.aave.celo;
+            providersConfigs = configs.providers.moola.celo;
+            providersConfigs.dai = providersConfigs.cusd;
         }
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
