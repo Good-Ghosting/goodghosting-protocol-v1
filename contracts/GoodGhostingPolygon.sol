@@ -39,8 +39,8 @@ contract GoodGhostingPolygon is GoodGhosting {
         uint256 _segmentCount,
         uint256 _segmentLength,
         uint256 _segmentPayment,
-        uint256 _earlyWithdrawalFee,
-        uint256 _customFee,
+        uint128 _earlyWithdrawalFee,
+        uint128 _customFee,
         address _dataProvider,
         uint256 _maxPlayersCount,
         IERC20 _incentiveToken,
@@ -83,7 +83,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         // when there are no winners, admin will be able to withdraw the
         // additional incentives sent to the pool, avoiding locking the funds.
         uint256 adminIncentiveAmount = 0;
-        if (winners.length == 0 && totalIncentiveAmount > 0) {
+        if (winnerCount == 0 && totalIncentiveAmount > 0) {
             adminIncentiveAmount = totalIncentiveAmount;
         }
 
@@ -129,11 +129,11 @@ contract GoodGhostingPolygon is GoodGhosting {
         uint256 playerReward = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
-            payout = payout.add(totalGameInterest.div(winners.length));
+            payout = payout.add(totalGameInterest.div(winnerCount));
             playerReward = rewardsPerPlayer;
             // If there's additional incentives, distributes them to winners
             if (totalIncentiveAmount > 0) {
-                playerIncentive = totalIncentiveAmount.div(winners.length);
+                playerIncentive = totalIncentiveAmount.div(winnerCount);
             }
         }
         emit Withdrawal(msg.sender, payout, playerReward, playerIncentive);
@@ -212,11 +212,11 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
 
         // when there's no winners, admin takes all the interest + rewards
-        if (winners.length == 0) {
+        if (winnerCount == 0) {
             rewardsPerPlayer = 0;
             adminFeeAmount = grossInterest;
         } else {
-            rewardsPerPlayer = rewardsAmount.div(winners.length);
+            rewardsPerPlayer = rewardsAmount.div(winnerCount);
             adminFeeAmount = _adminFeeAmount;
         }
 

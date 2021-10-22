@@ -16,21 +16,12 @@ import "./aave/AToken.sol";
 contract GoodGhosting is Ownable, Pausable {
     using SafeMath for uint256;
 
+    /// @notice Ownership Control flag
+    bool public allowRenouncingOwnership = false;
     /// @notice Controls if tokens were redeemed or not from the pool
     bool public redeemed;
-    /// @notice Stores the total amount of net interest received in the game.
-    uint256 public totalGameInterest;
-    /// @notice total principal amount
-    uint256 public totalGamePrincipal;
-    /// @notice performance fee amount allocated to the admin
-    uint256 public adminFeeAmount;
     /// @notice controls if admin withdrew or not the performance fee.
     bool public adminWithdraw;
-    /// @notice total amount of incentive tokens to be distributed among winners
-    uint256 public totalIncentiveAmount = 0;
-    /// @notice Controls the amount of active players in the game (ignores players that early withdraw)
-    uint256 public activePlayersCount = 0;
-
     /// @notice Address of the token used for depositing into the game by players (DAI)
     IERC20 public immutable daiToken;
     /// @notice Address of the interest bearing token received when funds are transferred to the external pool
@@ -39,6 +30,19 @@ contract GoodGhosting is Ownable, Pausable {
     ILendingPoolAddressesProvider public immutable lendingPoolAddressProvider;
     /// @notice Lending pool address
     ILendingPool public lendingPool;
+    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
+    IERC20 public immutable incentiveToken;
+
+    /// @notice total amount of incentive tokens to be distributed among winners
+    uint256 public totalIncentiveAmount = 0;
+    /// @notice Controls the amount of active players in the game (ignores players that early withdraw)
+    uint256 public activePlayersCount = 0;
+    /// @notice Stores the total amount of net interest received in the game.
+    uint256 public totalGameInterest;
+    /// @notice total principal amount
+    uint256 public totalGamePrincipal;
+    /// @notice performance fee amount allocated to the admin
+    uint256 public adminFeeAmount;
     /// @notice The amount to be paid on each segment
     uint256 public immutable segmentPayment;
     /// @notice The number of segments in the game (segment count)
@@ -47,22 +51,27 @@ contract GoodGhosting is Ownable, Pausable {
     uint256 public immutable firstSegmentStart;
     /// @notice The time duration (in seconds) of each segment
     uint256 public immutable segmentLength;
-    /// @notice The early withdrawal fee (percentage)
-    uint256 public immutable earlyWithdrawalFee;
-    /// @notice The performance admin fee (percentage)
-    uint256 public immutable customFee;
     /// @notice Defines the max quantity of players allowed in the game
     uint256 public immutable maxPlayersCount;
-    /// @notice Defines an optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
-    IERC20 public immutable incentiveToken;
+    /// @notice The early withdrawal fee (percentage)
+    uint128 public immutable earlyWithdrawalFee;
+    /// @notice The performance admin fee (percentage)
+    uint128 public immutable customFee;
+    /// @notice winner counter to track no of winners
+    uint256 public winnerCount = 0;
+
+
 
     struct Player {
-        address addr;
         bool withdrawn;
         bool canRejoin;
+        bool isWinner;
+        address addr;
         uint256 mostRecentSegmentPaid;
         uint256 amountPaid;
+        uint256 winnerIndex;
     }
+
     /// @notice Stores info about the players in the game
     mapping(address => Player) public players;
     /// @notice controls the amount deposited in each segment that was not yet transferred to the external underlying pool
@@ -132,8 +141,8 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _segmentCount,
         uint256 _segmentLength,
         uint256 _segmentPayment,
-        uint256 _earlyWithdrawalFee,
-        uint256 _customFee,
+        uint128 _earlyWithdrawalFee,
+        uint128 _customFee,
         address _dataProvider,
         uint256 _maxPlayersCount,
         IERC20 _incentiveToken
@@ -181,6 +190,17 @@ contract GoodGhosting is Ownable, Pausable {
         _unpause();
     }
 
+    /// @notice Renounces Ownership.
+    function renounceOwnership() public override onlyOwner {
+        require(allowRenouncingOwnership, "Not allowed");
+        super.renounceOwnership();
+    }
+
+    /// @notice Unlocks renounceOwnership.
+    function unlockRenounceOwnership() external onlyOwner {
+        allowRenouncingOwnership = true;
+    }
+
     /// @notice Allows the admin to withdraw the performance fee, if applicable. This function can be called only by the contract's admin.
     /// @dev Cannot be called before the game ends.
     function adminFeeWithdraw() external virtual onlyOwner whenGameIsCompleted {
@@ -191,7 +211,7 @@ contract GoodGhosting is Ownable, Pausable {
         // when there are no winners, admin will be able to withdraw the
         // additional incentives sent to the pool, avoiding locking the funds.
         uint256 adminIncentiveAmount = 0;
-        if (winners.length == 0 && totalIncentiveAmount > 0) {
+        if (winnerCount == 0 && totalIncentiveAmount > 0) {
             adminIncentiveAmount = totalIncentiveAmount;
         }
 
@@ -229,6 +249,11 @@ contract GoodGhosting is Ownable, Pausable {
         require(!player.withdrawn, "Player has already withdrawn");
         player.withdrawn = true;
         activePlayersCount = activePlayersCount.sub(1);
+        if (winnerCount > 0 && player.isWinner) {
+            winnerCount = winnerCount.sub(uint(1));
+            player.isWinner = false;
+            winners[player.winnerIndex] = address(0);
+        }
 
         // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
         uint256 withdrawAmount =
@@ -269,10 +294,10 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 playerIncentive = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             // Player is a winner and gets a bonus!
-            payout = payout.add(totalGameInterest.div(winners.length));
+            payout = payout.add(totalGameInterest.div(winnerCount));
             // If there's additional incentives, distributes them to winners
             if (totalIncentiveAmount > 0) {
-                playerIncentive = totalIncentiveAmount.div(winners.length);
+                playerIncentive = totalIncentiveAmount.div(winnerCount);
             }
         }
         emit Withdrawal(msg.sender, payout, 0, playerIncentive);
@@ -292,13 +317,14 @@ contract GoodGhosting is Ownable, Pausable {
 
     /// @notice Allows players to make deposits for the game segments, after joining the game.
     function makeDeposit() external whenNotPaused {
+        Player storage player = players[msg.sender];
         require(
-            !players[msg.sender].withdrawn,
+            !player.withdrawn,
             "Player already withdraw from game"
         );
         // only registered players can deposit
         require(
-            players[msg.sender].addr == msg.sender,
+            player.addr == msg.sender,
             "Sender is not a player"
         );
 
@@ -317,21 +343,16 @@ contract GoodGhosting is Ownable, Pausable {
 
         //check if current segment is currently unpaid
         require(
-            players[msg.sender].mostRecentSegmentPaid != currentSegment,
+            player.mostRecentSegmentPaid != currentSegment,
             "Player already paid current segment"
         );
 
         // check if player has made payments up to the previous segment
         require(
-            players[msg.sender].mostRecentSegmentPaid == currentSegment.sub(1),
+            player.mostRecentSegmentPaid == currentSegment.sub(1),
             "Player didn't pay the previous segment - game over!"
         );
-
-        // check if this is deposit for the last segment. If yes, the player is a winner.
-        if (currentSegment == lastSegment.sub(1)) {
-            winners.push(msg.sender);
-        }
-
+ 
         emit Deposit(msg.sender, currentSegment, segmentPayment);
         _transferDaiToContract();
     }
@@ -382,7 +403,7 @@ contract GoodGhosting is Ownable, Pausable {
         }
 
         // when there's no winners, admin takes all the interest + rewards
-        if (winners.length == 0) {
+        if (winnerCount == 0) {
             adminFeeAmount = grossInterest;
         } else {
             adminFeeAmount = _adminFeeAmount;
@@ -426,6 +447,16 @@ contract GoodGhosting is Ownable, Pausable {
         players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
             segmentPayment
         );
+        // check if this is deposit for the last segment. If yes, the player is a winner.
+        // since both join game and deposit method call this method so having it here
+        if (currentSegment == lastSegment.sub(1)) {
+            winners.push(msg.sender);
+            // array indexes start from 0
+            players[msg.sender].winnerIndex = winners.length.sub(uint(1));
+            winnerCount = winnerCount.add(uint(1));
+            players[msg.sender].isWinner = true;
+        }
+        
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
         require(
             daiToken.transferFrom(msg.sender, address(this), segmentPayment),
@@ -462,7 +493,9 @@ contract GoodGhosting is Ownable, Pausable {
                 mostRecentSegmentPaid: 0,
                 amountPaid: 0,
                 withdrawn: false,
-                canRejoin: false
+                canRejoin: false,
+                isWinner: false,
+                winnerIndex: 0
             });
         players[msg.sender] = newPlayer;
         if (!canRejoin) {
