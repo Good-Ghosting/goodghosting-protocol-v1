@@ -241,7 +241,7 @@ contract GoodGhosting is Ownable, Pausable {
         _joinGame();
     }
 
-    /// @notice Allows a player to withdraws funds before the game ends. An early withdrawl fee is charged.
+    /// @notice Allows a player to withdraw funds before the game ends. An early withdrawal fee is charged.
     /// @dev Cannot be called after the game is completed.
     function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
         Player storage player = players[msg.sender];
