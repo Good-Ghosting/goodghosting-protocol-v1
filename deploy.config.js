@@ -29,13 +29,13 @@ exports.providers = {
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         'polygon-curve': {
-            pool: "0x445FE580eF8d70FF569aB36e80c647af338db351",
-            gauge: "0x19793B454D3AfC7b454F206Ffe95aDE26cA6912c",
+            pool: "0x751B1e21756bDbc307CBcC5085c042a0e9AaEf36",
+            gauge: "0xb0a366b987d77b5eD5803cBd95C80bB6DEaB48C0",
             curve: "0x172370d5cd63279efa6d502dab29171933a610af",
             tokenIndex: 0,
             wmatic: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
             dai: {
-                address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+                address: "0xE7a24EF0C5e95Ffb0f6684b813A78F2a3AD7D171",
                 decimals: 18,
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
