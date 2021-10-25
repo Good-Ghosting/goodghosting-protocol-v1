@@ -49,7 +49,8 @@ function printSummary(
         curve,
         curvePool,
         curvePoolTokenIndex,
-        curveGauge
+        curveGauge,
+        curvePoolType
     },
     // additional logging info
     {
@@ -107,6 +108,7 @@ function printSummary(
             "address",
             "int128",
             "uint256",
+            "uint256",
             "address",
             "uint256",
             "uint256",
@@ -124,6 +126,7 @@ function printSummary(
             curvePool,
             curvePoolTokenIndex,
             curvePoolTokenIndex,
+            curvePoolType,
             curveGauge,
             segmentCount,
             segmentLength,
@@ -182,6 +185,7 @@ function printSummary(
     }
     if (isPolygonCurve) {
         console.log(`Curve Pool: ${curvePool}`);
+        console.log(`Curve Pool Type: ${curvePoolType}`);
         console.log(`Curve Gauge: ${curveGauge}`);
         console.log(`Curve Deposit Token Index: ${curvePoolTokenIndex}`);
         console.log(`Curve Token: ${curve}`);
@@ -256,6 +260,7 @@ module.exports = function (deployer, network, accounts) {
                 poolConfigs.pool,
                 poolConfigs.tokenIndex,
                 poolConfigs.tokenIndex,
+                poolConfigs.poolType,
                 poolConfigs.gauge,
                 deployConfigs.segmentCount,
                 deployConfigs.segmentLength,
@@ -293,7 +298,8 @@ module.exports = function (deployer, network, accounts) {
                 curve: poolConfigs.curve,
                 curvePool: poolConfigs.pool,
                 curvePoolTokenIndex: poolConfigs.tokenIndex,
-                curveGauge: poolConfigs.gauge
+                curveGauge: poolConfigs.gauge,
+                curvePoolType: poolConfigs.poolType
             },
             {
                 networkName,

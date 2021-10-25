@@ -32,6 +32,7 @@ exports.providers = {
             pool: "0x751B1e21756bDbc307CBcC5085c042a0e9AaEf36",
             gauge: "0xb0a366b987d77b5eD5803cBd95C80bB6DEaB48C0",
             curve: "0x172370d5cd63279efa6d502dab29171933a610af",
+            poolType: 1,
             tokenIndex: 0,
             wmatic: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
             dai: {
