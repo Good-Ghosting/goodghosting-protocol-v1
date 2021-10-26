@@ -70,6 +70,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     let token;
     let rewardToken;
     let pool;
+    let lpTokenInstance;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
@@ -82,6 +83,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         it("initializes contract instances and transfers DAI to players", async () => {
             pool = new web3.eth.Contract(poolABI, providersConfigs.pool)
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
+            lpTokenInstance = new web3.eth.Contract(daiABI, '0x3b6b158a76fd8ccc297538f454ce7b4787778c7c');
             rewardToken = new web3.eth.Contract(
                 daiABI,
                 providersConfigs.wmatic
@@ -193,7 +195,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     let result;
 
                     const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)))
-                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
+                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0,0,0], true).call();
 
                     const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
 
@@ -205,7 +207,10 @@ contract("GoodGhostingGasEstimate", (accounts) => {
  
                     // player 1 early withdraws in segment 0 and joins again
                     if (i == 1) {
+
                         await goodGhosting.earlyWithdraw({ from: player });
+                        // const balancee = await lpTokenInstance.methods.balanceOf(goodGhosting.address).call()
+                        // console.log('balllllll', balancee.toString())
                         await token.methods
                             .approve(
                                 goodGhosting.address,
@@ -306,11 +311,10 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     const player = players[j];
                     let depositResult;
                     const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)))
-                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
+                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0,0,0], true).call();
 
-                    const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
+                    const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("1000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('1000')))
                     if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-
                         depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), {from: player});                    
                     } else {
                         depositResult = await goodGhosting.makeDeposit({from: player});                    
@@ -363,6 +367,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             });
             if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                 curveBalanceAfterRedeem = await curve.methods.balanceOf(goodGhosting.address).call()
+                console.log('curveeee', curveBalanceAfterRedeem.toString())
                 wmaticBalanceAfterRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call()
                 // curve rewards accure slowly
                 assert(new BN(curveBalanceBeforeRedeem).lte(new BN(curveBalanceAfterRedeem)))
@@ -448,7 +453,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     );
                     // curve rewards accure slowly
                     assert(
-                        curveRewardBalanceAfter.gte(curveRewardBalanceBefore),
+                        curveRewardBalanceAfter.gt(curveRewardBalanceBefore),
                         "expected curve balance after withdrawal to be greater than before withdrawal"
                     );
                 }
