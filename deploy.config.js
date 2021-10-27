@@ -32,6 +32,8 @@ exports.providers = {
             pool: "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
             gauge: "0x3b6b158a76fd8ccc297538f454ce7b4787778c7c",
             curve: "0x172370d5cd63279efa6d502dab29171933a610af",
+            // 0 for aave pool
+            // 1 for atricrypto pool
             poolType: 1,
             tokenIndex: 0,
             wmatic: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",

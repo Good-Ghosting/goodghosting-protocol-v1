@@ -8,7 +8,8 @@ const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
-const poolABI = require("../abi-external/curve-pool-abi.json");
+const aavepoolABI = require("../abi-external/curve-aave-pool-abi.json");
+const atricryptopoolABI = require("../abi-external/curve-atricrypto-pool-abi.json");
 
 const configs = require("../deploy.config");
 const whitelistedPlayerConfig = [
@@ -75,8 +76,11 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
-            pool = new web3.eth.Contract(poolABI, providersConfigs.pool)
-
+            if (providersConfigs.poolType == 0) {
+                pool = new web3.eth.Contract(aavepoolABI, providersConfigs.pool)
+            } else {
+                pool = new web3.eth.Contract(atricryptopoolABI, providersConfigs.pool)
+            }
             goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
@@ -112,10 +116,13 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
-                    let result;
+                    let result, slippageFromContract;
                     const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)))
-                    const slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
-
+                    if (providersConfigs.poolType == 0) {
+                        slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
+                    } else {
+                        slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0,0,0], true).call();
+                    }
                     const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
                     if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                         result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
