@@ -10,7 +10,9 @@ import "./curve/ICurveGauge.sol";
 contract GoodGhostingPolygonCurve is Ownable, Pausable {
     using SafeMath for uint256;
 
+    /// @notice curve rewards per player
     uint256 public curveRewardsPerPlayer;
+    /// @notice wmatic rewards per player
     uint256 public rewardsPerPlayer;
     /// @notice Stores the total amount of net interest received in the game.
     uint256 public totalGameInterest;
@@ -111,8 +113,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         uint256 amount,
         uint256 totalGamePrincipal
     );
-    event beforeLP(uint256 amount);
-    event afterLP(uint256 amount);
 
     event AdminWithdrawal(
         address indexed admin,
@@ -208,11 +208,11 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         daiToken = _inboundCurrency;
         maxPlayersCount = _maxPlayersCount;
         incentiveToken = _incentiveToken;
-        // if (_poolType == uint(0)) {
-        //     lpToken = IERC20(pool.lp_token());
-        // } else if (_poolType == 1) {
-        lpToken = IERC20(pool.token());
-       // }
+        if (_poolType == uint256(0)) {
+            lpToken = IERC20(pool.lp_token());
+        } else if (_poolType == 1) {
+            lpToken = IERC20(pool.token());
+        }
     }
 
     /// @notice pauses the game. This function can be called only by the contract's admin.
@@ -278,33 +278,32 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             poolWithdrawAmount = lpToken.balanceOf(address(this));
         }
 
-        // if (poolType == 0) {
-        //     uint256 _minAmount = pool.calc_withdraw_one_coin(
-        //         poolWithdrawAmount,
-        //         inboundTokenIndexInt
-        //     );
-        //     pool.remove_liquidity_one_coin(
-        //         poolWithdrawAmount,
-        //         inboundTokenIndexInt,
-        //         _minAmount,
-        //         true
-        //     );
-        // } else if (poolType == 1) {
+        if (poolType == 0) {
+            uint256 _minAmount = pool.calc_withdraw_one_coin(
+                poolWithdrawAmount,
+                inboundTokenIndexInt
+            );
+            pool.remove_liquidity_one_coin(
+                poolWithdrawAmount,
+                inboundTokenIndexInt,
+                _minAmount,
+                true
+            );
+        } else if (poolType == 1) {
             uint256 _minAmount = pool.calc_withdraw_one_coin(
                 poolWithdrawAmount,
                 inboundTokenIndexUint
             );
             require(
-            lpToken.approve(address(pool), poolWithdrawAmount),
-            "Fail to approve allowance to pool"
-        );
-            // require(poolWithdrawAmount > 0, "less than 0");
+                lpToken.approve(address(pool), poolWithdrawAmount),
+                "Fail to approve allowance to pool"
+            );
             pool.remove_liquidity_one_coin(
                 poolWithdrawAmount,
                 inboundTokenIndexUint,
                 _minAmount
             );
-       // }
+        }
 
         if (daiToken.balanceOf(address(this)) < withdrawAmount) {
             withdrawAmount = daiToken.balanceOf(address(this));
@@ -371,11 +370,11 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             }
         }
 
-        // if (poolType == 0) {
-        //     pool.add_liquidity(amounts, _minAmount, true);
-        // } else if (poolType == 1) {
+        if (poolType == 0) {
+            pool.add_liquidity(amounts, _minAmount, true);
+        } else if (poolType == 1) {
             pool.add_liquidity(amounts, _minAmount);
-        //}
+        }
 
         require(lpToken.balanceOf(address(this)) > 0, "invalid amount");
 
@@ -581,35 +580,37 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         // gauge.claim_rewards();
         gauge.withdraw(lpBalance, true);
 
-        // if (poolType == 0) {
-        //     uint256 _minAmount = pool.calc_withdraw_one_coin(
-        //         lpToken.balanceOf(address(this)),
-        //         inboundTokenIndexInt
-        //     );
-        //     pool.remove_liquidity_one_coin(
-        //         lpToken.balanceOf(address(this)),
-        //         inboundTokenIndexInt,
-        //         0,
-        //         true
-        //     );
-        // } else if (poolType == 1) {
+        if (poolType == 0) {
+            uint256 _minAmount = pool.calc_withdraw_one_coin(
+                lpToken.balanceOf(address(this)),
+                inboundTokenIndexInt
+            );
+            pool.remove_liquidity_one_coin(
+                lpToken.balanceOf(address(this)),
+                inboundTokenIndexInt,
+                _minAmount,
+                true
+            );
+        } else if (poolType == 1) {
             uint256 _minAmount = pool.calc_withdraw_one_coin(
                 lpToken.balanceOf(address(this)),
                 inboundTokenIndexUint
             );
-            require(lpToken.balanceOf(address(this)) > 0, "invalid0");
 
             require(
-            lpToken.approve(address(pool), lpToken.balanceOf(address(this))),
-            "Fail to approve allowance to pool"
-        );
+                lpToken.approve(
+                    address(pool),
+                    lpToken.balanceOf(address(this))
+                ),
+                "Fail to approve allowance to pool"
+            );
 
             pool.remove_liquidity_one_coin(
                 lpToken.balanceOf(address(this)),
                 inboundTokenIndexUint,
                 _minAmount
             );
-       // }
+        }
 
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
@@ -640,15 +641,15 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
 
         // when there's no winners, admin takes all the interest + rewards
-        // if (winnerCount == 0) {
-        //     rewardsPerPlayer = 0;
-        //     curveRewardsPerPlayer = 0;
-        //     adminFeeAmount = grossInterest;
-        // } else {
-        //     rewardsPerPlayer = rewardsAmount.div(winnerCount);
-        //     curveRewardsPerPlayer = curveRewardAmount.div(winnerCount);
-        //     adminFeeAmount = _adminFeeAmount;
-        // }
+        if (winnerCount == 0) {
+            rewardsPerPlayer = 0;
+            curveRewardsPerPlayer = 0;
+            adminFeeAmount = grossInterest;
+        } else {
+            rewardsPerPlayer = rewardsAmount.div(winnerCount);
+            curveRewardsPerPlayer = curveRewardAmount.div(winnerCount);
+            adminFeeAmount = _adminFeeAmount;
+        }
 
         emit FundsRedeemedFromExternalPool(
             totalBalance,

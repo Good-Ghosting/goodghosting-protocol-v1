@@ -13,10 +13,8 @@ interface ICurvePool {
         bool _use_underlying
     ) external returns (uint256);
 
-    function add_liquidity(
-        uint256[3] calldata amounts,
-        uint256 min_mint_amount
-    ) external;
+    function add_liquidity(uint256[3] calldata _amounts, uint256 _min_mint_amount) external;
+
 
     function add_liquidity(uint256[5] calldata _amounts, uint256 _min_mint_amount) external;
 
