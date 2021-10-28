@@ -62,11 +62,12 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
         providersConfigs = configs.providers.aave.polygon;
     }
 
-    const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, customFee } = configs.deployConfigs;
+    const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, customFee, earlyWithdrawFee } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
     let rewardToken;
     let pool;
+    let gaugeToken;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
@@ -84,6 +85,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
             } else {
                 pool = new web3.eth.Contract(atricryptopoolABI, providersConfigs.pool)
             }
+            gaugeToken = new web3.eth.Contract(daiABI, providersConfigs.gauge);
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
             goodGhosting = await GoodGhostingArtifact.deployed();
@@ -226,7 +228,30 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 await timeMachine.advanceTime(segmentLength);
                 // Player 1 (index 0 - loser), performs an early withdraw on first segment.
                 if (segmentIndex === 1) {
-                    const earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser });
+                    const withdrawAmount = segmentPayment.sub(segmentPayment.mul(new BN(earlyWithdrawFee)).div(new BN(100)))
+                    let lpTokenAmnount;
+                    if (providersConfigs.poolType == 0) {
+                        lpTokenAmnount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
+                    } else {
+                        lpTokenAmnount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0, 0, 0], true).call();
+                    }
+
+                    const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call()
+
+                    if (parseInt(gaugeTokenBalance.toString()) < parseInt(lpTokenAmnount.toString())) {
+                        lpTokenAmnount = gaugeTokenBalance
+                    }
+
+                    let minAmount = await pool.methods.calc_withdraw_one_coin(lpTokenAmnount.toString(), providersConfigs.tokenIndex).call()
+
+                    minAmount = new BN(minAmount).sub(new BN(minAmount).div(new BN('1000')))
+
+                    const userProvidedMinAmount = new BN(lpTokenAmnount).sub(new BN(lpTokenAmnount).mul(new BN('6')).div(new BN(1000)))
+
+                    if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
+                        minAmount = userProvidedMinAmount
+                    }
+                    const earlyWithdrawResult = await goodGhosting.earlyWithdraw(minAmount.toString(), { from: loser});
                     truffleAssert.eventEmitted(
                         earlyWithdrawResult,
                         "EarlyWithdrawal",
@@ -264,7 +289,31 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 if (segmentIndex === segmentCount - 1) {
                     // player 1 earlywithdraws during last segment
                     const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
-                    await goodGhosting.earlyWithdraw({ from: userWithdrawingDuringLastSegment });
+                    const withdrawAmount = segmentPayment.sub(segmentPayment.mul(new BN(earlyWithdrawFee)).div(new BN(100)))
+                    let lpTokenAmnount;
+                    if (providersConfigs.poolType == 0) {
+                        lpTokenAmnount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
+                    } else {
+                        lpTokenAmnount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0, 0, 0], true).call();
+                    }
+
+                    const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call()
+
+                    if (parseInt(gaugeTokenBalance.toString()) < parseInt(lpTokenAmnount.toString())) {
+                        lpTokenAmnount = gaugeTokenBalance
+                    }
+
+                    let minAmount = await pool.methods.calc_withdraw_one_coin(lpTokenAmnount.toString(), providersConfigs.tokenIndex).call()
+
+                    minAmount = new BN(minAmount).sub(new BN(minAmount).div(new BN('1000')))
+
+                    userProvidedMinAmount = new BN(lpTokenAmnount).sub(new BN(lpTokenAmnount).mul(new BN('6')).div(new BN(1000)))
+
+                    if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
+                        minAmount = userProvidedMinAmount
+                    }
+                    await goodGhosting.earlyWithdraw(minAmount.toString(), { from: userWithdrawingDuringLastSegment});
+                    
                     const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
                     assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
                     // j must start at 2- Player2 (index 1) early withdrawa in last segment, so won't continue making deposits
@@ -300,7 +349,17 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
 
         it("redeems funds from external pool", async () => {
             let eventAmount = new BN(0);
-            const result = await goodGhosting.redeemFromExternalPool({ from: admin });
+            const userSlippage = 0.2;
+
+            const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call()
+            let minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call()
+            const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)))
+
+            if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
+                minAmount = userProvidedMinAmount
+            }
+            const result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), { from: admin });
+            
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
 
             console.log("contractsDaiBalance", contractsDaiBalance.toString());
@@ -333,7 +392,7 @@ contract("GoodGhosting_Attacker_Sends_DAI_Externally", (accounts) => {
                 ) {
                     rewardBalanceBefore = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
                 }
-                const result = await goodGhosting.withdraw({ from: player });
+                const result = await goodGhosting.withdraw(0, { from: player });
 
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon ||

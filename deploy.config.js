@@ -29,12 +29,16 @@ exports.providers = {
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         'polygon-curve': {
-            pool: "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
-            gauge: "0x3b6b158a76fd8ccc297538f454ce7b4787778c7c",
+            pool: "0x445FE580eF8d70FF569aB36e80c647af338db351",
+            gauge: "0x19793B454D3AfC7b454F206Ffe95aDE26cA6912c",
             curve: "0x172370d5cd63279efa6d502dab29171933a610af",
             // 0 for aave pool
+            // pool 0x445FE580eF8d70FF569aB36e80c647af338db351
+            // gauge 0x19793B454D3AfC7b454F206Ffe95aDE26cA6912c
             // 1 for atricrypto pool
-            poolType: 1,
+            // pool 0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8
+            // gauge 0x3b6b158a76fd8ccc297538f454ce7b4787778c7c
+            poolType: 0,
             tokenIndex: 0,
             wmatic: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
             dai: {
@@ -85,7 +89,7 @@ exports.deployConfigs = {
     selectedProvider: "aave", // name of the selected provider. Must be defined in the object {providers} above.
     inboundCurrencySymbol: "dai", // name of the inbound currency symbol. Must be defined in the object {providers.network} above.
     segmentCount: 3, // integer number of segments
-    segmentLength: 600, // in seconds
+    segmentLength: 604800, // in seconds
     segmentPayment: 1, // amount of tokens - i.e. 10 equals to 10 TOKENS (DAI, ETH, etc.);
     earlyWithdrawFee: 1, // i.e. 10 equals to 10%
     customFee: 1, // i.e. 5 equals to 5%

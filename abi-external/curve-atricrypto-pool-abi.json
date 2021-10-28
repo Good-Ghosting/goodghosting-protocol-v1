@@ -668,12 +668,12 @@
       "name": "calc_withdraw_one_coin",
       "inputs": [
         {
-          "name": "_token_amount",
+          "name": "token_amount",
           "type": "uint256"
         },
         {
           "name": "i",
-          "type": "int128"
+          "type": "uint256"
         }
       ],
       "outputs": [
@@ -682,7 +682,7 @@
           "type": "uint256"
         }
       ],
-      "gas": 4491030
+      "gas": 14299
     },
     {
       "stateMutability": "view",

@@ -66,6 +66,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
     let token;
     let rewardToken;
     let pool;
+    let gaugeToken;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const daiDecimals = web3.utils.toBN(1000000000000000000);
@@ -81,6 +82,8 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             } else {
                 pool = new web3.eth.Contract(atricryptopoolABI, providersConfigs.pool)
             }
+            gaugeToken = new web3.eth.Contract(daiABI, providersConfigs.gauge);
+
             goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
@@ -183,11 +186,19 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         });
 
         it("redeems funds from external pool", async () => {
+            const userSlippage = 0.2;
 
             // none of the players made additional deposits, so it completes the game before redeeming from external pool
             await timeMachine.advanceTime(segmentLength * (segmentCount + 1));
             let eventAmount = new BN(0);
-            const result = await goodGhosting.redeemFromExternalPool({ from: admin });
+            const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call()
+            let minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call()
+            const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)))
+
+            if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
+                minAmount = userProvidedMinAmount
+            }
+            const result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), { from: admin });
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
 
             console.log("contractsDaiBalance", contractsDaiBalance.toString());
@@ -218,7 +229,8 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                 ) {
                     rewardBalanceBefore = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
                 }
-                const result = await goodGhosting.withdraw({ from: player });
+                // redeem already called hence passing in 0
+                const result = await goodGhosting.withdraw(0, { from: player });
 
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon ||
