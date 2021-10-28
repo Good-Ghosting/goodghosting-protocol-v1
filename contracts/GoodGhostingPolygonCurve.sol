@@ -41,8 +41,10 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     uint256 public immutable poolType;
     /// @notice winner counter to track no of winners
     uint256 public winnerCount = 0;
-    /// @notice total tokens in a pool
-    uint256 public constant numTokens = 5;
+    /// @notice total tokens in aave pool
+    uint256 public constant numAaveTokens = 3;
+    /// @notice total tokens in atricrypto pool
+    uint256 public constant numAtricryptoTokens = 5;
     /// for some reason the curve contracts have int128 as param in the withdraw function
     /// hence the two types since type conversion is not possible
     /// @notice token index in the pool in int form
@@ -232,7 +234,11 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
     /// @notice Allows a player to withdraws funds before the game ends. An early withdrawl fee is charged.
     /// @dev Cannot be called after the game is completed.
-    function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
+    function earlyWithdraw(uint256 _minAmount)
+        external
+        whenNotPaused
+        whenGameIsNotCompleted
+    {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
         require(!player.withdrawn, "Player has already withdrawn");
@@ -258,31 +264,26 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
 
-        uint256[numTokens] memory amounts;
-        for (uint256 i = 0; i < numTokens; i++) {
-            if (i == inboundTokenIndexUint) {
-                amounts[i] = withdrawAmount;
-            } else {
-                amounts[i] = 0;
-            }
-        }
-        uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
-
-        if (gauge.balanceOf(address(this)) < poolWithdrawAmount) {
-            poolWithdrawAmount = gauge.balanceOf(address(this));
-        }
-
-        gauge.withdraw(poolWithdrawAmount, false);
-
-        if (lpToken.balanceOf(address(this)) < poolWithdrawAmount) {
-            poolWithdrawAmount = lpToken.balanceOf(address(this));
-        }
-
         if (poolType == 0) {
-            uint256 _minAmount = pool.calc_withdraw_one_coin(
-                poolWithdrawAmount,
-                inboundTokenIndexInt
-            );
+            uint256[numAaveTokens] memory amounts;
+            for (uint256 i = 0; i < numAaveTokens; i++) {
+                if (i == inboundTokenIndexUint) {
+                    amounts[i] = withdrawAmount;
+                } else {
+                    amounts[i] = 0;
+                }
+            }
+            uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
+
+            if (gauge.balanceOf(address(this)) < poolWithdrawAmount) {
+                poolWithdrawAmount = gauge.balanceOf(address(this));
+            }
+
+            gauge.withdraw(poolWithdrawAmount, false);
+
+            if (lpToken.balanceOf(address(this)) < poolWithdrawAmount) {
+                poolWithdrawAmount = lpToken.balanceOf(address(this));
+            }
             pool.remove_liquidity_one_coin(
                 poolWithdrawAmount,
                 inboundTokenIndexInt,
@@ -290,10 +291,25 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 true
             );
         } else if (poolType == 1) {
-            uint256 _minAmount = pool.calc_withdraw_one_coin(
-                poolWithdrawAmount,
-                inboundTokenIndexUint
-            );
+            uint256[numAtricryptoTokens] memory amounts;
+            for (uint256 i = 0; i < numAtricryptoTokens; i++) {
+                if (i == inboundTokenIndexUint) {
+                    amounts[i] = withdrawAmount;
+                } else {
+                    amounts[i] = 0;
+                }
+            }
+            uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
+
+            if (gauge.balanceOf(address(this)) < poolWithdrawAmount) {
+                poolWithdrawAmount = gauge.balanceOf(address(this));
+            }
+
+            gauge.withdraw(poolWithdrawAmount, false);
+
+            if (lpToken.balanceOf(address(this)) < poolWithdrawAmount) {
+                poolWithdrawAmount = lpToken.balanceOf(address(this));
+            }
             require(
                 lpToken.approve(address(pool), poolWithdrawAmount),
                 "Fail to approve allowance to pool"
@@ -361,22 +377,28 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             daiToken.approve(address(pool), contractBalance),
             "Fail to approve allowance to pool"
         );
-        uint256[numTokens] memory amounts;
-        for (uint256 i = 0; i < numTokens; i++) {
-            if (i == inboundTokenIndexUint) {
-                amounts[i] = segmentPayment;
-            } else {
-                amounts[i] = 0;
-            }
-        }
 
         if (poolType == 0) {
+            uint256[numAaveTokens] memory amounts;
+            for (uint256 i = 0; i < numAaveTokens; i++) {
+                if (i == inboundTokenIndexUint) {
+                    amounts[i] = segmentPayment;
+                } else {
+                    amounts[i] = 0;
+                }
+            }
             pool.add_liquidity(amounts, _minAmount, true);
         } else if (poolType == 1) {
+            uint256[numAtricryptoTokens] memory amounts;
+            for (uint256 i = 0; i < numAtricryptoTokens; i++) {
+                if (i == inboundTokenIndexUint) {
+                    amounts[i] = segmentPayment;
+                } else {
+                    amounts[i] = 0;
+                }
+            }
             pool.add_liquidity(amounts, _minAmount);
         }
-
-        require(lpToken.balanceOf(address(this)) > 0, "invalid amount");
 
         require(
             lpToken.approve(address(gauge), lpToken.balanceOf(address(this))),
@@ -511,7 +533,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     }
 
     /// @notice Allows player to withdraw their funds after the game ends with no loss (fee). Winners get a share of the interest earned.
-    function withdraw() external {
+    function withdraw(uint256 _minAmount) external {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
         require(!player.withdrawn, "Player has already withdrawn");
@@ -519,7 +541,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
         // First player to withdraw redeems everyone's funds
         if (!redeemed) {
-            redeemFromExternalPool();
+            redeemFromExternalPool(_minAmount);
         }
 
         uint256 payout = player.amountPaid;
@@ -573,18 +595,16 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
     /// @notice Redeems funds from the external pool and updates the internal accounting controls related to the game stats.
     /// @dev Can only be called after the game is completed.
-    function redeemFromExternalPool() public whenGameIsCompleted {
+    function redeemFromExternalPool(uint256 _minAmount)
+        public
+        whenGameIsCompleted
+    {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
         uint256 lpBalance = gauge.balanceOf(address(this));
-        // gauge.claim_rewards();
         gauge.withdraw(lpBalance, true);
 
         if (poolType == 0) {
-            uint256 _minAmount = pool.calc_withdraw_one_coin(
-                lpToken.balanceOf(address(this)),
-                inboundTokenIndexInt
-            );
             pool.remove_liquidity_one_coin(
                 lpToken.balanceOf(address(this)),
                 inboundTokenIndexInt,
@@ -592,11 +612,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 true
             );
         } else if (poolType == 1) {
-            uint256 _minAmount = pool.calc_withdraw_one_coin(
-                lpToken.balanceOf(address(this)),
-                inboundTokenIndexUint
-            );
-
             require(
                 lpToken.approve(
                     address(pool),
