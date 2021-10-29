@@ -8,6 +8,7 @@ const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 
 contract("GoodGhosting", (accounts) => {
+    console.log('networkkkk', process.env.NETWORK)
     // Only executes this test file IF NOT a local network fork
     if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork",  "local-polygon-vigil-fork-curve", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
 
@@ -145,7 +146,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "_earlyWithdrawalFee must be greater than zero");
         });
@@ -165,7 +166,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "invalid _inboundCurrency address");
         });
@@ -185,7 +186,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "invalid _lendingPoolAddressProvider address");
         });
@@ -205,7 +206,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "_segmentCount must be greater than zero");
         });
@@ -225,7 +226,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "_segmentLength must be greater than zero");
         });
@@ -245,7 +246,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "_segmentPayment must be greater than zero");
         });
@@ -265,7 +266,7 @@ contract("GoodGhosting", (accounts) => {
                 ZERO_ADDRESS,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "invalid _dataProvider address");
         });
@@ -285,7 +286,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "_earlyWithdrawalFee must be less than or equal to 10%")
         });
@@ -305,7 +306,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 5000000 },
             ),
                 "_customFee must be less than or equal to 20%");
         });
@@ -326,7 +327,7 @@ contract("GoodGhosting", (accounts) => {
                     pap.address,
                     new BN(0), // set to 0 to force revert
                     ZERO_ADDRESS,
-                    { from: admin },
+                    { from: admin, gas: 5000000 },
                 ),
                 "_maxPlayersCount must be greater than zero"
             );
@@ -348,7 +349,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin, gas: 8000000 },
             );
             const result = new BN(await contract.maxPlayersCount.call());
             assert(expectedValue.eq(result), "expected max number of players to equal type(uint256).max");
@@ -450,7 +451,7 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("reverts if user does not approve the contract to spend dai", async () => {
-            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "You need to have allowance to do transfer DAI on the smart contract");
+            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1, gas: 5000000  }), "You need to have allowance to do transfer DAI on the smart contract");
         });
 
         it("reverts if the user tries to join after the first segment", async () => {

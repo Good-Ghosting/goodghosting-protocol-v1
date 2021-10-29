@@ -24,6 +24,14 @@ contract MockCurvePool is MockERC20Mintable {
         return _amounts[0];
     }
 
+    function add_liquidity(
+        uint256[5] memory _amounts,
+        uint256 _min_mint_amount
+    ) external {
+        reserve.transferFrom(msg.sender, address(this), _amounts[0]);
+        _mint(msg.sender, _amounts[0]);
+    }
+
     function remove_liquidity_one_coin(
         uint256 _token_amount,
         int128 i,
@@ -35,7 +43,21 @@ contract MockCurvePool is MockERC20Mintable {
         IERC20(reserve).transfer(msg.sender, _token_amount);
     }
 
+    function remove_liquidity_one_coin(
+        uint256 _token_amount,
+        uint256 i,
+        uint256 _min_amount
+    ) external {
+        _token_amount = IERC20(address(this)).balanceOf(msg.sender);
+        _burn(msg.sender, _token_amount);
+        IERC20(reserve).transfer(msg.sender, _token_amount);
+    }
+
     function calc_withdraw_one_coin(uint256 _token_amount, int128 i) external view returns (uint256) {
+        return IERC20(address(this)).balanceOf(msg.sender);
+    }
+
+    function calc_withdraw_one_coin(uint256 _token_amount, uint256 i) external view returns (uint256) {
         return IERC20(address(this)).balanceOf(msg.sender);
     }
 
@@ -43,8 +65,16 @@ contract MockCurvePool is MockERC20Mintable {
         return IERC20(address(this)).balanceOf(msg.sender);
     }
 
+    function calc_token_amount(uint256[5] calldata _amounts, bool is_deposit) external view returns (uint256) {
+        return IERC20(address(this)).balanceOf(msg.sender);
+    }
+    
 
     function lp_token() external view returns (address) {
+        return address(this);
+    }
+
+    function token() external view returns (address) {
         return address(this);
     }
 }
