@@ -458,7 +458,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 curveBalanceAfterRedeem = await curve.methods.balanceOf(goodGhosting.address).call()
                 wmaticBalanceAfterRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call()
                 // curve rewards accure slowly
-                assert(new BN(curveBalanceBeforeRedeem).lt(new BN(curveBalanceAfterRedeem)))
+                assert(new BN(curveBalanceBeforeRedeem).lte(new BN(curveBalanceAfterRedeem)))
                 // no wmatic rewards in atricrypto pool
                 assert(new BN(wmaticBalanceBeforeRedeem).lte(new BN(wmaticBalanceAfterRedeem)))
             }
