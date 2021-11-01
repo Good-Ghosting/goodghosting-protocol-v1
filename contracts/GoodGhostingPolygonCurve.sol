@@ -282,9 +282,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
             gauge.withdraw(poolWithdrawAmount, false);
 
-            if (lpToken.balanceOf(address(this)) < poolWithdrawAmount) {
-                poolWithdrawAmount = lpToken.balanceOf(address(this));
-            }
             pool.remove_liquidity_one_coin(
                 poolWithdrawAmount,
                 inboundTokenIndexInt,
@@ -308,9 +305,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
             gauge.withdraw(poolWithdrawAmount, false);
 
-            if (lpToken.balanceOf(address(this)) < poolWithdrawAmount) {
-                poolWithdrawAmount = lpToken.balanceOf(address(this));
-            }
             require(
                 lpToken.approve(address(pool), poolWithdrawAmount),
                 "Fail to approve allowance to pool"
