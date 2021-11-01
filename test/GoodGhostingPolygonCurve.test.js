@@ -39,11 +39,11 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
     beforeEach(async () => {
         global.web3 = web3;
-        incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin, gas: 5000000 });
-        token = await ERC20Mintable.new("MINT", "MINT", { from: admin, gas: 5000000 });
-        curve = await ERC20Mintable.new("CURVE", "CURVE", { from: admin, gas: 5000000 });
-        pool = await  MockCurvePool.new("LP", "LP", token.address, { from: admin, gas: 5000000});
-        gauge = await  MockCurveGauge.new("GAUGE", "GAUGE", curve.address, pool.address, incentiveController.address, { from: admin, gas: 5000000});
+        incentiveController = await IncentiveControllerMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin, gas: 6000000 });
+        token = await ERC20Mintable.new("MINT", "MINT", { from: admin, gas: 6000000 });
+        curve = await ERC20Mintable.new("CURVE", "CURVE", { from: admin, gas: 6000000 });
+        pool = await  MockCurvePool.new("LP", "LP", token.address, { from: admin, gas: 6000000});
+        gauge = await  MockCurveGauge.new("GAUGE", "GAUGE", curve.address, pool.address, incentiveController.address, { from: admin, gas: 6000000});
         // creates dai for player1 to hold.
         // Note DAI contract returns value to 18 Decimals
         // so token.balanceOf(address) should be converted with BN
@@ -51,7 +51,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         await mintTokensFor(player1);
         await mintTokensFor(player2);
         await mintRewardsFor(gauge.address)
-        await curve.mint(gauge.address, toWad(1000), { from: admin, gas: 5000000 });
+        await curve.mint(gauge.address, toWad(1000), { from: admin, gas: 6000000 });
 
         goodGhosting = await GoodGhostingPolygonCurve.new(
             token.address,
@@ -69,16 +69,16 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             curve.address,
             incentiveController.address,
             ZERO_ADDRESS,
-            { from: admin, gas: 20000000 },
+            { from: admin },
         );
     });
 
     async function mintTokensFor(player) {
-        await token.mint(player, toWad(1000), { from: admin, gas: 5000000 });
+        await token.mint(player, toWad(1000), { from: admin, gas: 6000000 });
     }
 
     async function mintRewardsFor(to) {
-        await incentiveController.mint(to, toWad(1000), { from: admin, gas: 5000000 });
+        await incentiveController.mint(to, toWad(1000), { from: admin, gas: 6000000 });
     }
 
     async function approveDaiToContract(fromAddr) {
@@ -98,12 +98,12 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             contract = goodGhosting;
         }
         await approveDaiToContract(player);
-        await contract.joinGame(0, { from: player, gas: 5000000 });
+        await contract.joinGame(0, { from: player, gas: 6000000 });
         // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
         for (let index = 1; index < segmentCount; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
-            await contract.makeDeposit(0,{ from: player, gas: 5000000 });
+            await contract.makeDeposit(0,{ from: player, gas: 6000000 });
         }
         // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
         // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
@@ -112,12 +112,12 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
     async function joinGameMissLastPaymentAndComplete(player) {
         await approveDaiToContract(player);
-        await goodGhosting.joinGame(0, { from: player, gas: 5000000 });
+        await goodGhosting.joinGame(0, { from: player, gas: 6000000 });
         // pay all remaining segments except last one
         for (let index = 1; index < segmentCount - 1; index++) {
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player);
-            await goodGhosting.makeDeposit(0,{ from: player, gas: 5000000 });
+            await goodGhosting.makeDeposit(0,{ from: player, gas: 6000000 });
         }
         // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 2.
         // now, we move 3 more segments (segmentCount-2, segmentCount-1 and segmentCount) to complete the game.
@@ -149,7 +149,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin, gas: 5000000 },
+                { from: admin, gas: 6000000 },
             ),
             "invalid _pool address");
         });
@@ -171,7 +171,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin, gas: 5000000 },
+                { from: admin, gas: 6000000 },
             ),
             "invalid _gauge address");
         });
@@ -193,7 +193,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin, gas: 5000000 },
+                { from: admin, gas: 6000000 },
             ),
             "invalid _curve address");
         });
@@ -206,7 +206,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         });
 
         it("reverts if user does not approve the contract to spend dai", async () => {
-            await truffleAssert.reverts(goodGhosting.joinGame(0,{ from: player1, gas: 5000000  }), "You need to have allowance to do transfer DAI on the smart contract");
+            await truffleAssert.reverts(goodGhosting.joinGame(0,{ from: player1, gas: 6000000  }), "You need to have allowance to do transfer DAI on the smart contract");
         });
 
         it("reverts if the user tries to join after the first segment", async () => {
@@ -240,14 +240,14 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin, gas: 5000000 },
+                { from: admin },
             );
             await token.approve(contract.address, segmentPayment, { from: player1 });
             await contract.joinGame(0,{ from: player1 });
             await token.approve(contract.address, segmentPayment, { from: player2 });
             await contract.joinGame(0,{ from: player2 });
             await token.approve(contract.address, segmentPayment, { from: nonPlayer });
-            await truffleAssert.reverts(contract.joinGame(0,{ from: nonPlayer,  gas: 5000000 }), "Reached max quantity of players allowed");
+            await truffleAssert.reverts(contract.joinGame(0,{ from: nonPlayer,  gas: 6000000 }), "Reached max quantity of players allowed");
         });
 
         it("increases activePlayersCount when a new player joins", async () => {
@@ -275,7 +275,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin, gas: 5000000 },
+                { from: admin },
             );
             await token.approve(contract.address, segmentPayment, { from: player1 });
             await contract.joinGame(0, { from: player1 });
@@ -310,7 +310,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin, gas: 5000000 },
+                { from: admin },
             );
             await token.approve(contract.address, segmentPayment, { from: player1 });
             await contract.joinGame(0,{ from: player1 });
@@ -508,7 +508,9 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await approveDaiToContract(player1);
             await goodGhosting.makeDeposit(0,{ from: player1 });
             const contractsDaiBalance = await gauge.balanceOf(goodGhosting.address);
-            assert(expectedBalance.eq(contractsDaiBalance), "Contract balance should increase when user deposits");
+            // gauge balance is less that deposited amount
+            assert(contractsDaiBalance.gt(new BN(0)));
+            assert(expectedBalance.gt(contractsDaiBalance), "Contract balance should increase when user deposits");
         });
 
         it("makes sure the total principal amount increases", async () => {
@@ -543,7 +545,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         });
 
         it("for a pool with 1 segment make sure that winner array get's populated", async() => {
-            incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 5000000 });
+            incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 6000000 });
             goodGhosting = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
@@ -560,7 +562,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 incentiveToken.address,
-                { from: admin, gas: 5000000 },
+                { from: admin },
             );
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(0, { from: player1 });
@@ -774,7 +776,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const playerInfoAfterWithdraw = await goodGhosting.players(player1)
             console.log()
             winner = await goodGhosting.winners(playerInfoAfterWithdraw.winnerIndex);
-            console.log('WINNERSSS', winner)
             assert(winner == ZERO_ADDRESS)
         })
 
@@ -880,7 +881,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(goodGhosting.address);
             let contractCurveBalanceBeforeRedeem = await curve.balanceOf(goodGhosting.address);
 
-            await goodGhosting.redeemFromExternalPool(0,{ from: player2, gas: 5000000 });
+            await goodGhosting.redeemFromExternalPool(0,{ from: player2, gas: 6000000 });
             let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(goodGhosting.address);
             let contractCurveBalanceAfterRedeem = await curve.balanceOf(goodGhosting.address);
             assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
@@ -890,7 +891,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
             await joinGamePaySegmentsAndComplete(player1);
             let contractCurveBalanceBeforeRedeem = await curve.balanceOf(goodGhosting.address);
-            const result = await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+            const result = await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
             let contractCurveBalanceAfterRedeem = await curve.balanceOf(goodGhosting.address);
             assert(contractCurveBalanceAfterRedeem.gt(contractCurveBalanceBeforeRedeem));
             const contractCurveBalance = await curve.balanceOf(goodGhosting.address);
@@ -913,8 +914,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             );
 
             await joinGamePaySegmentsAndComplete(player1);
-            const result = await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
-            const rewardsPerPlayer = new BN (await goodGhosting.rewardsPerPlayer.call({ from: admin, gas: 5000000 }));
+            const result = await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
+            const rewardsPerPlayer = new BN (await goodGhosting.rewardsPerPlayer.call({ from: admin, gas: 6000000 }));
 
             let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(goodGhosting.address);
             const contractDaiBalance = await token.balanceOf(goodGhosting.address);
@@ -940,7 +941,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             let incentiveToken;
 
             beforeEach(async () => {
-                incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 5000000 });
+                incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 6000000 });
                 contract = await GoodGhostingPolygonCurve.new(
                     token.address,
                     pool.address,
@@ -957,23 +958,23 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     curve.address,
                     incentiveController.address,
                     incentiveToken.address,
-                    { from: admin, gas: 5000000 },
+                    { from: admin },
                 );
             });
 
             it("sets totalIncentiveAmount to amount sent to contract", async () => {
-                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 5000000 });
-                await token.approve(contract.address, approvalAmount, { from: player1, gas: 5000000 });
+                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 6000000 });
+                await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
-                await contract.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await contract.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const result = new BN(await contract.totalIncentiveAmount.call());
                 assert(result.eq(incentiveAmount), `totalIncentiveAmount should be ${incentiveAmount.toString()}; received ${result.toString()}`);
             });
 
             it("sets totalIncentiveAmount to zero if no amount is sent to contract", async () => {
-                await token.approve(contract.address, approvalAmount, { from: player1, gas: 5000000 });
+                await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
-                await contract.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await contract.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const result = new BN(await contract.totalIncentiveAmount.call());
                 assert(result.eq(new BN(0)), `totalIncentiveAmount should be 0; received ${result.toString()}`);
             });
@@ -984,7 +985,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
     describe("when no one wins the game", async () => {
         it("transfers interest to the owner in case no one wins", async () => { // having test with only 1 player for now
             await joinGameMissLastPaymentAndComplete(player1);
-            const result = await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+            const result = await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
             const adminBalance = await token.balanceOf(admin);
             const principalBalance = await token.balanceOf(goodGhosting.address);
             truffleAssert.eventEmitted(
@@ -999,8 +1000,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const incompleteSegment = segmentCount - 1;
             const amountPaidInGame = web3.utils.toBN(segmentPayment * incompleteSegment);
             await joinGameMissLastPaymentAndComplete(player1);
-            await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
-            const result = await goodGhosting.withdraw(0,{ from: player1, gas: 5000000 });
+            await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
+            const result = await goodGhosting.withdraw(0,{ from: player1, gas: 6000000 });
 
             truffleAssert.eventEmitted(
                 result,
@@ -1014,21 +1015,21 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
     describe("when an user tries to withdraw", async () => {
         it("reverts if user tries to withdraw more than once", async () => {
             await joinGamePaySegmentsAndComplete(player1);
-            await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
-            await goodGhosting.withdraw(0,{ from: player1, gas: 5000000 });
-            await truffleAssert.reverts(goodGhosting.withdraw(0,{ from: player1, gas: 5000000 }), "Player has already withdrawn");
+            await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
+            await goodGhosting.withdraw(0,{ from: player1, gas: 6000000 });
+            await truffleAssert.reverts(goodGhosting.withdraw(0,{ from: player1, gas: 6000000 }), "Player has already withdrawn");
         });
 
         it("reverts if a non-player tries to withdraw", async () => {
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(0, { from: player1, gas: 5000000 });
+            await goodGhosting.joinGame(0, { from: player1, gas: 6000000 });
             await truffleAssert.reverts(goodGhosting.earlyWithdraw(0,{ from: nonPlayer }), "Player does not exist");
         });
 
         it("sets withdrawn flag to true after user withdraws", async () => {
             await joinGamePaySegmentsAndComplete(player1);
-            await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
-            await goodGhosting.withdraw(0,{ from: player1, gas: 5000000 });
+            await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
+            await goodGhosting.withdraw(0,{ from: player1, gas: 6000000 });
             const player1Result = await goodGhosting.players.call(player1);
             assert(player1Result.withdrawn);
         });
@@ -1036,7 +1037,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("withdraws from external pool on first withdraw if funds weren't redeemed yet", async () => {
             const expectedAmount = web3.utils.toBN(segmentPayment * segmentCount);
             await joinGamePaySegmentsAndComplete(player1);
-            const result = await goodGhosting.withdraw(0,{ from: player1, gas: 5000000 });
+            const result = await goodGhosting.withdraw(0,{ from: player1, gas: 6000000 });
             truffleAssert.eventEmitted(
                 result,
                 "FundsRedeemedFromExternalPool",
@@ -1048,14 +1049,14 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("makes sure the player that withdraws first before funds are redeemed from external pool gets equal interest (if winner)", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(0, { from: player1, gas: 5000000 });
-            await goodGhosting.joinGame(0, { from: player2, gas: 5000000 });
+            await goodGhosting.joinGame(0, { from: player1, gas: 6000000 });
+            await goodGhosting.joinGame(0, { from: player2, gas: 6000000 });
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.makeDeposit(0,{ from: player1, gas: 5000000 });
-                await goodGhosting.makeDeposit(0,{ from: player2, gas: 5000000 });
+                await goodGhosting.makeDeposit(0,{ from: player1, gas: 6000000 });
+                await goodGhosting.makeDeposit(0,{ from: player2, gas: 6000000 });
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
             // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
@@ -1064,17 +1065,17 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await mintTokensFor(admin);
             const incentiveAmount = toWad(1000);
 
-            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 5000000 });
-            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
+            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 6000000 });
+            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
 
             const player1BeforeWithdrawBalance = await token.balanceOf(player1);
-            await goodGhosting.withdraw(0,{ from: player1, gas: 5000000 });
+            await goodGhosting.withdraw(0,{ from: player1, gas: 6000000 });
             const player1PostWithdrawBalance = await token.balanceOf(player1);
             const player1WithdrawAmount = player1PostWithdrawBalance.sub(player1BeforeWithdrawBalance);
 
             const player2BeforeWithdrawBalance = await token.balanceOf(player2);
-            await goodGhosting.withdraw(0,{ from: player2, gas: 5000000 });
+            await goodGhosting.withdraw(0,{ from: player2, gas: 6000000 });
             const player2PostWithdrawBalance = await token.balanceOf(player2);
             const player2WithdrawAmount = player2PostWithdrawBalance.sub(player2BeforeWithdrawBalance);
 
@@ -1093,15 +1094,15 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("makes sure the winners get equal interest", async () => {
             await approveDaiToContract(player1);
             await approveDaiToContract(player2);
-            await goodGhosting.joinGame(0, { from: player1, gas: 5000000 });
-            await goodGhosting.joinGame(0, { from: player2, gas: 5000000 });
+            await goodGhosting.joinGame(0, { from: player1, gas: 6000000 });
+            await goodGhosting.joinGame(0, { from: player2, gas: 6000000 });
             for (let index = 1; index < segmentCount; index++) {
                 await timeMachine.advanceTime(weekInSecs);
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
 
-                await goodGhosting.makeDeposit(0,{ from: player1, gas: 5000000 });
-                await goodGhosting.makeDeposit(0,{ from: player2, gas: 5000000 });
+                await goodGhosting.makeDeposit(0,{ from: player1, gas: 6000000 });
+                await goodGhosting.makeDeposit(0,{ from: player2, gas: 6000000 });
 
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -1109,15 +1110,15 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await timeMachine.advanceTime(weekInSecs);
             await timeMachine.advanceTime(weekInSecs);
             await mintTokensFor(admin);
-            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 5000000 });
-            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-            await goodGhosting.redeemFromExternalPool(0,{ from: admin, gas: 5000000 });
+            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 6000000 });
+            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+            await goodGhosting.redeemFromExternalPool(0,{ from: admin, gas: 6000000 });
 
-            await goodGhosting.withdraw(0,{ from: player1, gas: 5000000 });
+            await goodGhosting.withdraw(0,{ from: player1, gas: 6000000 });
             const player1PostWithdrawBalance = await token.balanceOf(player1);
 
-            await goodGhosting.withdraw(0,{ from: player2, gas: 5000000 });
+            await goodGhosting.withdraw(0,{ from: player2, gas: 6000000 });
             const player2PostWithdrawBalance = await token.balanceOf(player2);
             assert(player2PostWithdrawBalance.eq(player1PostWithdrawBalance));
         });
@@ -1125,7 +1126,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("pays a bonus to winners and losers get their principle back", async () => {
             // Player1 is out "loser" and their interest is Player2's bonus
             await approveDaiToContract(player1);
-            await goodGhosting.joinGame(0, { from: player1, gas: 5000000, gas: 5000000 });
+            await goodGhosting.joinGame(0, { from: player1, gas: 6000000, gas: 6000000 });
 
             // Player2 pays in all segments and is our lucky winner!
             await mintTokensFor(player2);
@@ -1133,15 +1134,15 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
             // Simulate some interest by giving the contract more aDAI
             await mintTokensFor(admin);
-            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 5000000 });
-            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
+            await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+            await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 6000000 });
+            await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
 
             // Expect Player1 to get back the deposited amount
             const player1PreWithdrawBalance = await token.balanceOf(player1);
             let playerMaticBalanceBeforeWithdraw = await incentiveController.balanceOf(player1);
 
-            await goodGhosting.withdraw(0,{ from: player1, gas: 5000000 });
+            await goodGhosting.withdraw(0,{ from: player1, gas: 6000000 });
             let playerMaticBalanceAfterWithdraw = await incentiveController.balanceOf(player1);
             assert(playerMaticBalanceAfterWithdraw.eq(playerMaticBalanceBeforeWithdraw));
             const player1PostWithdrawBalance = await token.balanceOf(player1);
@@ -1151,7 +1152,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const player2PreWithdrawBalance = await token.balanceOf(player2);
             playerMaticBalanceBeforeWithdraw = await incentiveController.balanceOf(player2);
 
-            await goodGhosting.withdraw(0,{ from: player2, gas: 5000000 });
+            await goodGhosting.withdraw(0,{ from: player2, gas: 6000000 });
             playerMaticBalanceAfterWithdraw = await incentiveController.balanceOf(player2);
             assert(playerMaticBalanceAfterWithdraw.gt(playerMaticBalanceBeforeWithdraw));
 
@@ -1170,14 +1171,14 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(goodGhosting.address);
             let contractCurveBalanceBeforeRedeem = await curve.balanceOf(goodGhosting.address);
 
-            await goodGhosting.redeemFromExternalPool(0,{ from: admin, gas: 5000000 });
+            await goodGhosting.redeemFromExternalPool(0,{ from: admin, gas: 6000000 });
 
             let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(goodGhosting.address);
             let contractCurveBalanceAfterRedeem = await curve.balanceOf(goodGhosting.address);
             assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
             assert(contractCurveBalanceAfterRedeem.gt(contractCurveBalanceBeforeRedeem));
 
-            const result = await goodGhosting.withdraw(0,{ from: player1, gas: 5000000 });
+            const result = await goodGhosting.withdraw(0,{ from: player1, gas: 6000000 });
             truffleAssert.eventEmitted(result, "Withdrawal", (ev) => {
                 return ev.player === player1 && new BN(ev.playerReward/10**18).eq(new BN(1000));
             }, "unable to withdraw amount");
@@ -1191,7 +1192,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             let incentiveToken;
 
             beforeEach(async () => {
-                incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 5000000 });
+                incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 6000000 });
                 contract = await GoodGhostingPolygonCurve.new(
                     token.address,
                     pool.address,
@@ -1208,23 +1209,23 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     curve.address,
                     incentiveController.address,
                     incentiveToken.address,
-                    { from: admin, gas: 5000000 },
+                    { from: admin },
                 );
             });
 
             it("pays additional incentive to winners when incentive is sent to contract", async () => {
-                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 5000000 });
-                await token.approve(contract.address, approvalAmount, { from: player1, gas: 5000000 });
-                await token.approve(contract.address, approvalAmount, { from: player2, gas: 5000000 });
+                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 6000000 });
+                await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
+                await token.approve(contract.address, approvalAmount, { from: player2, gas: 6000000 });
 
                 const player1IncentiveBalanceBefore = await incentiveToken.balanceOf(player1);
                 const player2IncentiveBalanceBefore = await incentiveToken.balanceOf(player2);
-                await contract.joinGame(0,{ from: player2, gas: 5000000, gas: 5000000 });
+                await contract.joinGame(0,{ from: player2, gas: 6000000, gas: 6000000 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
-                await contract.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await contract.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
 
-                const resultPlayer2 = await contract.withdraw(0,{ from: player2, gas: 5000000});
-                const resultPlayer1 = await contract.withdraw(0,{ from: player1, gas: 5000000 });
+                const resultPlayer2 = await contract.withdraw(0,{ from: player2, gas: 6000000});
+                const resultPlayer1 = await contract.withdraw(0,{ from: player1, gas: 6000000 });
 
                 const player1IncentiveBalanceAfter = await incentiveToken.balanceOf(player1);
                 const player2IncentiveBalanceAfter = await incentiveToken.balanceOf(player2);
@@ -1256,17 +1257,17 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             });
 
             it("does not pay additional incentive to winners if incentive is not sent to contract", async () => {
-                await token.approve(contract.address, approvalAmount, { from: player1, gas: 5000000 });
-                await token.approve(contract.address, approvalAmount, { from: player2, gas: 5000000 });
+                await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
+                await token.approve(contract.address, approvalAmount, { from: player2, gas: 6000000 });
 
                 const player1IncentiveBalanceBefore = await incentiveToken.balanceOf(player1);
                 const player2IncentiveBalanceBefore = await incentiveToken.balanceOf(player2);
-                await contract.joinGame(0,{ from: player2, gas: 5000000, gas: 5000000 });
+                await contract.joinGame(0,{ from: player2, gas: 6000000, gas: 6000000 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
-                await contract.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await contract.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
 
-                const resultPlayer2 = await contract.withdraw(0,{ from: player2, gas: 5000000});
-                const resultPlayer1 = await contract.withdraw(0,{ from: player1, gas: 5000000 });
+                const resultPlayer2 = await contract.withdraw(0,{ from: player2, gas: 6000000});
+                const resultPlayer1 = await contract.withdraw(0,{ from: player1, gas: 6000000 });
 
                 const player1IncentiveBalanceAfter = await incentiveToken.balanceOf(player1);
                 const player2IncentiveBalanceAfter = await incentiveToken.balanceOf(player2);
@@ -1303,30 +1304,30 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         context("reverts", async () => {
             it("when funds were not redeemed from external pool", async () => {
                 await joinGamePaySegmentsAndComplete(player1);
-                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 }), "Funds not redeemed from external pool");
+                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 }), "Funds not redeemed from external pool");
             });
 
             it("when admin tries to withdraw fees again", async () => {
                 await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
-                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 5000000 });
-                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
-                await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
-                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 }), "Admin has already withdrawn");
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 6000000 });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
+                await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
+                await truffleAssert.reverts(goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 }), "Admin has already withdrawn");
             });
         });
 
         context("with no winners in the game", async () => {
             it("does not revert when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
                 await approveDaiToContract(player1);
-                await goodGhosting.joinGame(0, { from: player1, gas: 5000000, gas: 5000000 });
+                await goodGhosting.joinGame(0, { from: player1, gas: 6000000, gas: 6000000 });
                 await advanceToEndOfGame();
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const ZERO = new BN(0);
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 truffleAssert.eventEmitted(
                     result,
                     "AdminWithdrawal",
@@ -1337,12 +1338,12 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player1, gas: 5000000, gas: 5000000 });
-                await goodGhosting.joinGame(0, { from: player2, gas: 5000000 });
+                await goodGhosting.joinGame(0, { from: player1, gas: 6000000, gas: 6000000 });
+                await goodGhosting.joinGame(0, { from: player2, gas: 6000000 });
                 await timeMachine.advanceTimeAndBlock(weekInSecs);
-                await goodGhosting.earlyWithdraw(0,{ from: player1, gas: 5000000 });
+                await goodGhosting.earlyWithdraw(0,{ from: player1, gas: 6000000 });
                 await advanceToEndOfGame();
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
                 const grossInterest = contractBalance.sub(totalGamePrincipal);
@@ -1352,7 +1353,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 const expectedAdminFee = regularAdminFee.add(gameInterest);
                 let adminMaticBalanceBeforeWithdraw = await incentiveController.balanceOf(admin);
 
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 let adminMaticBalanceAfterWithdraw = await incentiveController.balanceOf(admin);
                 // no external deposits
                 // the mock contract sends matic and curve rewards even if there is 1 deposit
@@ -1369,15 +1370,15 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("withdraw fees when there's only interest generated by external pool", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player1, gas: 5000000, gas: 5000000 });
-                await goodGhosting.joinGame(0, { from: player2, gas: 5000000 });
+                await goodGhosting.joinGame(0, { from: player1, gas: 6000000, gas: 6000000 });
+                await goodGhosting.joinGame(0, { from: player2, gas: 6000000 });
                 // mocks interest generation
                 await mintTokensFor(admin);
-                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 5000000 });
-                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 6000000 });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
                 await advanceToEndOfGame();
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
                 const grossInterest = contractBalance.sub(totalGamePrincipal);
@@ -1387,7 +1388,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 const expectedAdminFee = regularAdminFee.add(gameInterest);
                 let adminMaticBalanceBeforeWithdraw = await incentiveController.balanceOf(admin);
 
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 let adminMaticBalanceAfterWithdraw = await incentiveController.balanceOf(admin);
                 assert(adminMaticBalanceAfterWithdraw.gt(adminMaticBalanceBeforeWithdraw));
                 truffleAssert.eventEmitted(
@@ -1402,16 +1403,16 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("withdraw fees when there's both interest generated by external pool and early withdrawal fees", async () => {
                 await approveDaiToContract(player1);
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player1, gas: 5000000 });
-                await goodGhosting.joinGame(0, { from: player2, gas: 5000000 });
-                await goodGhosting.earlyWithdraw(0, { from: player1, gas: 5000000 });
+                await goodGhosting.joinGame(0, { from: player1, gas: 6000000 });
+                await goodGhosting.joinGame(0, { from: player2, gas: 6000000 });
+                await goodGhosting.earlyWithdraw(0, { from: player1, gas: 6000000 });
                 await mintTokensFor(admin);
-                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 5000000 });
-                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 6000000 });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
                 await timeMachine.advanceTimeAndBlock(weekInSecs);
                 await advanceToEndOfGame();
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
                 const grossInterest = contractBalance.sub(totalGamePrincipal);
@@ -1420,7 +1421,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 // There's no winner, so admin takes it all
                 const expectedAdminFee = regularAdminFee.add(gameInterest);
                 const adminMaticBalanceBeforeWithdraw = await incentiveController.balanceOf(admin);
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 const adminMaticBalanceAfterWithdraw = await incentiveController.balanceOf(admin);
                 assert(adminMaticBalanceAfterWithdraw.gt(adminMaticBalanceBeforeWithdraw));
                 truffleAssert.eventEmitted(
@@ -1435,7 +1436,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("withdraw incentives sent to contract", async () => {
                 const incentiveAmount = new BN(toWad(10));
                 const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
-                const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 5000000 });
+                const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 6000000 });
                 const contract = await GoodGhostingPolygonCurve.new(
                     token.address,
                     pool.address,
@@ -1452,16 +1453,16 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     curve.address,
                     incentiveController.address,
                     incentiveToken.address,
-                    { from: admin, gas: 5000000 },
+                    { from: admin },
                 );
 
-                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 5000000 });
-                await token.approve(contract.address, approvalAmount, { from: player1, gas: 5000000 });
-                await contract.joinGame(0,{ from: player1, gas: 5000000 });
+                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 6000000 });
+                await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
+                await contract.joinGame(0,{ from: player1, gas: 6000000 });
                 await advanceToEndOfGame();
-                await contract.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await contract.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
-                const result = await contract.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await contract.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 const incentiveBalanceAfter = await incentiveToken.balanceOf(admin);
 
                 assert(
@@ -1480,9 +1481,9 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         context("with winners in the game", async () => {
             it("does not revert when there is no interest generated (neither external interest nor early withdrawal fees)", async () => {
                 await joinGamePaySegmentsAndComplete(player1);
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const ZERO = new BN(0);
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 truffleAssert.eventEmitted(
                     result,
                     "AdminWithdrawal",
@@ -1492,15 +1493,15 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
             it("withdraw fees when there's only early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player2, gas: 5000000 });
-                await goodGhosting.earlyWithdraw(0,{ from: player2, gas: 5000000 });
+                await goodGhosting.joinGame(0, { from: player2, gas: 6000000 });
+                await goodGhosting.earlyWithdraw(0,{ from: player2, gas: 6000000 });
                 await joinGamePaySegmentsAndComplete(player1);
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
                 const grossInterest = contractBalance.sub(totalGamePrincipal);
                 const expectedAdminFee = grossInterest.mul(new BN(adminFee)).div(new BN(100));
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 truffleAssert.eventEmitted(
                     result,
                     "AdminWithdrawal",
@@ -1514,17 +1515,17 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
-                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 5000000 });
-                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 6000000 });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
 
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
                 const grossInterest = contractBalance.sub(totalGamePrincipal);
                 const expectedAdminFee = grossInterest.mul(new BN(adminFee)).div(new BN(100));
 
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 truffleAssert.eventEmitted(
                     result,
                     "AdminWithdrawal",
@@ -1536,16 +1537,16 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
 
             it("withdraw fees when there's both interest generated by external pool and early withdrawal fees", async () => {
                 await approveDaiToContract(player2);
-                await goodGhosting.joinGame(0, { from: player2, gas: 5000000 });
-                await goodGhosting.earlyWithdraw(0,{ from: player2, gas: 5000000 });
+                await goodGhosting.joinGame(0, { from: player2, gas: 6000000 });
+                await goodGhosting.earlyWithdraw(0,{ from: player2, gas: 6000000 });
 
                 await joinGamePaySegmentsAndComplete(player1);
                 //generating mock interest
                 await mintTokensFor(admin);
-                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 5000000 });
-                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 5000000 });
-                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await token.approve(pool.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+                await pool.add_liquidity([ethers.utils.parseEther("1000"), "0", "0"], 0, true, { from: admin, gas: 6000000 });
+                await pool.transfer(goodGhosting.address, ethers.utils.parseEther("1000"), { from: admin, gas: 6000000 });
+                await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
 
                 const contractBalance = await token.balanceOf(goodGhosting.address);
                 const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
@@ -1559,7 +1560,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 console.log(gameInterest.toString());
                 console.log(expectedAdminFee.toString());
 
-                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 truffleAssert.eventEmitted(
                     result,
                     "AdminWithdrawal",
@@ -1572,7 +1573,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("does not withdraw any incentives sent to contract", async () => {
                 const incentiveAmount = new BN(toWad(10));
                 const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
-                const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 5000000 });
+                const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 6000000 });
                 const contract = await GoodGhostingPolygonCurve.new(
                     token.address,
                     pool.address,
@@ -1589,16 +1590,16 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     curve.address,
                     incentiveController.address,
                     incentiveToken.address,
-                    { from: admin, gas: 5000000 },
+                    { from: admin },
                 );
 
-                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 5000000 });
-                await token.approve(contract.address, approvalAmount, { from: player1, gas: 5000000 });
+                await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 6000000 });
+                await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
                 await joinGamePaySegmentsAndComplete(player1, contract);
                 await advanceToEndOfGame();
-                await contract.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+                await contract.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
                 const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
-                const result = await contract.adminFeeWithdraw({ from: admin, gas: 5000000 });
+                const result = await contract.adminFeeWithdraw({ from: admin, gas: 6000000 });
                 const incentiveBalanceAfter = await incentiveToken.balanceOf(admin);
 
                 assert(
@@ -1622,7 +1623,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
 
             beforeEach(async () => {
-                incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 5000000 });
+                incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 6000000 });
                 contract = await GoodGhostingPolygonCurve.new(
                     token.address,
                     pool.address,
@@ -1639,21 +1640,22 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     curve.address,
                     incentiveController.address,
                     incentiveToken.address,
-                    { from: admin, gas: 5000000 },
+                    { from: admin },
                 );
             });
 
             it("player is able to early withdraw after joining the pool", async () => {
-                await token.approve(contract.address, approvalAmount, { from: player1, gas: 5000000 });
-                await contract.joinGame(0, { from: player1, gas: 5000000 });
-                await truffleAssert.passes(contract.earlyWithdraw(0, { from: player1, gas: 5000000 }))
+                await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
+                await contract.joinGame(0, { from: player1, gas: 6000000 });
+                await truffleAssert.passes(contract.earlyWithdraw(0, { from: player1, gas: 6000000 }))
             })
             
             it("admin is able to redeem funds from the pool that uses atricrypto pool", async () => {
-                await joinGamePaySegmentsAndComplete(player1);
-                let contractCurveBalanceBeforeRedeem = await curve.balanceOf(goodGhosting.address);
-                await truffleAssert.passes(goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 }));
-                let contractCurveBalanceAfterRedeem = await curve.balanceOf(goodGhosting.address);
+                await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
+                await joinGamePaySegmentsAndComplete(player1, contract);
+                let contractCurveBalanceBeforeRedeem = await curve.balanceOf(contract.address);
+                await truffleAssert.passes(contract.redeemFromExternalPool(0,{ from: player1, gas: 6000000 }));
+                let contractCurveBalanceAfterRedeem = await curve.balanceOf(contract.address);
                 assert(contractCurveBalanceAfterRedeem.gt(contractCurveBalanceBeforeRedeem));
             })
     })
@@ -1677,19 +1679,19 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin, gas: 5000000 },
+                { from: admin },
             );
             await joinGamePaySegmentsAndComplete(player1);
             //generating mock interest
         
             await mintTokensFor(goodGhosting.address);
             await mintTokensFor(admin);
-            await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+            await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
             const contractBalance = await token.balanceOf(goodGhosting.address);
             const totalGamePrincipal = await goodGhosting.totalGamePrincipal.call();
             const grossInterest = contractBalance.sub(totalGamePrincipal);
             const ZERO = new BN(0);
-            const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 5000000 });
+            const result = await goodGhosting.adminFeeWithdraw({ from: admin, gas: 6000000 });
             truffleAssert.eventEmitted(
                 result,
                 "AdminWithdrawal",
@@ -1700,7 +1702,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("withdraw incentives sent to contract", async () => {
             const incentiveAmount = new BN(toWad(10));
             const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
-            const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 5000000 });
+            const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 6000000 });
             const contract = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
@@ -1717,16 +1719,16 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 incentiveToken.address,
-                { from: admin, gas: 5000000 },
+                { from: admin },
             );
 
-            await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 5000000 });
-            await token.approve(contract.address, approvalAmount, { from: player1, gas: 5000000 });
-            await contract.joinGame(0,{ from: player1, gas: 5000000 });
+            await incentiveToken.mint(contract.address, incentiveAmount.toString(), { from: admin, gas: 6000000 });
+            await token.approve(contract.address, approvalAmount, { from: player1, gas: 6000000 });
+            await contract.joinGame(0,{ from: player1, gas: 6000000 });
             await advanceToEndOfGame();
-            await contract.redeemFromExternalPool(0,{ from: player1, gas: 5000000 });
+            await contract.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
             const incentiveBalanceBefore = await incentiveToken.balanceOf(admin);
-            const result = await contract.adminFeeWithdraw({ from: admin, gas: 5000000 });
+            const result = await contract.adminFeeWithdraw({ from: admin, gas: 6000000 });
             const incentiveBalanceAfter = await incentiveToken.balanceOf(admin);
 
             assert(
@@ -1739,6 +1741,47 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 "AdminWithdrawal",
                 (ev) => ev.adminIncentiveAmount.eq(incentiveAmount)
             );
+        });
+    });
+
+    describe("as a Pausable contract", async () => {
+        describe("checks Pausable access control", async () => {
+            it("does not revert when admin invokes pause()", async () => {
+                truffleAssert.passes(goodGhosting.pause({ from: admin }), "Ownable: caller is owner but failed to pause the contract");
+            });
+
+            it("does not revert when admin invokes unpause()", async () => {
+                await goodGhosting.pause({ from: admin });
+                truffleAssert.passes(goodGhosting.unpause({ from: admin }), "Ownable: caller is owner but failed to unpause the contract");
+            });
+
+            it("reverts when non-admin invokes pause()", async () => {
+                await truffleAssert.reverts(goodGhosting.pause({ from: player1 }), "Ownable: caller is not the owner");
+            });
+
+            it("reverts when non-admin invokes unpause()", async () => {
+                await goodGhosting.pause({ from: admin });
+                await truffleAssert.reverts(goodGhosting.unpause({ from: player1 }), "Ownable: caller is not the owner");
+            });
+        });
+
+        describe("checks Pausable contract default behavior", () => {
+            beforeEach(async function () {
+                await goodGhosting.pause({ from: admin });
+            });
+
+            describe("checks Pausable contract default behavior", () => {
+                it("pauses the contract", async () => {
+                    const result = await goodGhosting.paused.call({ from: admin });
+                    assert(result, "contract is not paused");
+                });
+
+                it("unpauses the contract", async () => {
+                    await goodGhosting.unpause({ from: admin });
+                    const result = await goodGhosting.pause.call({ from: admin });
+                    assert(result, "contract is paused");
+                });
+            });
         });
     });
 });

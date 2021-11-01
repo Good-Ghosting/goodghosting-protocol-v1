@@ -23,7 +23,7 @@ contract MockCurveGauge is MockERC20Mintable {
     function deposit(
         uint256 _value
     ) external {
-        _mint(msg.sender, _value);
+        _mint(msg.sender, _value / 2);
         reserve.transferFrom(msg.sender, address(this), _value);
     }
 

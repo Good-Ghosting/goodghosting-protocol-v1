@@ -325,7 +325,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         if (daiToken.balanceOf(address(this)) < withdrawAmount) {
             withdrawAmount = daiToken.balanceOf(address(this));
         }
-
+ 
         require(
             IERC20(daiToken).transfer(msg.sender, withdrawAmount),
             "Fail to transfer ERC20 tokens on early withdraw"
