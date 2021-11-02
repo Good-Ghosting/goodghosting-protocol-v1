@@ -872,6 +872,37 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
             assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
         });
+
+        it("when a player tries to earlyWithdraw and the contract balance from removing liquidity is less than the withdraw amount", async () => {
+            incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin, gas: 6000000 });
+            const instance = await GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                tokenPosition,
+                tokenPosition,
+                0,
+                gauge.address,
+                1,
+                segmentLength,
+                "1000000000000000000",
+                fee,
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                incentiveToken.address,
+                { from: admin },
+            );
+            await token.approve(instance.address, "1000000000000000000", { from: player1 });
+            await instance.joinGame(0,{ from: player1 });
+            const withdrawalAmount = new BN("1000000000000000000").sub(new BN("1000000000000000000").div(new BN(10)));
+            const preWithdrawBalance = await token.balanceOf(player1)
+            await instance.earlyWithdraw("900000000000000000",{ from: player1 });
+            const postWithdrawBalance = await token.balanceOf(player1)
+            // amount received is less due to pool imbalance
+            assert(postWithdrawBalance.sub(preWithdrawBalance).lt(withdrawalAmount))
+
+        })
     })
 
     describe("when an user tries to redeem from the external pool", async () => {
