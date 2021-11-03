@@ -206,6 +206,10 @@ module.exports = function (deployer, network, accounts) {
 
     deployer.then(async () => {
         let networkName = getNetworkName(network);
+        if (network === "local-celo-fork") {
+            deployConfigs.selectedProvider = "moola";
+            deployConfigs.inboundCurrencySymbol = "cusd";
+        }
         const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkName];
         const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
         const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
@@ -278,7 +282,7 @@ module.exports = function (deployer, network, accounts) {
         await deployer.deploy(SafeMathLib);
         await deployer.link(SafeMathLib, goodGhostingContract);
         await deployer.deploy(...deploymentArgs);
-
+        
         // Prints deployment summary
         printSummary(
             {

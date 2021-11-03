@@ -26,6 +26,10 @@ exports.providers = {
                 address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
                 decimals: 18,
             },
+            weth: {
+                address: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+                decimals: 18,
+            },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         'polygon-curve': {
@@ -56,15 +60,6 @@ exports.providers = {
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
-        celo: {
-            lendingPoolAddressProvider: "0xD1088091A174d33412a968Fa34Cb67131188B332",
-            dataProvider: "0x43d067ed784D9DD2ffEda73775e2CC4c560103A1",
-            dai: {
-                address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
-                decimals: 18,
-            },
-            incentiveToken: "0x0000000000000000000000000000000000000000",
-        },
         ropsten: {
             lendingPoolAddressProvider: "0x1c8756FD2B28e9426CDBDcC7E3c4d64fa9A54728",   /* Note: Ropsten depreciated in Aave v2 */
             dai: {                                                                      /* Note: Ropsten depreciated in Aave v2 */
@@ -82,6 +77,22 @@ exports.providers = {
             },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
+    },
+    moola: {
+        celo: {
+            lendingPoolAddressProvider: "0xD1088091A174d33412a968Fa34Cb67131188B332",
+            dataProvider: "0x43d067ed784D9DD2ffEda73775e2CC4c560103A1",
+            dai: {
+                address: "0xE4fE50cdD716522A56204352f00AA110F731932d",
+                decimals: 18,
+            },
+            cusd: {
+                address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+                decimals: 18,
+            },
+            incentiveToken: "0x0000000000000000000000000000000000000000",
+            // incentiveToken: "0x471EcE3750Da237f93B8E339c536989b8978a438", // CELO
+        },
     }
 };
 
@@ -89,7 +100,7 @@ exports.deployConfigs = {
     selectedProvider: "aave", // name of the selected provider. Must be defined in the object {providers} above.
     inboundCurrencySymbol: "dai", // name of the inbound currency symbol. Must be defined in the object {providers.network} above.
     segmentCount: 3, // integer number of segments
-    segmentLength: 604800, // in seconds
+    segmentLength: 600, // in seconds
     segmentPayment: 1, // amount of tokens - i.e. 10 equals to 10 TOKENS (DAI, ETH, etc.);
     earlyWithdrawFee: 1, // i.e. 10 equals to 10%
     customFee: 1, // i.e. 5 equals to 5%

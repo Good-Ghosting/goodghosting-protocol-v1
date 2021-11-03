@@ -44,7 +44,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         if (process.env.NETWORK === "local-mainnet-fork") {
             providersConfigs = configs.providers.aave.mainnet;
         } else if (process.env.NETWORK === "local-celo-fork") {
-            providersConfigs = configs.providers.aave.celo;
+            providersConfigs = configs.providers.moola.celo;
+            providersConfigs.dai = providersConfigs.cusd;
         }
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
@@ -200,7 +201,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
                     let result, slippageFromContract;
-
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                     const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)))
                     if (providersConfigs.poolType == 0) {
                         slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(), 0, 0], true).call();
@@ -210,16 +211,17 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     }
 
                     const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                         result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
                     } else {
-                        result = await goodGhosting.joinGame({ from: player });
+                        // gas param is hardcoded to avoid transaction reverts
+                        result = await goodGhosting.joinGame({ from: player, gas: 6000000  });
                     }
 
                     // player 1 early withdraws in segment 0 and joins again
                     if (i == 1) {
                         const withdrawAmount = segmentPayment.sub(segmentPayment.mul(new BN(earlyWithdrawFee)).div(new BN(100)))
                         let lpTokenAmnount;
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                         if (providersConfigs.poolType == 0) {
                             lpTokenAmnount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
                         } else {
@@ -241,8 +243,10 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
                             minAmount = userProvidedMinAmount
                         }
-
-                        await goodGhosting.earlyWithdraw(minAmount.toString(), { from: player });
+                            await goodGhosting.earlyWithdraw(minAmount.toString(), { from: player });
+                        } else {
+                            await goodGhosting.earlyWithdraw({ from: player, gas: 6000000 });
+                        }
                         await token.methods
                             .approve(
                                 goodGhosting.address,
@@ -255,7 +259,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                             await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
                         } else {
-                            await goodGhosting.joinGame({ from: player });
+                            await goodGhosting.joinGame({ from: player, gas: 6000000 });
                         }
                     }
                     // got logs not defined error when keep the event assertion check outside of the if-else
@@ -280,7 +284,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             goodGhosting.joinWhitelistedGame(
                                 whitelistedPlayerConfig[i][player].index,
                                 whitelistedPlayerConfig[i][player].proof,
-                                { from: player }
+                                { from: player, gas: 6000000 }
                             ),
                             "MerkleDistributor: Invalid proof."
                         );
@@ -288,11 +292,11 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         const result = await goodGhosting.joinWhitelistedGame(
                             whitelistedPlayerConfig[i][player].index,
                             whitelistedPlayerConfig[i][player].proof,
-                            { from: player }
+                            { from: player, gas: 6000000 }
                         );
                         // player 1 early withdraws in segment 0 and joins again
                         if (i == 1) {
-                            await goodGhosting.earlyWithdraw({ from: player });
+                            await goodGhosting.earlyWithdraw({ from: player, gas: 6000000 });
                             await token.methods
                                 .approve(
                                     goodGhosting.address,
@@ -304,7 +308,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             await goodGhosting.joinWhitelistedGame(
                                 whitelistedPlayerConfig[i][player].index,
                                 whitelistedPlayerConfig[i][player].proof,
-                                { from: player }
+                                { from: player, gas: 6000000 }
                             );
                         }
                         // got logs not defined error when keep the event assertion check outside of the if-else
@@ -330,6 +334,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
         it("runs the game - 'player1' early withdraws and other players complete game successfully", async () => {
             const userSlippageOptions = [3, 5, 1, 2.5, 1.5]
+            let depositResult, earlyWithdrawResult;
 
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
             for (
@@ -341,7 +346,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 // j must start at 1 - Player1 (index 0) early withdraws after everyone else deposits, so won't continue making deposits
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
-                    let depositResult;
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                     const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)))
                     if (providersConfigs.poolType == 0) {
                         slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(), 0, 0], true).call();
@@ -351,10 +356,9 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     }
 
                     const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("1000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('1000')))
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                         depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), { from: player });
                     } else {
-                        depositResult = await goodGhosting.makeDeposit({ from: player });
+                        depositResult = await goodGhosting.makeDeposit({ from: player, gas: 6000000  });
                     }
 
                     truffleAssert.eventEmitted(
@@ -373,7 +377,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
                     // const playerInfo = await goodGhosting.methods.players(loser).call()
                     const withdrawAmount = playerInfo.amountPaid.sub(playerInfo.amountPaid.mul(new BN(earlyWithdrawFee)).div(new BN(100)))
-
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                     let lpTokenAmnount;
                     if (providersConfigs.poolType == 0) {
                         lpTokenAmnount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
@@ -391,9 +395,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
                         minAmount = userProvidedMinAmount
                     }
-                    const earlyWithdrawResult = await goodGhosting.earlyWithdraw(minAmount.toString(),
-                        { from: loser }
-                    );
+
+                        earlyWithdrawResult = await goodGhosting.earlyWithdraw(minAmount.toString(), { from: loser });                 
+                    } else {
+                        earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser, gas: 6000000  });
+                    }
+                    
                     truffleAssert.eventEmitted(
                         earlyWithdrawResult,
                         "EarlyWithdrawal",
@@ -408,6 +415,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             const playerInfo = await goodGhosting.players(userWithdrawingAfterLastSegment)
             const withdrawAmount = playerInfo.amountPaid.sub(playerInfo.amountPaid.mul(new BN(earlyWithdrawFee)).div(new BN(100)))
             let lpTokenAmnount;
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+
             if (providersConfigs.poolType == 0) {
                 lpTokenAmnount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
             } else {
@@ -425,7 +434,10 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 minAmount = userProvidedMinAmount
             }
 
-            await goodGhosting.earlyWithdraw(minAmount.toString(), { from: userWithdrawingAfterLastSegment });
+                await goodGhosting.earlyWithdraw(minAmount.toString(), { from: userWithdrawingAfterLastSegment });
+            } else {
+                await goodGhosting.earlyWithdraw({ from: userWithdrawingAfterLastSegment, gas: 6000000 });
+            }
             const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
 
             assert(winnerCountBeforeEarlyWithdraw.eq(new BN(3)))
@@ -435,24 +447,31 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
         it("redeems funds from external pool", async () => {
             const userSlippage = 0.2;
-
+            let minAmount;
             let curveBalanceBeforeRedeem, wmaticBalanceBeforeRedeem, curveBalanceAfterRedeem, wmaticBalanceAfterRedeem;
             if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                 curveBalanceBeforeRedeem = await curve.methods.balanceOf(goodGhosting.address).call()
                 wmaticBalanceBeforeRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call()
-            }
 
             const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call()
-            let minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call()
+            minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call()
             const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)))
 
             if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
                 minAmount = userProvidedMinAmount
             }
+        }
+            
             let eventAmount = new BN(0);
-            const result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), {
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), {
                 from: admin,
             });
+            } else {
+                result = await goodGhosting.redeemFromExternalPool({
+                from: admin,
+            });
+        }
 
             if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                 curveBalanceAfterRedeem = await curve.methods.balanceOf(goodGhosting.address).call()
@@ -533,8 +552,14 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             .call({ from: admin })
                     );
                 }
-                // redeem already called hence passing in 0
-                const result = await goodGhosting.withdraw(0, { from: player });
+
+                let result;
+                if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                    // redeem already called hence passing in 0
+                    result = await goodGhosting.withdraw(0, { from: player });
+                } else {
+                    result = await goodGhosting.withdraw({ from: player, gas: 6000000 });
+                }
 
                 if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
                     curveRewardBalanceAfter = new BN(

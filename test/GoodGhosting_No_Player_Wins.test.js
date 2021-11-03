@@ -44,7 +44,8 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         if (process.env.NETWORK === "local-mainnet-fork") {
             providersConfigs = configs.providers.aave.mainnet;
         } else if (process.env.NETWORK === "local-celo-fork") {
-            providersConfigs = configs.providers.aave.celo;
+            providersConfigs = configs.providers.moola.celo;
+            providersConfigs.dai = providersConfigs.cusd;
         }
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
@@ -120,6 +121,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                     process.env.NETWORK === "local-polygon-vigil-fork-curve"
                 ) {
                     let result, slippageFromContract;
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                     const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)))
                     if (providersConfigs.poolType == 0) {
                         slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
@@ -127,10 +129,9 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                         slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0,0,0], true).call();
                     }
                     const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                         result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
                     } else {
-                        result = await goodGhosting.joinGame({ from: player });
+                        result = await goodGhosting.joinGame({ from: player, gas: 6000000 });
                     }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
@@ -154,7 +155,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                             goodGhosting.joinWhitelistedGame(
                                 whitelistedPlayerConfig[i][player].index,
                                 whitelistedPlayerConfig[i][player].proof,
-                                { from: player }
+                                { from: player, gas: 6000000 }
                             ),
                             "MerkleDistributor: Invalid proof."
                         );
@@ -162,7 +163,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                         const result = await goodGhosting.joinWhitelistedGame(
                             whitelistedPlayerConfig[i][player].index,
                             whitelistedPlayerConfig[i][player].proof,
-                            { from: player }
+                            { from: player, gas: 6000000 }
                         );
                             // got logs not defined error when keep the event assertion check outside of the if-else
                         truffleAssert.eventEmitted(
@@ -191,6 +192,9 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             // none of the players made additional deposits, so it completes the game before redeeming from external pool
             await timeMachine.advanceTime(segmentLength * (segmentCount + 1));
             let eventAmount = new BN(0);
+            let result;
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+
             const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call()
             let minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call()
             const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)))
@@ -198,7 +202,10 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
                 minAmount = userProvidedMinAmount
             }
-            const result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), { from: admin });
+            result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), { from: admin });
+            } else {
+            result = await goodGhosting.redeemFromExternalPool({ from: admin });
+        }
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
 
             console.log("contractsDaiBalance", contractsDaiBalance.toString());
@@ -229,8 +236,14 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                 ) {
                     rewardBalanceBefore = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
                 }
-                // redeem already called hence passing in 0
-                const result = await goodGhosting.withdraw(0, { from: player });
+
+                let result;
+                if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                    // redeem already called hence passing in 0
+                    result = await goodGhosting.withdraw(0, { from: player });
+                } else {
+                    result = await goodGhosting.withdraw({ from: player, gas: 6000000 });
+                }
 
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon ||

@@ -42,7 +42,8 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
             providersConfigs = configs.providers.aave.mainnet;
             aTokenAddress = "0x028171bCA77440897B824Ca71D1c56caC55b68A3";
         } else if (process.env.NETWORK === "local-celo-fork") {
-            providersConfigs = configs.providers.aave.celo;
+            providersConfigs = configs.providers.moola.celo;
+            providersConfigs.dai = providersConfigs.cusd;
             aTokenAddress = "0x64defa3544c695db8c535d289d843a189aa26b98";
         }
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
@@ -221,7 +222,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                     process.env.NETWORK === "local-celo-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player });
+                    const result = await goodGhosting.joinGame({ from: player, gas: 6000000 });
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,
@@ -244,7 +245,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                             goodGhosting.joinWhitelistedGame(
                                 whitelistedPlayerConfig[i][player].index,
                                 whitelistedPlayerConfig[i][player].proof,
-                                { from: player }
+                                { from: player, gas: 6000000 }
                             ),
                             "MerkleDistributor: Invalid proof."
                         );
@@ -252,7 +253,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                         const result = await goodGhosting.joinWhitelistedGame(
                             whitelistedPlayerConfig[i][player].index,
                             whitelistedPlayerConfig[i][player].proof,
-                            { from: player }
+                            { from: player, gas: 6000000 }
                         );
                         // got logs not defined error when keep the event assertion check outside of the if-else
                         truffleAssert.eventEmitted(
@@ -300,7 +301,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
                     const depositResult = await goodGhosting.makeDeposit({
-                        from: player,
+                        from: player, gas: 6000000
                     });
                     truffleAssert.eventEmitted(
                         depositResult,

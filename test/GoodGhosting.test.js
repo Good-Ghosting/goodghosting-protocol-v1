@@ -8,7 +8,6 @@ const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 
 contract("GoodGhosting", (accounts) => {
-    console.log('networkkkk', process.env.NETWORK)
     // Only executes this test file IF NOT a local network fork
     if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork",  "local-polygon-vigil-fork-curve", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
 
@@ -978,7 +977,7 @@ contract("GoodGhosting", (accounts) => {
             );
         });
 
-        it("winner count reduces when a potential winner withdraws after the last segment", async () => {
+        it("winner count reduces when a potential winner withdraws after the last deposit", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
@@ -997,7 +996,7 @@ contract("GoodGhosting", (accounts) => {
             assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)))
         })
 
-        it("winner address in the winner array changes to zero address when a potential winner withdraws after the last segment", async () => {
+        it("winner address in the winner array changes to zero address when a potential winner withdraws after the last deposit", async () => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame({ from: player1 });
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
@@ -2148,6 +2147,7 @@ contract("GoodGhosting", (accounts) => {
         });
     });
 
+
     describe("as a Pausable contract", async () => {
         describe("checks Pausable access control", async () => {
             it("does not revert when admin invokes pause()", async () => {
@@ -2188,4 +2188,20 @@ contract("GoodGhosting", (accounts) => {
             });
         });
     });
-})
+
+    describe("as a Ownable Contract", async () => {
+        it("reverts when admins tries to renounceOwnership without unlocking it first", async () => {
+            await truffleAssert.reverts(goodGhosting.renounceOwnership({ from: admin }), "Not allowed");
+        });
+
+        it("allows admin to renounceOwnership after unlocking it first", async () => {
+            await goodGhosting.unlockRenounceOwnership({ from: admin });
+            const currentOwner = await goodGhosting.owner({ from: admin });
+            assert(currentOwner, admin);
+            truffleAssert.passes(goodGhosting.renounceOwnership({ from: admin }), "Unexpected Error");
+            const newOwner = await goodGhosting.owner({ from: admin });
+            assert(newOwner, ZERO_ADDRESS);
+        });
+    });
+
+});
