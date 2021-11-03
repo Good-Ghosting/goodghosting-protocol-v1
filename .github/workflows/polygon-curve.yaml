@@ -1,4 +1,4 @@
-name: Polygon Fork Tests
+name: Polygon Curve Fork Tests
 
 on:
   push:
