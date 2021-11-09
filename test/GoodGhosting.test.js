@@ -348,7 +348,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
                 ZERO_ADDRESS,
-                { from: admin, gas: 8000000 },
+                { from: admin, gas: 6000000 },
             );
             const result = new BN(await contract.maxPlayersCount.call());
             assert(expectedValue.eq(result), "expected max number of players to equal type(uint256).max");

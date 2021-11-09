@@ -16,6 +16,7 @@
     "deploy:kovan": "truffle deploy -f 2 --network kovan --reset",
     "deploy:mainnet": "truffle deploy -f 2 --network mainnet --reset",
     "deploy:polygon": "truffle deploy -f 2 --network polygon --reset",
+    "deploy:polygon-curve": "truffle deploy -f 2 --network polygon-curve --reset",
     "deploy:polygon-whitelisted": "truffle deploy -f 2 --network polygon-whitelisted --reset",
     "deploy:alfajores": "truffle deploy -f 2 --network alfajores --reset",
     "deploy:celo": "truffle deploy -f 2 --network celo --reset",
@@ -23,6 +24,7 @@
     "deploy:verify:kovan": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network kovan --reset",
     "deploy:verify:mainnet": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network mainnet --reset",
     "deploy:verify:polygon": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon --reset",
+    "deploy:verify:polygon-curve": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon-curve --reset",
     "deploy:verify:polygon-whitelisted": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon-whitelisted --reset",
     "deploy:verify:alfajores": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network alfajores --reset",
     "deploy:verify:celo": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network celo --reset"

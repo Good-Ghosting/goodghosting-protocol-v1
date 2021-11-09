@@ -922,7 +922,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
             await joinGamePaySegmentsAndComplete(player1);
             let contractCurveBalanceBeforeRedeem = await curve.balanceOf(goodGhosting.address);
-            const result = await goodGhosting.redeemFromExternalPool(0,{ from: player1, gas: 6000000 });
+            const result = await goodGhosting.redeemFromExternalPool(0,{ from: player1 });
             let contractCurveBalanceAfterRedeem = await curve.balanceOf(goodGhosting.address);
             assert(contractCurveBalanceAfterRedeem.gt(contractCurveBalanceBeforeRedeem));
             const contractCurveBalance = await curve.balanceOf(goodGhosting.address);

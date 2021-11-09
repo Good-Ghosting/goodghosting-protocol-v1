@@ -33,18 +33,19 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     /// @notice The time duration (in seconds) of each segment
     uint256 public immutable segmentLength;
     /// @notice The early withdrawal fee (percentage)
-    uint256 public immutable earlyWithdrawalFee;
+    uint128 public immutable earlyWithdrawalFee;
     /// @notice The performance admin fee (percentage)
-    uint256 public immutable customFee;
+    uint128 public immutable customFee;
     /// @notice Defines the max quantity of players allowed in the game
     uint256 public immutable maxPlayersCount;
-    uint256 public immutable poolType;
     /// @notice winner counter to track no of winners
     uint256 public winnerCount = 0;
     /// @notice total tokens in aave pool
-    uint256 public constant numAaveTokens = 3;
+    uint64 public constant numAaveTokens = 3;
     /// @notice total tokens in atricrypto pool
-    uint256 public constant numAtricryptoTokens = 5;
+    uint64 public constant numAtricryptoTokens = 5;
+    /// @notice flag to differentiate between aave and atricrypto pool 
+    uint64 public immutable poolType;
     /// for some reason the curve contracts have int128 as param in the withdraw function
     /// hence the two types since type conversion is not possible
     /// @notice token index in the pool in int form
@@ -133,31 +134,36 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         _;
     }
 
-    //     /**
-    //     Creates a new instance of GoodGhosting game
-    //     @param _inboundCurrency Smart contract address of inbound currency used for the game.
-    //     @param _lendingPoolAddressProvider Smart contract address of the lending pool adddress provider.
-    //     @param _segmentCount Number of segments in the game.
-    //     @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
-    //     @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
-    //     @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
-    //     @param _customFee performance fee charged by admin. Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
-    //     @param _dataProvider id for getting the data provider contract address 0x1 to be passed.
-    //     @param _maxPlayersCount max quantity of players allowed to join the game
-    //     @param _incentiveToken optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
-    //  */
+        /**
+        Creates a new instance of GoodGhosting game
+        @param _inboundCurrency Smart contract address of inbound currency used for the game.
+        @param _pool Smart contract address of the cure pool.
+        @param _inboundTokenIndexInt token index in int form.
+        @param _inboundTokenIndexUint token index in uint form.
+        @param _poolType flag to differentiate between aave and atricrypto pool.
+        @param _gauge Smart contract address of the cure poogauge to stake lp tokensl.
+        @param _segmentCount Number of segments in the game.
+        @param _segmentLength Lenght of each segment, in seconds (i.e., 180 (sec) => 3 minutes).
+        @param _segmentPayment Amount of tokens each player needs to contribute per segment (i.e. 10*10**18 equals to 10 DAI - note that DAI uses 18 decimal places).
+        @param _earlyWithdrawalFee Fee paid by users on early withdrawals (before the game completes). Used as an integer percentage (i.e., 10 represents 10%).
+        @param _customFee performance fee charged by admin. Used as an integer percentage (i.e., 10 represents 10%). Does not accept "decimal" fees like "0.5".
+        @param _maxPlayersCount max quantity of players allowed to join the game
+        @param _curve Smart contract address of curve token
+        @param _matic Smart contract address of wmatic token.
+        @param _incentiveToken optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
+     */
     constructor(
         IERC20 _inboundCurrency,
         ICurvePool _pool,
         int128 _inboundTokenIndexInt,
         uint256 _inboundTokenIndexUint,
-        uint256 _poolType,
+        uint64 _poolType,
         ICurveGauge _gauge,
         uint256 _segmentCount,
         uint256 _segmentLength,
         uint256 _segmentPayment,
-        uint256 _earlyWithdrawalFee,
-        uint256 _customFee,
+        uint128 _earlyWithdrawalFee,
+        uint128 _customFee,
         uint256 _maxPlayersCount,
         IERC20 _curve,
         IERC20 _matic,
@@ -210,7 +216,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         daiToken = _inboundCurrency;
         maxPlayersCount = _maxPlayersCount;
         incentiveToken = _incentiveToken;
-        if (_poolType == uint256(0)) {
+        if (_poolType == 0) {
             lpToken = IERC20(pool.lp_token());
         } else if (_poolType == 1) {
             lpToken = IERC20(pool.token());
@@ -264,7 +270,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
-
+        // code of aave and atricrypto pool is completely different , in the case of aave i.e pool type 0 all funds sit in that contract, but atricrypto is in communication with other pools and funds sit in those pools hence the approval is needed because it is talking with external contracts
+        // numAaveTokens/numAtricryptoTokens has to be a constant type actually otherwise the signature becomes diff. and the external call will fail if I use an "if" condition the assignment will be to a non-constant ver, this again is due to the structure of how the curve contracts are written
         if (poolType == 0) {
             uint256[numAaveTokens] memory amounts;
             for (uint256 i = 0; i < numAaveTokens; i++) {
@@ -373,6 +380,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             "Fail to approve allowance to pool"
         );
 
+        // numAaveTokens/numAtricryptoTokens has to be a constant type actually otherwise the signature becomes diff. and the external call will fail if I use an "if" condition the assignment will be to a non-constant ver, this again is due to the structure of how the curve contracts are written
         if (poolType == 0) {
             uint256[numAaveTokens] memory amounts;
             for (uint256 i = 0; i < numAaveTokens; i++) {
@@ -599,6 +607,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         uint256 lpBalance = gauge.balanceOf(address(this));
         gauge.withdraw(lpBalance, true);
 
+        // code of aave and atricrypto pool is completely different , in the case of aave i.e pool type 0 all funds sit in that contract, but atricrypto is in communication with other pools and funds sit in those pools hence the approval is needed because it is talking with external contracts
+        // numAaveTokens/numAtricryptoTokens has to be a constant type actually otherwise the signature becomes diff. and the external call will fail if I use an "if" condition the assignment will be to a non-constant ver, this again is due to the structure of how the curve contracts are written
         if (poolType == 0) {
             pool.remove_liquidity_one_coin(
                 lpToken.balanceOf(address(this)),

@@ -128,6 +128,11 @@ On Polygon Vigil, the process is similar to Ethereum Mainnet described above, bu
 
 - For running the whitelisted contract tests, On another terminal window (from the root of the project directory), run `truffle test --network local-polygon-whitelisted-vigil-fork` or `npm run test:fork:polygon-whitelisted:vigil`
 
+##### Polygon Curve Pool
+There is a different fork address to be used for this pool, the address is mentioned in the .env-sample file.
+
+- On another terminal window (from the root of the project directory), run `truffle test --network local-polygon-vigil-fork-curve` or `npm run test:fork:polygon::curve`
+
 #### Celo
 On Celo Mainnet, the account `0xEd936bc60AF587DdD1Ab93728e7164cC288FdE82` had both assets at the time of writing, so this account is a good candidate to be used.
 You can find other accounts on celo block explorer.
