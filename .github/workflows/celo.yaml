@@ -27,5 +27,5 @@ jobs:
       - run: yarn add global truffle
       - run: yarn add global ganache-cli
       - run: |
-          ganache-cli -f https://forno.celo.org/ -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0xEd936bc60AF587DdD1Ab93728e7164cC288FdE82 &
+          npx ganache-cli -f https://forno.celo.org/ -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0xEd936bc60AF587DdD1Ab93728e7164cC288FdE82 &
           yarn test:fork:celo

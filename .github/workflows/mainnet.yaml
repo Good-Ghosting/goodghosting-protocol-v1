@@ -27,5 +27,5 @@ jobs:
       - run: yarn add global truffle
       - run: yarn add global ganache-cli
       - run: |
-          ganache-cli -f https://cloudflare-eth.com/ -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0x4a75f0ae51a5d616ada4db52be140d89302aaf78 &
+          npx ganache-cli -f https://cloudflare-eth.com/ -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0x4a75f0ae51a5d616ada4db52be140d89302aaf78 &
           yarn test:fork:mainnet
