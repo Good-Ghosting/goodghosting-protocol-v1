@@ -40,12 +40,12 @@ How?
 
 Install Truffle.
 ```bash
-npm install -g truffle
+yarn add global truffle
 ```
 
 Install Ganache for having a local dev Ethereum network.
 ```bash
-npm install -g ganache ganache-cli
+yarn add global ganache ganache-cli
 ```
 
 Create a local `.env` file by copying the sample `.env.sample` file available in the root folder (`cp .env.sample .env`). After your `.env` file is created, edit it with appropriate values for the variables.
@@ -69,7 +69,7 @@ truffle develop
 To check for new packages, install [npm-check-updates](https://www.npmjs.com/package/npm-check-updates): `npm install -g npm-check-updates`.
 
 To check for updates for `ncu`
-To check and update `package.json` file, run `ncu -u`. Once completed, make sure to run `npm install` to update all the packages.
+To check and update `package.json` file, run `ncu -u`. Once completed, make sure to run `yarn install` to update all the packages.
 
 
 # Tests
