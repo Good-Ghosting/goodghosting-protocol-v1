@@ -236,7 +236,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             );
             const result = new BN(await contract.maxPlayersCount.call());
             assert(expectedValue.eq(result), "expected max number of players to equal type(uint256).max");

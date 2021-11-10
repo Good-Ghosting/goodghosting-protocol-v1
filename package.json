@@ -20,14 +20,14 @@
     "deploy:polygon-whitelisted": "truffle deploy -f 2 --network polygon-whitelisted --reset",
     "deploy:alfajores": "truffle deploy -f 2 --network alfajores --reset",
     "deploy:celo": "truffle deploy -f 2 --network celo --reset",
-    "deploy:verify:ropsten": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network ropsten --reset",
-    "deploy:verify:kovan": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network kovan --reset",
-    "deploy:verify:mainnet": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network mainnet --reset",
-    "deploy:verify:polygon": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon --reset",
-    "deploy:verify:polygon-curve": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon-curve --reset",
-    "deploy:verify:polygon-whitelisted": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network polygon-whitelisted --reset",
-    "deploy:verify:alfajores": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network alfajores --reset",
-    "deploy:verify:celo": "truffle compile --all && npm run ipfs && truffle deploy -f 2 --network celo --reset"
+    "deploy:verify:ropsten": "truffle compile --all && yarn ipfs && truffle deploy -f 2 --network ropsten --reset",
+    "deploy:verify:kovan": "truffle compile --all && yarn ipfs && truffle deploy -f 2 --network kovan --reset",
+    "deploy:verify:mainnet": "truffle compile --all && yarn ipfs && truffle deploy -f 2 --network mainnet --reset",
+    "deploy:verify:polygon": "truffle compile --all && yarn ipfs && truffle deploy -f 2 --network polygon --reset",
+    "deploy:verify:polygon-curve": "truffle compile --all && yarn ipfs && truffle deploy -f 2 --network polygon-curve --reset",
+    "deploy:verify:polygon-whitelisted": "truffle compile --all && yarn ipfs && truffle deploy -f 2 --network polygon-whitelisted --reset",
+    "deploy:verify:alfajores": "truffle compile --all && yarn ipfs && truffle deploy -f 2 --network alfajores --reset",
+    "deploy:verify:celo": "truffle compile --all && yarn ipfs && truffle deploy -f 2 --network celo --reset"
   },
   "repository": {
     "type": "git",
