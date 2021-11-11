@@ -149,7 +149,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin,  gas: 4712388,
+                    gasPrice: 100000000000 },
             ),
             "invalid _pool address");
         });
@@ -171,7 +172,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 curve.address,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin,  gas: 4712388,
+                    gasPrice: 100000000000 },
             ),
             "invalid _gauge address");
         });
@@ -193,7 +195,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin },
+                { from: admin,  gas: 4712388,
+                    gasPrice: 100000000000 },
             ),
             "invalid _curve address");
         });
@@ -206,7 +209,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         });
 
         it("reverts if user does not approve the contract to spend dai", async () => {
-            await truffleAssert.reverts(goodGhosting.joinGame(0,{ from: player1  }), "You need to have allowance to do transfer DAI on the smart contract");
+            await truffleAssert.reverts(goodGhosting.joinGame(0,{ from: player1,  gas: 4712388,
+                gasPrice: 100000000000  }), "You need to have allowance to do transfer DAI on the smart contract");
         });
 
         it("reverts if the user tries to join after the first segment", async () => {
