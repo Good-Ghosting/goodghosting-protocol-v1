@@ -141,7 +141,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "_earlyWithdrawalFee must be greater than zero");
         });
@@ -164,7 +164,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "_earlyWithdrawalFee must be less than or equal to 10%");
         });
@@ -187,7 +187,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "_customFee must be less than or equal to 20%");
         });
@@ -211,7 +211,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                     incentiveController.address,
                     incentiveController.address,
                     merkleRoot,
-                    { from: admin, gas: 6000000 },
+                    { from: admin },
                 ),
                 "_maxPlayersCount must be greater than zero"
             );
@@ -260,7 +260,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "invalid _inboundCurrency address");
         });
@@ -283,7 +283,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "invalid _lendingPoolAddressProvider address");
         });
@@ -306,7 +306,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "_segmentCount must be greater than zero");
         });
@@ -329,7 +329,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "_segmentLength must be greater than zero");
         });
@@ -352,7 +352,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "_segmentPayment must be greater than zero");
         });
@@ -375,7 +375,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "invalid _dataProvider address");
         });
@@ -398,7 +398,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "invalid _incentiveController address");
         });
@@ -421,7 +421,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
                 incentiveController.address,
                 ZERO_ADDRESS,
                 merkleRoot,
-                { from: admin, gas: 6000000 },
+                { from: admin },
             ),
             "invalid _matic address");
         });
@@ -469,7 +469,7 @@ contract("GoodGhostingPolygonWhitelisted", (accounts) => {
         });
 
         it("reverts if user does not approve the contract to spend dai", async () => {
-            await truffleAssert.reverts(goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 , gas: 6000000}), "You need to have allowance to do transfer DAI on the smart contract");
+            await truffleAssert.reverts(goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[0][player1].index, whitelistedPlayerConfig[0][player1].proof, { from: player1 }), "You need to have allowance to do transfer DAI on the smart contract");
         });
 
         it("reverts if the user tries to join after the first segment", async () => {
