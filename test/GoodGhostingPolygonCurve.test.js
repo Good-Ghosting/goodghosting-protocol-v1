@@ -69,7 +69,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             curve.address,
             incentiveController.address,
             ZERO_ADDRESS,
-            { from: admin },
+            { from: admin,  gas: 4712388,
+                gasPrice: 100000000000 },
         );
     });
 

@@ -22,5 +22,5 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: yarn install
-      - run: yarn add global truffle
+      - run: yarn add global truffle@5.3.14
       - run: yarn test
