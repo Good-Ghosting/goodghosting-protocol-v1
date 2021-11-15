@@ -145,8 +145,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "_earlyWithdrawalFee must be greater than zero");
         });
@@ -166,8 +165,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "invalid _inboundCurrency address");
         });
@@ -187,8 +185,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "invalid _lendingPoolAddressProvider address");
         });
@@ -208,8 +205,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "_segmentCount must be greater than zero");
         });
@@ -229,8 +225,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "_segmentLength must be greater than zero");
         });
@@ -250,8 +245,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "_segmentPayment must be greater than zero");
         });
@@ -271,8 +265,7 @@ contract("GoodGhosting", (accounts) => {
                 ZERO_ADDRESS,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "invalid _dataProvider address");
         });
@@ -292,8 +285,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "_earlyWithdrawalFee must be less than or equal to 10%")
         });
@@ -313,8 +305,7 @@ contract("GoodGhosting", (accounts) => {
                 pap.address,
                 maxPlayersCount,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
                 "_customFee must be less than or equal to 20%");
         });
@@ -335,8 +326,7 @@ contract("GoodGhosting", (accounts) => {
                     pap.address,
                     new BN(0), // set to 0 to force revert
                     ZERO_ADDRESS,
-                    { from: admin, gas: 4712388,
-                        gasPrice: 100000000000 },
+                    { from: admin },
                 ),
                 "_maxPlayersCount must be greater than zero"
             );
@@ -460,8 +450,7 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("reverts if user does not approve the contract to spend dai", async () => {
-            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1, gas: 4712388,
-                        gasPrice: 100000000000  }), "You need to have allowance to do transfer DAI on the smart contract");
+            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1  }), "You need to have allowance to do transfer DAI on the smart contract");
         });
 
         it("reverts if the user tries to join after the first segment", async () => {

@@ -159,8 +159,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "_earlyWithdrawalFee must be greater than zero");
         });
@@ -182,8 +181,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "_earlyWithdrawalFee must be less than or equal to 10%");
         });
@@ -205,8 +203,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000},
+                { from: admin },
             ),
             "_customFee must be less than or equal to 20%");
         });
@@ -229,8 +226,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                     ZERO_ADDRESS,
                     incentiveController.address,
                     incentiveController.address,
-                    { from: admin, gas: 4712388,
-                        gasPrice: 100000000000 },
+                    { from: admin },
                 ),
                 "_maxPlayersCount must be greater than zero"
             );
@@ -253,8 +249,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "invalid _inboundCurrency address");
         });
@@ -276,8 +271,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "invalid _lendingPoolAddressProvider address");
         });
@@ -299,8 +293,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "_segmentCount must be greater than zero");
         });
@@ -322,8 +315,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "_segmentLength must be greater than zero");
         });
@@ -345,8 +337,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "_segmentPayment must be greater than zero");
         });
@@ -368,8 +359,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "invalid _dataProvider address");
         });
@@ -391,8 +381,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 ZERO_ADDRESS,
                 incentiveController.address,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "invalid _incentiveController address");
         });
@@ -414,8 +403,7 @@ contract("GoodGhostingPolygon", (accounts) => {
                 ZERO_ADDRESS,
                 incentiveController.address,
                 ZERO_ADDRESS,
-                { from: admin, gas: 4712388,
-                    gasPrice: 100000000000 },
+                { from: admin },
             ),
             "invalid _matic address");
         });
