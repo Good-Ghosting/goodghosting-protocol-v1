@@ -57,6 +57,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     bool public adminWithdraw;
     /// @notice Controls if tokens were redeemed or not from the pool
     bool public redeemed;
+    /// @notice Ownership Control flag
+    bool public allowRenouncingOwnership = false;
     /// @notice pool address
     ICurvePool public pool;
     /// @notice curve lp token
@@ -137,7 +139,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         /**
         Creates a new instance of GoodGhosting game
         @param _inboundCurrency Smart contract address of inbound currency used for the game.
-        @param _pool Smart contract address of the cure pool.
+        @param _pool Smart contract address of the curve pool.
         @param _inboundTokenIndexInt token index in int form.
         @param _inboundTokenIndexUint token index in uint form.
         @param _poolType flag to differentiate between aave and atricrypto pool.
@@ -231,6 +233,17 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     /// @notice unpauses the game. This function can be called only by the contract's admin.
     function unpause() external onlyOwner whenPaused {
         _unpause();
+    }
+
+    /// @notice Renounces Ownership.
+    function renounceOwnership() public override onlyOwner {
+        require(allowRenouncingOwnership, "Not allowed");
+        super.renounceOwnership();
+    }
+
+    /// @notice Unlocks renounceOwnership.
+    function unlockRenounceOwnership() external onlyOwner {
+        allowRenouncingOwnership = true;
     }
 
     /// @notice Allows a player to join the game
