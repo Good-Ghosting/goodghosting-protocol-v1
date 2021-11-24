@@ -44,7 +44,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     uint64 public constant numAaveTokens = 3;
     /// @notice total tokens in atricrypto pool
     uint64 public constant numAtricryptoTokens = 5;
-    /// @notice flag to differentiate between aave and atricrypto pool 
+    /// @notice flag to differentiate between aave poll (0) and atricrypto pool (1)
     uint64 public immutable poolType;
     /// for some reason the curve contracts have int128 as param in the withdraw function
     /// hence the two types since type conversion is not possible
@@ -235,24 +235,68 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         _unpause();
     }
 
-    /// @notice Renounces Ownership.
-    function renounceOwnership() public override onlyOwner {
-        require(allowRenouncingOwnership, "Not allowed");
-        super.renounceOwnership();
+    /// @notice Allows the admin to withdraw the performance fee, if applicable. This function can be called only by the contract's admin.
+    /// @dev Cannot be called before the game ends.
+    function adminFeeWithdraw() external onlyOwner whenGameIsCompleted {
+        require(redeemed, "Funds not redeemed from external pool");
+        require(!adminWithdraw, "Admin has already withdrawn");
+        adminWithdraw = true;
+
+        // when there are no winners, admin will be able to withdraw the
+        // additional incentives sent to the pool, avoiding locking the funds.
+        uint256 adminIncentiveAmount = 0;
+        if (winnerCount == 0 && totalIncentiveAmount > 0) {
+            adminIncentiveAmount = totalIncentiveAmount;
+        }
+
+        emit AdminWithdrawal(
+            owner(),
+            totalGameInterest,
+            adminFeeAmount,
+            adminIncentiveAmount
+        );
+
+        if (adminFeeAmount > 0) {
+            require(
+                IERC20(daiToken).transfer(owner(), adminFeeAmount),
+                "Fail to transfer ER20 tokens to admin"
+            );
+        }
+
+        if (adminIncentiveAmount > 0) {
+            require(
+                IERC20(incentiveToken).transfer(owner(), adminIncentiveAmount),
+                "Fail to transfer ER20 incentive tokens to admin"
+            );
+        }
+
+        if (rewardsPerPlayer == 0) {
+            uint256 balance = IERC20(matic).balanceOf(address(this));
+            require(
+                IERC20(matic).transfer(owner(), balance),
+                "Fail to transfer ERC20 rewards tokens one to admin"
+            );
+        }
+
+        if (curveRewardsPerPlayer == 0) {
+            uint256 balance = IERC20(curve).balanceOf(address(this));
+            require(
+                IERC20(curve).transfer(owner(), balance),
+                "Fail to transfer ERC20 rewards tokens two to admin"
+            );
+        }
     }
 
-    /// @notice Unlocks renounceOwnership.
-    function unlockRenounceOwnership() external onlyOwner {
-        allowRenouncingOwnership = true;
-    }
 
     /// @notice Allows a player to join the game
+    /// @param _minAmount Minimum amount accepted for withdrawal, to consider potential slippage in the pool.
     function joinGame(uint256 _minAmount) external virtual whenNotPaused {
         _joinGame(_minAmount);
     }
 
     /// @notice Allows a player to withdraws funds before the game ends. An early withdrawl fee is charged.
     /// @dev Cannot be called after the game is completed.
+    /// @param _minAmount Minimum amount accepted for withdrawal, to consider potential slippage in the pool.
     function earlyWithdraw(uint256 _minAmount)
         external
         whenNotPaused
@@ -283,8 +327,19 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
-        // code of aave and atricrypto pool is completely different , in the case of aave i.e pool type 0 all funds sit in that contract, but atricrypto is in communication with other pools and funds sit in those pools hence the approval is needed because it is talking with external contracts
-        // numAaveTokens/numAtricryptoTokens has to be a constant type actually otherwise the signature becomes diff. and the external call will fail if I use an "if" condition the assignment will be to a non-constant ver, this again is due to the structure of how the curve contracts are written
+        /*
+        Code of curve's aave and curve's atricrypto pools are completely different.
+        Curve's Aave Pool (pool type 0): in this contract, all funds "sit" in the pool's smart contract.
+        Curve's Atricrypto pool (pool type 1): this contract integrates with other pools
+            and funds sit in those pools. Hence, an approval transaction is required because
+            it is communicating with external contracts
+        Constants "numAaveTokens" and "numAtricryptoTokens" have to be a constant type actually,
+            otherwise the signature becomes different and the external call will fail.
+            If we use an "if" condition based on pool type, and dynamically set
+            a value for these variables, the assignment will be to a non-constant
+            which will result in failure. This is due to the structure of how
+            the curve contracts are written
+        */
         if (poolType == 0) {
             uint256[numAaveTokens] memory amounts;
             for (uint256 i = 0; i < numAaveTokens; i++) {
@@ -346,209 +401,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         );
     }
 
-    /// @notice Calculates the current segment of the game.
-    /// @return current game segment
-    function getCurrentSegment() public view returns (uint256) {
-        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
-    }
-
-    /// @notice Checks if the game is completed or not.
-    /// @return "true" if completeted; otherwise, "false".
-    function isGameCompleted() public view returns (bool) {
-        // Game is completed when the current segment is greater than "lastSegment" of the game.
-        return getCurrentSegment() > lastSegment;
-    }
-
-    function _transferDaiToContract(uint256 _minAmount) internal {
-        require(
-            daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
-            "You need to have allowance to do transfer DAI on the smart contract"
-        );
-
-        uint256 currentSegment = getCurrentSegment();
-        players[msg.sender].mostRecentSegmentPaid = currentSegment;
-        players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
-            segmentPayment
-        );
-        // check if this is deposit for the last segment. If yes, the player is a winner.
-        // since both join game and deposit method call this method so having it here
-        if (currentSegment == lastSegment.sub(1)) {
-            winners.push(msg.sender);
-            // array indexes start from 0
-            players[msg.sender].winnerIndex = winners.length.sub(uint256(1));
-            winnerCount = winnerCount.add(uint256(1));
-            players[msg.sender].isWinner = true;
-        }
-
-        totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
-        require(
-            daiToken.transferFrom(msg.sender, address(this), segmentPayment),
-            "Transfer failed"
-        );
-
-        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
-        uint256 contractBalance = daiToken.balanceOf(address(this));
-        require(
-            daiToken.approve(address(pool), contractBalance),
-            "Fail to approve allowance to pool"
-        );
-
-        // numAaveTokens/numAtricryptoTokens has to be a constant type actually otherwise the signature becomes diff. and the external call will fail if I use an "if" condition the assignment will be to a non-constant ver, this again is due to the structure of how the curve contracts are written
-        if (poolType == 0) {
-            uint256[numAaveTokens] memory amounts;
-            for (uint256 i = 0; i < numAaveTokens; i++) {
-                if (i == inboundTokenIndexUint) {
-                    amounts[i] = segmentPayment;
-                } else {
-                    amounts[i] = 0;
-                }
-            }
-            pool.add_liquidity(amounts, _minAmount, true);
-        } else if (poolType == 1) {
-            uint256[numAtricryptoTokens] memory amounts;
-            for (uint256 i = 0; i < numAtricryptoTokens; i++) {
-                if (i == inboundTokenIndexUint) {
-                    amounts[i] = segmentPayment;
-                } else {
-                    amounts[i] = 0;
-                }
-            }
-            pool.add_liquidity(amounts, _minAmount);
-        }
-
-        require(
-            lpToken.approve(address(gauge), lpToken.balanceOf(address(this))),
-            "Fail to approve allowance to gauge"
-        );
-        gauge.deposit(lpToken.balanceOf(address(this)));
-    }
-
-    function _joinGame(uint256 _minAmount) internal {
-        require(getCurrentSegment() == 0, "Game has already started");
-        require(
-            players[msg.sender].addr != msg.sender ||
-                players[msg.sender].canRejoin,
-            "Cannot join the game more than once"
-        );
-
-        activePlayersCount = activePlayersCount.add(1);
-        require(
-            activePlayersCount <= maxPlayersCount,
-            "Reached max quantity of players allowed"
-        );
-
-        bool canRejoin = players[msg.sender].canRejoin;
-        Player memory newPlayer = Player({
-            addr: msg.sender,
-            mostRecentSegmentPaid: 0,
-            amountPaid: 0,
-            withdrawn: false,
-            canRejoin: false,
-            isWinner: false,
-            winnerIndex: 0
-        });
-        players[msg.sender] = newPlayer;
-        if (!canRejoin) {
-            iterablePlayers.push(msg.sender);
-        }
-        emit JoinedGame(msg.sender, segmentPayment);
-        _transferDaiToContract(_minAmount);
-    }
-
-    function makeDeposit(uint256 _minAmount) external whenNotPaused {
-        Player storage player = players[msg.sender];
-        require(!player.withdrawn, "Player already withdraw from game");
-        // only registered players can deposit
-        require(player.addr == msg.sender, "Sender is not a player");
-
-        uint256 currentSegment = getCurrentSegment();
-        // User can only deposit between segment 1 and segment n-1 (where n is the number of segments for the game).
-        // Details:
-        // Segment 0 is paid when user joins the game (the first deposit window).
-        // Last segment doesn't accept payments, because the payment window for the last
-        // segment happens on segment n-1 (penultimate segment).
-        // Any segment greater than the last segment means the game is completed, and cannot
-        // receive payments
-        require(
-            currentSegment > 0 && currentSegment < lastSegment,
-            "Deposit available only between segment 1 and segment n-1 (penultimate)"
-        );
-
-        //check if current segment is currently unpaid
-        require(
-            player.mostRecentSegmentPaid != currentSegment,
-            "Player already paid current segment"
-        );
-
-        // check if player has made payments up to the previous segment
-        require(
-            player.mostRecentSegmentPaid == currentSegment.sub(1),
-            "Player didn't pay the previous segment - game over!"
-        );
-
-        emit Deposit(msg.sender, currentSegment, segmentPayment);
-        _transferDaiToContract(_minAmount);
-    }
-
-    /// @notice gets the number of players in the game
-    /// @return number of players
-    function getNumberOfPlayers() external view returns (uint256) {
-        return iterablePlayers.length;
-    }
-
-    /// @notice Allows the admin to withdraw the performance fee, if applicable. This function can be called only by the contract's admin.
-    /// @dev Cannot be called before the game ends.
-    function adminFeeWithdraw() external onlyOwner whenGameIsCompleted {
-        require(redeemed, "Funds not redeemed from external pool");
-        require(!adminWithdraw, "Admin has already withdrawn");
-        adminWithdraw = true;
-
-        // when there are no winners, admin will be able to withdraw the
-        // additional incentives sent to the pool, avoiding locking the funds.
-        uint256 adminIncentiveAmount = 0;
-        if (winnerCount == 0 && totalIncentiveAmount > 0) {
-            adminIncentiveAmount = totalIncentiveAmount;
-        }
-
-        emit AdminWithdrawal(
-            owner(),
-            totalGameInterest,
-            adminFeeAmount,
-            adminIncentiveAmount
-        );
-
-        if (adminFeeAmount > 0) {
-            require(
-                IERC20(daiToken).transfer(owner(), adminFeeAmount),
-                "Fail to transfer ER20 tokens to admin"
-            );
-        }
-
-        if (adminIncentiveAmount > 0) {
-            require(
-                IERC20(incentiveToken).transfer(owner(), adminIncentiveAmount),
-                "Fail to transfer ER20 incentive tokens to admin"
-            );
-        }
-
-        if (rewardsPerPlayer == 0) {
-            uint256 balance = IERC20(matic).balanceOf(address(this));
-            require(
-                IERC20(matic).transfer(owner(), balance),
-                "Fail to transfer ERC20 rewards tokens to admin"
-            );
-        }
-
-        if (curveRewardsPerPlayer == 0) {
-            uint256 balance = IERC20(curve).balanceOf(address(this));
-            require(
-                IERC20(curve).transfer(owner(), balance),
-                "Fail to transfer ERC20 rewards tokens to admin"
-            );
-        }
-    }
-
     /// @notice Allows player to withdraw their funds after the game ends with no loss (fee). Winners get a share of the interest earned.
+    /// @param _minAmount Minimum amount accepted for withdrawal, to consider potential slippage in the pool.
     function withdraw(uint256 _minAmount) external {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
@@ -597,20 +451,75 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         if (playerReward > 0) {
             require(
                 IERC20(matic).transfer(msg.sender, playerReward),
-                "Fail to transfer ERC20 rewards on withdraw"
+                "Fail to transfer ERC20 rewards one on withdraw"
             );
         }
 
         if (playerCurveReward > 0) {
             require(
                 IERC20(curve).transfer(msg.sender, playerCurveReward),
-                "Fail to transfer ERC20 rewards on withdraw"
+                "Fail to transfer ERC20 rewards two on withdraw"
             );
         }
     }
 
+    /// @notice Allows players to make deposits for the game segments, after joining the game.
+    /// @param _minAmount Minimum amount accepted for withdrawal, to consider potential slippage in the pool.
+    function makeDeposit(uint256 _minAmount) external whenNotPaused {
+        Player storage player = players[msg.sender];
+        require(!player.withdrawn, "Player already withdraw from game");
+        // only registered players can deposit
+        require(player.addr == msg.sender, "Sender is not a player");
+
+        uint256 currentSegment = getCurrentSegment();
+        // User can only deposit between segment 1 and segment n-1 (where n is the number of segments for the game).
+        // Details:
+        // Segment 0 is paid when user joins the game (the first deposit window).
+        // Last segment doesn't accept payments, because the payment window for the last
+        // segment happens on segment n-1 (penultimate segment).
+        // Any segment greater than the last segment means the game is completed, and cannot
+        // receive payments
+        require(
+            currentSegment > 0 && currentSegment < lastSegment,
+            "Deposit available only between segment 1 and segment n-1 (penultimate)"
+        );
+
+        //check if current segment is currently unpaid
+        require(
+            player.mostRecentSegmentPaid != currentSegment,
+            "Player already paid current segment"
+        );
+
+        // check if player has made payments up to the previous segment
+        require(
+            player.mostRecentSegmentPaid == currentSegment.sub(1),
+            "Player didn't pay the previous segment - game over!"
+        );
+
+        emit Deposit(msg.sender, currentSegment, segmentPayment);
+        _transferDaiToContract(_minAmount);
+    }
+
+    /// @notice Unlocks renounceOwnership.
+    function unlockRenounceOwnership() external onlyOwner {
+        allowRenouncingOwnership = true;
+    }
+
+    /// @notice gets the number of players in the game
+    /// @return number of players
+    function getNumberOfPlayers() external view returns (uint256) {
+        return iterablePlayers.length;
+    }
+
+    /// @notice Renounces Ownership.
+    function renounceOwnership() public override onlyOwner {
+        require(allowRenouncingOwnership, "Not allowed");
+        super.renounceOwnership();
+    }
+
     /// @notice Redeems funds from the external pool and updates the internal accounting controls related to the game stats.
     /// @dev Can only be called after the game is completed.
+    /// @param _minAmount Minimum amount accepted for withdrawal, to consider potential slippage in the pool.
     function redeemFromExternalPool(uint256 _minAmount)
         public
         whenGameIsCompleted
@@ -620,8 +529,19 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         uint256 lpBalance = gauge.balanceOf(address(this));
         gauge.withdraw(lpBalance, true);
 
-        // code of aave and atricrypto pool is completely different , in the case of aave i.e pool type 0 all funds sit in that contract, but atricrypto is in communication with other pools and funds sit in those pools hence the approval is needed because it is talking with external contracts
-        // numAaveTokens/numAtricryptoTokens has to be a constant type actually otherwise the signature becomes diff. and the external call will fail if I use an "if" condition the assignment will be to a non-constant ver, this again is due to the structure of how the curve contracts are written
+        /*
+        Code of curve's aave and curve's atricrypto pools are completely different.
+        Curve's Aave Pool (pool type 0): in this contract, all funds "sit" in the pool's smart contract.
+        Curve's Atricrypto pool (pool type 1): this contract integrates with other pools
+            and funds sit in those pools. Hence, an approval transaction is required because
+            it is communicating with external contracts
+        Constants "numAaveTokens" and "numAtricryptoTokens" have to be a constant type actually,
+            otherwise the signature becomes different and the external call will fail.
+            If we use an "if" condition based on pool type, and dynamically set
+            a value for these variables, the assignment will be to a non-constant
+            which will result in failure. This is due to the structure of how
+            the curve contracts are written
+        */
         if (poolType == 0) {
             pool.remove_liquidity_one_coin(
                 lpToken.balanceOf(address(this)),
@@ -693,5 +613,128 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             totalIncentiveAmount
         );
         emit WinnersAnnouncement(winners);
+    }
+
+    /// @notice Calculates the current segment of the game.
+    /// @return current game segment
+    function getCurrentSegment() public view returns (uint256) {
+        return block.timestamp.sub(firstSegmentStart).div(segmentLength);
+    }
+
+    /// @notice Checks if the game is completed or not.
+    /// @return "true" if completeted; otherwise, "false".
+    function isGameCompleted() public view returns (bool) {
+        // Game is completed when the current segment is greater than "lastSegment" of the game.
+        return getCurrentSegment() > lastSegment;
+    }
+
+    /**
+        @dev Manages the transfer of funds from the player to the contract, recording
+        the required accounting operations to control the user's position in the pool.
+        @param _minAmount Minimum amount accepted for withdrawal, to consider potential slippage in the pool.
+     */
+    function _transferDaiToContract(uint256 _minAmount) internal {
+        require(
+            daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
+            "You need to have allowance to do transfer DAI on the smart contract"
+        );
+
+        uint256 currentSegment = getCurrentSegment();
+        players[msg.sender].mostRecentSegmentPaid = currentSegment;
+        players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
+            segmentPayment
+        );
+        // check if this is deposit for the last segment. If yes, the player is a winner.
+        // since both join game and deposit method call this method so having it here
+        if (currentSegment == lastSegment.sub(1)) {
+            winners.push(msg.sender);
+            // array indexes start from 0
+            players[msg.sender].winnerIndex = winners.length.sub(uint256(1));
+            winnerCount = winnerCount.add(uint256(1));
+            players[msg.sender].isWinner = true;
+        }
+
+        totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
+        require(
+            daiToken.transferFrom(msg.sender, address(this), segmentPayment),
+            "Transfer failed"
+        );
+
+        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
+        uint256 contractBalance = daiToken.balanceOf(address(this));
+        require(
+            daiToken.approve(address(pool), contractBalance),
+            "Fail to approve allowance to pool"
+        );
+
+        /*
+        Constants "numAaveTokens" and "numAtricryptoTokens" have to be a constant type actually,
+            otherwise the signature becomes different and the external call will fail.
+            If we use an "if" condition based on pool type, and dynamically set
+            a value for these variables, the assignment will be to a non-constant
+            which will result in failure. This is due to the structure of how
+            the curve contracts are written
+        */
+        if (poolType == 0) {
+            uint256[numAaveTokens] memory amounts;
+            for (uint256 i = 0; i < numAaveTokens; i++) {
+                if (i == inboundTokenIndexUint) {
+                    amounts[i] = segmentPayment;
+                } else {
+                    amounts[i] = 0;
+                }
+            }
+            pool.add_liquidity(amounts, _minAmount, true);
+        } else if (poolType == 1) {
+            uint256[numAtricryptoTokens] memory amounts;
+            for (uint256 i = 0; i < numAtricryptoTokens; i++) {
+                if (i == inboundTokenIndexUint) {
+                    amounts[i] = segmentPayment;
+                } else {
+                    amounts[i] = 0;
+                }
+            }
+            pool.add_liquidity(amounts, _minAmount);
+        }
+
+        require(
+            lpToken.approve(address(gauge), lpToken.balanceOf(address(this))),
+            "Fail to approve allowance to gauge"
+        );
+        gauge.deposit(lpToken.balanceOf(address(this)));
+    }
+
+    /// @notice Allows a player to join the game and controls
+    /// @param _minAmount Minimum amount accepted for withdrawal, to consider potential slippage in the pool.
+    function _joinGame(uint256 _minAmount) internal {
+        require(getCurrentSegment() == 0, "Game has already started");
+        require(
+            players[msg.sender].addr != msg.sender ||
+                players[msg.sender].canRejoin,
+            "Cannot join the game more than once"
+        );
+
+        activePlayersCount = activePlayersCount.add(1);
+        require(
+            activePlayersCount <= maxPlayersCount,
+            "Reached max quantity of players allowed"
+        );
+
+        bool canRejoin = players[msg.sender].canRejoin;
+        Player memory newPlayer = Player({
+            addr: msg.sender,
+            mostRecentSegmentPaid: 0,
+            amountPaid: 0,
+            withdrawn: false,
+            canRejoin: false,
+            isWinner: false,
+            winnerIndex: 0
+        });
+        players[msg.sender] = newPlayer;
+        if (!canRejoin) {
+            iterablePlayers.push(msg.sender);
+        }
+        emit JoinedGame(msg.sender, segmentPayment);
+        _transferDaiToContract(_minAmount);
     }
 }
