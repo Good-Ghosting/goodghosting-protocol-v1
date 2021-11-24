@@ -10,6 +10,14 @@ import "./curve/ICurveGauge.sol";
 contract GoodGhostingPolygonCurve is Ownable, Pausable {
     using SafeMath for uint256;
 
+    /// @notice total tokens in aave pool
+    uint64 public constant NUM_AAVE_TOKENS = 3;
+    /// @notice total tokens in atricrypto pool
+    uint64 public constant NUM_ATRI_CRYPTO_TOKENS = 5;
+    /// @notice identifies the "Aave Pool" Type
+    uint64 public constant AAVE_POOL = 0;
+    /// @notice identifies the "Atri Crypto Pool" Type
+    uint64 public constant ATRI_CRYPTO_POOL = 1;
     /// @notice curve rewards per player
     uint256 public curveRewardsPerPlayer;
     /// @notice wmatic rewards per player
@@ -40,10 +48,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     uint256 public immutable maxPlayersCount;
     /// @notice winner counter to track no of winners
     uint256 public winnerCount = 0;
-    /// @notice total tokens in aave pool
-    uint64 public constant numAaveTokens = 3;
-    /// @notice total tokens in atricrypto pool
-    uint64 public constant numAtricryptoTokens = 5;
     /// @notice flag to differentiate between aave poll (0) and atricrypto pool (1)
     uint64 public immutable poolType;
     /// for some reason the curve contracts have int128 as param in the withdraw function
@@ -218,9 +222,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         daiToken = _inboundCurrency;
         maxPlayersCount = _maxPlayersCount;
         incentiveToken = _incentiveToken;
-        if (_poolType == 0) {
+        if (_poolType == AAVE_POOL) {
             lpToken = IERC20(pool.lp_token());
-        } else if (_poolType == 1) {
+        } else if (_poolType == ATRI_CRYPTO_POOL) {
             lpToken = IERC20(pool.token());
         }
     }
@@ -333,16 +337,16 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         Curve's Atricrypto pool (pool type 1): this contract integrates with other pools
             and funds sit in those pools. Hence, an approval transaction is required because
             it is communicating with external contracts
-        Constants "numAaveTokens" and "numAtricryptoTokens" have to be a constant type actually,
+        Constants "NUM_AAVE_TOKENS" and "NUM_ATRI_CRYPTO_TOKENS" have to be a constant type actually,
             otherwise the signature becomes different and the external call will fail.
             If we use an "if" condition based on pool type, and dynamically set
             a value for these variables, the assignment will be to a non-constant
             which will result in failure. This is due to the structure of how
             the curve contracts are written
         */
-        if (poolType == 0) {
-            uint256[numAaveTokens] memory amounts;
-            for (uint256 i = 0; i < numAaveTokens; i++) {
+        if (poolType == AAVE_POOL) {
+            uint256[NUM_AAVE_TOKENS] memory amounts;
+            for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
                 if (i == inboundTokenIndexUint) {
                     amounts[i] = withdrawAmount;
                 } else {
@@ -363,9 +367,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 _minAmount,
                 true
             );
-        } else if (poolType == 1) {
-            uint256[numAtricryptoTokens] memory amounts;
-            for (uint256 i = 0; i < numAtricryptoTokens; i++) {
+        } else if (poolType == ATRI_CRYPTO_POOL) {
+            uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts;
+            for (uint256 i = 0; i < NUM_ATRI_CRYPTO_TOKENS; i++) {
                 if (i == inboundTokenIndexUint) {
                     amounts[i] = withdrawAmount;
                 } else {
@@ -535,21 +539,21 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         Curve's Atricrypto pool (pool type 1): this contract integrates with other pools
             and funds sit in those pools. Hence, an approval transaction is required because
             it is communicating with external contracts
-        Constants "numAaveTokens" and "numAtricryptoTokens" have to be a constant type actually,
+        Constants "NUM_AAVE_TOKENS" and "NUM_ATRI_CRYPTO_TOKENS" have to be a constant type actually,
             otherwise the signature becomes different and the external call will fail.
             If we use an "if" condition based on pool type, and dynamically set
             a value for these variables, the assignment will be to a non-constant
             which will result in failure. This is due to the structure of how
             the curve contracts are written
         */
-        if (poolType == 0) {
+        if (poolType == AAVE_POOL) {
             pool.remove_liquidity_one_coin(
                 lpToken.balanceOf(address(this)),
                 inboundTokenIndexInt,
                 _minAmount,
                 true
             );
-        } else if (poolType == 1) {
+        } else if (poolType == ATRI_CRYPTO_POOL) {
             require(
                 lpToken.approve(
                     address(pool),
@@ -668,16 +672,16 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         );
 
         /*
-        Constants "numAaveTokens" and "numAtricryptoTokens" have to be a constant type actually,
+        Constants "NUM_AAVE_TOKENS" and "NUM_ATRI_CRYPTO_TOKENS" have to be a constant type actually,
             otherwise the signature becomes different and the external call will fail.
             If we use an "if" condition based on pool type, and dynamically set
             a value for these variables, the assignment will be to a non-constant
             which will result in failure. This is due to the structure of how
             the curve contracts are written
         */
-        if (poolType == 0) {
-            uint256[numAaveTokens] memory amounts;
-            for (uint256 i = 0; i < numAaveTokens; i++) {
+        if (poolType == AAVE_POOL) {
+            uint256[NUM_AAVE_TOKENS] memory amounts;
+            for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
                 if (i == inboundTokenIndexUint) {
                     amounts[i] = segmentPayment;
                 } else {
@@ -685,9 +689,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 }
             }
             pool.add_liquidity(amounts, _minAmount, true);
-        } else if (poolType == 1) {
-            uint256[numAtricryptoTokens] memory amounts;
-            for (uint256 i = 0; i < numAtricryptoTokens; i++) {
+        } else if (poolType == ATRI_CRYPTO_POOL) {
+            uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts;
+            for (uint256 i = 0; i < NUM_ATRI_CRYPTO_TOKENS; i++) {
                 if (i == inboundTokenIndexUint) {
                     amounts[i] = segmentPayment;
                 } else {
