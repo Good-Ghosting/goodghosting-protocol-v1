@@ -53,10 +53,6 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
     } else if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
         GoodGhostingArtifact = GoodGhostingPolygonCurve;
         providersConfigs = configs.providers.aave["polygon-curve"];
-        curve = new web3.eth.Contract(
-            daiABI,
-            providersConfigs.curve
-        );
     }  else {
         GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
         providersConfigs = configs.providers.aave.polygon;
@@ -79,9 +75,9 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
             if (providersConfigs.poolType == 0) {
-                pool = new web3.eth.Contract(aavepoolABI, providersConfigs.pool)
+                pool = new web3.eth.Contract(aavepoolABI, providersConfigs.pool);
             } else {
-                pool = new web3.eth.Contract(atricryptopoolABI, providersConfigs.pool)
+                pool = new web3.eth.Contract(atricryptopoolABI, providersConfigs.pool);
             }
             gaugeToken = new web3.eth.Contract(daiABI, providersConfigs.gauge);
 
@@ -105,7 +101,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         });
 
         it("players approve DAI to contract and join the game", async () => {
-            const userSlippageOptions = [3, 5, 1, 2.5, 1.5]
+            const userSlippageOptions = [3, 5, 1, 2.5, 1.5];
 
             for (let i = 0; i < players.length; i++) {
                 const player = players[i];
@@ -122,13 +118,13 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                 ) {
                     let result, slippageFromContract;
                     if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-                    const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)))
-                    if (providersConfigs.poolType == 0) {
-                        slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
-                    } else {
-                        slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0,0,0], true).call();
-                    }
-                    const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN('10')).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN('10')).div(new BN('10000')))
+                        const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)));
+                        if (providersConfigs.poolType == 0) {
+                            slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
+                        } else {
+                            slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0,0,0], true).call();
+                        }
+                        const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("10000")));
                         result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
                     } else {
                         result = await goodGhosting.joinGame({ from: player, gas: 6000000 });
@@ -195,17 +191,17 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             let result;
             if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
 
-            const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call()
-            let minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call()
-            const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)))
+                const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call();
+                let minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call();
+                const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)));
 
-            if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
-                minAmount = userProvidedMinAmount
-            }
-            result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), { from: admin });
+                if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
+                    minAmount = userProvidedMinAmount;
+                }
+                result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), { from: admin });
             } else {
-            result = await goodGhosting.redeemFromExternalPool({ from: admin });
-        }
+                result = await goodGhosting.redeemFromExternalPool({ from: admin });
+            }
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
 
             console.log("contractsDaiBalance", contractsDaiBalance.toString());

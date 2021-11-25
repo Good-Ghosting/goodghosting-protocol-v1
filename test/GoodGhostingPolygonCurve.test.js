@@ -899,9 +899,9 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await timeMachine.advanceTime(weekInSecs);
             const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
             await goodGhosting.earlyWithdraw(0,{ from: player1 });
-            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
+            const winnerCountAfterEarlyWithdraw = await goodGhosting.winnerCount();
             assert(winnerCountBeforeEarlyWithdraw.eq(new BN(1)));
-            assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)));
+            assert(winnerCountAfterEarlyWithdraw.eq(new BN(0)));
         });
 
         it("winner address in the winner array changes to zero address when a potential winner withdraws after the last segment", async () => {
@@ -939,9 +939,9 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     await goodGhosting.makeDeposit(0,{ from: player1 });
                     const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
                     await goodGhosting.earlyWithdraw(0,{ from: player1 });
-                    const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
+                    const winnerCountAfterEarlyWithdraw = await goodGhosting.winnerCount();
                     assert(winnerCountBeforeEarlyWithdraw.eq(new BN(1)));
-                    assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)));
+                    assert(winnerCountAfterEarlyWithdraw.eq(new BN(0)));
                 }
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -986,8 +986,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 if (index == segmentCount - 1) {
                     const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
                     await goodGhosting.earlyWithdraw(0,{ from: player1 });
-                    const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
-                    assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw));
+                    const winnerCountAfterEarlyWithdraw = await goodGhosting.winnerCount();
+                    assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountAfterEarlyWithdraw));
                 }
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -1002,8 +1002,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await approveDaiToContract(player1);
             const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
             await goodGhosting.earlyWithdraw(0,{ from: player1 });
-            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
-            assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw));
+            const winnerCountAfterEarlyWithdraw = await goodGhosting.winnerCount();
+            assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountAfterEarlyWithdraw));
         });
 
         it("winner count does not reduces when a non-winner withdraws after the last deposit segment", async () => {
@@ -1016,8 +1016,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             }
             const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
             await goodGhosting.earlyWithdraw(0,{ from: player1 });
-            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
-            assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw));
+            const winnerCountAfterEarlyWithdraw = await goodGhosting.winnerCount();
+            assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountAfterEarlyWithdraw));
         });
 
         it("when a player tries to earlyWithdraw and the contract balance from removing liquidity is less than the withdraw amount", async () => {

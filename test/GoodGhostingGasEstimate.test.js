@@ -481,7 +481,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
                 curveBalanceAfterRedeem = await curve.methods.balanceOf(goodGhosting.address).call();
                 wmaticBalanceAfterRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call();
-                // curve rewards accure slowly
+                // curve rewards accrue slowly
                 assert(new BN(curveBalanceBeforeRedeem).lte(new BN(curveBalanceAfterRedeem)));
                 // no wmatic rewards in atricrypto pool
                 assert(new BN(wmaticBalanceBeforeRedeem).lte(new BN(wmaticBalanceAfterRedeem)));
@@ -572,7 +572,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             .balanceOf(player)
                             .call({ from: admin })
                     );
-                    // curve rewards accure slowly
+                    // curve rewards accrue slowly
                     assert(
                         curveRewardBalanceAfter.gte(curveRewardBalanceBefore),
                         "expected curve balance after withdrawal to be greater than before withdrawal"
