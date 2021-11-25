@@ -42,8 +42,8 @@ exports.providers = {
             tokenIndex: 0, // 0: DAI; 1: USDC; 2: USDT
 
             /* ATRI CRYPTO Pool Configs */
-            // pool: 0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8,
-            // gauge: 0x3b6b158a76fd8ccc297538f454ce7b4787778c7c,
+            // pool: "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
+            // gauge: "0x3b6b158a76fd8ccc297538f454ce7b4787778c7c",
             // poolType: 1, // AtriCrypto Pool
             // tokenIndex: 0, // 0: DAI; 1: USDC; 2: USDT; 3: WBTC; 4: WETH
 

@@ -21,7 +21,7 @@ function getNetworkName(network) {
     if (name.includes("kovan")) return "kovan";
     if (name.includes("ropsten")) return "ropsten";
     if (name.includes("mainnet")) return "mainnet";
-    if (name.includes("polygon-vigil-fork-curve")) return "polygon-curve";
+    if (name.includes("polygon") && name.includes("curve")) return "polygon-curve";
     if (name.includes("polygon")) return "polygon";
     if (name.includes("alfajores")) return "alfajores";
     if (name.includes("celo")) return "celo";
