@@ -361,14 +361,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         uint256 gaugeBalance = gauge.balanceOf(address(this));
         if (gaugeBalance > 0) {
             if (poolType == AAVE_POOL) {
-                uint256[NUM_AAVE_TOKENS] memory amounts;
-                for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
-                    if (i == uint256(inboundTokenIndex)) {
-                        amounts[i] = withdrawAmount;
-                    } else {
-                        amounts[i] = 0;
-                    }
-                }
+                uint256[NUM_AAVE_TOKENS] memory amounts; // fixed-sized array is initialized w/ [0, 0, 0]
+                amounts[uint256(inboundTokenIndex)] = withdrawAmount;
                 uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
 
                 if (gaugeBalance < poolWithdrawAmount) {
@@ -385,14 +379,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                     true // redeems underlying coin (dai, usdc, usdt), instead of aTokens
                 );
             } else if (poolType == ATRI_CRYPTO_POOL) {
-                uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts;
-                for (uint256 i = 0; i < NUM_ATRI_CRYPTO_TOKENS; i++) {
-                    if (i == uint256(inboundTokenIndex)) {
-                        amounts[i] = withdrawAmount;
-                    } else {
-                        amounts[i] = 0;
-                    }
-                }
+                uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts; // fixed-sized array is initialized w/ [0, 0, 0, 0, 0]
+                amounts[uint256(inboundTokenIndex)] = withdrawAmount;
                 uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
 
                 if (gaugeBalance < poolWithdrawAmount) {
@@ -705,24 +693,12 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             the curve contracts are written
         */
         if (poolType == AAVE_POOL) {
-            uint256[NUM_AAVE_TOKENS] memory amounts;
-            for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
-                if (i == uint256(inboundTokenIndex)) {
-                    amounts[i] = segmentPayment;
-                } else {
-                    amounts[i] = 0;
-                }
-            }
+            uint256[NUM_AAVE_TOKENS] memory amounts; // fixed-sized array is initialized w/ [0, 0, 0]
+            amounts[uint256(inboundTokenIndex)] = segmentPayment;
             pool.add_liquidity(amounts, _minAmount, true);
         } else if (poolType == ATRI_CRYPTO_POOL) {
-            uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts;
-            for (uint256 i = 0; i < NUM_ATRI_CRYPTO_TOKENS; i++) {
-                if (i == uint256(inboundTokenIndex)) {
-                    amounts[i] = segmentPayment;
-                } else {
-                    amounts[i] = 0;
-                }
-            }
+            uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts; // fixed-sized array is initialized w/ [0, 0, 0, 0, 0]
+            amounts[uint256(inboundTokenIndex)] = segmentPayment;
             pool.add_liquidity(amounts, _minAmount);
         }
 
