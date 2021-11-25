@@ -365,55 +365,60 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             which will result in failure. This is due to the structure of how
             the curve contracts are written
         */
-        if (poolType == AAVE_POOL) {
-            uint256[NUM_AAVE_TOKENS] memory amounts;
-            for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
-                if (i == uint256(inboundTokenIndexInt)) {
-                    amounts[i] = withdrawAmount;
-                } else {
-                    amounts[i] = 0;
+        uint256 gaugeBalance = gauge.balanceOf(address(this));
+        if (gaugeBalance > 0) {
+            if (poolType == AAVE_POOL) {
+                uint256[NUM_AAVE_TOKENS] memory amounts;
+                for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
+                    if (i == uint256(inboundTokenIndexInt)) {
+                        amounts[i] = withdrawAmount;
+                    } else {
+                        amounts[i] = 0;
+                    }
                 }
-            }
-            uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
+                uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
 
-            if (gauge.balanceOf(address(this)) < poolWithdrawAmount) {
-                poolWithdrawAmount = gauge.balanceOf(address(this));
-            }
-
-            gauge.withdraw(poolWithdrawAmount, false);
-
-            pool.remove_liquidity_one_coin(
-                poolWithdrawAmount,
-                inboundTokenIndexInt,
-                _minAmount,
-                true
-            );
-        } else if (poolType == ATRI_CRYPTO_POOL) {
-            uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts;
-            for (uint256 i = 0; i < NUM_ATRI_CRYPTO_TOKENS; i++) {
-                if (i == inboundTokenIndexUint) {
-                    amounts[i] = withdrawAmount;
-                } else {
-                    amounts[i] = 0;
+                if (gaugeBalance < poolWithdrawAmount) {
+                    poolWithdrawAmount = gaugeBalance;
                 }
+
+                // passes false not to claim rewards
+                gauge.withdraw(poolWithdrawAmount, false);
+
+                pool.remove_liquidity_one_coin(
+                    poolWithdrawAmount,
+                    inboundTokenIndexInt,
+                    _minAmount,
+                    true // redeems underlying coin (dai, usdc, usdt), instead of aTokens
+                );
+            } else if (poolType == ATRI_CRYPTO_POOL) {
+                uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts;
+                for (uint256 i = 0; i < NUM_ATRI_CRYPTO_TOKENS; i++) {
+                    if (i == inboundTokenIndexUint) {
+                        amounts[i] = withdrawAmount;
+                    } else {
+                        amounts[i] = 0;
+                    }
+                }
+                uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
+
+                if (gaugeBalance < poolWithdrawAmount) {
+                    poolWithdrawAmount = gaugeBalance;
+                }
+
+                // passes false not to claim rewards
+                gauge.withdraw(poolWithdrawAmount, false);
+
+                require(
+                    lpToken.approve(address(pool), poolWithdrawAmount),
+                    "Fail to approve allowance to pool"
+                );
+                pool.remove_liquidity_one_coin(
+                    poolWithdrawAmount,
+                    inboundTokenIndexUint,
+                    _minAmount
+                );
             }
-            uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
-
-            if (gauge.balanceOf(address(this)) < poolWithdrawAmount) {
-                poolWithdrawAmount = gauge.balanceOf(address(this));
-            }
-
-            gauge.withdraw(poolWithdrawAmount, false);
-
-            require(
-                lpToken.approve(address(pool), poolWithdrawAmount),
-                "Fail to approve allowance to pool"
-            );
-            pool.remove_liquidity_one_coin(
-                poolWithdrawAmount,
-                inboundTokenIndexUint,
-                _minAmount
-            );
         }
 
         if (daiToken.balanceOf(address(this)) < withdrawAmount) {
@@ -551,8 +556,11 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     {
         require(!redeemed, "Redeem operation already happened for the game");
         redeemed = true;
-        uint256 lpBalance = gauge.balanceOf(address(this));
-        gauge.withdraw(lpBalance, true);
+        uint256 gaugeBalance = gauge.balanceOf(address(this));
+        if (gaugeBalance > 0) {
+            // passes true to also claim rewards
+            gauge.withdraw(gaugeBalance, true);
+        }
 
         /*
         Code of curve's aave and curve's atricrypto pools are completely different.
@@ -567,27 +575,30 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             which will result in failure. This is due to the structure of how
             the curve contracts are written
         */
-        if (poolType == AAVE_POOL) {
-            pool.remove_liquidity_one_coin(
-                lpToken.balanceOf(address(this)),
-                inboundTokenIndexInt,
-                _minAmount,
-                true
-            );
-        } else if (poolType == ATRI_CRYPTO_POOL) {
-            require(
-                lpToken.approve(
-                    address(pool),
-                    lpToken.balanceOf(address(this))
-                ),
-                "Fail to approve allowance to pool"
-            );
+        uint256 lpTokenBalance = lpToken.balanceOf(address(this));
+        if (lpTokenBalance > 0) {
+            if (poolType == AAVE_POOL) {
+                pool.remove_liquidity_one_coin(
+                    lpTokenBalance,
+                    inboundTokenIndexInt,
+                    _minAmount,
+                    true // redeems underlying coin (dai, usdc, usdt), instead of aTokens
+                );
+            } else if (poolType == ATRI_CRYPTO_POOL) {
+                require(
+                    lpToken.approve(
+                        address(pool),
+                        lpTokenBalance
+                    ),
+                    "Fail to approve allowance to pool"
+                );
 
-            pool.remove_liquidity_one_coin(
-                lpToken.balanceOf(address(this)),
-                inboundTokenIndexUint,
-                _minAmount
-            );
+                pool.remove_liquidity_one_coin(
+                    lpTokenBalance,
+                    inboundTokenIndexUint,
+                    _minAmount
+                );
+            }
         }
 
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
