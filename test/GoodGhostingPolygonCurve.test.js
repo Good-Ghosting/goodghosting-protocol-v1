@@ -2,9 +2,9 @@
 const ERC20Mintable = artifacts.require("MockERC20Mintable");
 const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
 const IncentiveControllerMock = artifacts.require("IncentiveControllerMock");
-const MockCurvePool = artifacts.require("MockCurvePool")
-const MockCurveGauge = artifacts.require("MockCurveGauge")
-const ethers = require('ethers')
+const MockCurvePool = artifacts.require("MockCurvePool");
+const MockCurveGauge = artifacts.require("MockCurveGauge");
+const ethers = require("ethers");
 const { toWad } = require("@decentral.ee/web3-test-helpers");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
@@ -52,13 +52,12 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         // and then divided by 10 ** 18
         await mintTokensFor(player1);
         await mintTokensFor(player2);
-        await mintRewardsFor(gauge.address)
+        await mintRewardsFor(gauge.address);
         await curve.mint(gauge.address, toWad(1000), { from: admin });
 
         goodGhosting = await GoodGhostingPolygonCurve.new(
             token.address,
             pool.address,
-            tokenPosition,
             tokenPosition,
             0,
             gauge.address,
@@ -139,7 +138,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 token.address,
                 ZERO_ADDRESS,
                 tokenPosition,
-                tokenPosition,
                 0,
                 gauge.address,
                 segmentCount,
@@ -159,8 +157,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         it("reverts if the contract is deployed with invalid gauge address", async () => {
             await truffleAssert.reverts(GoodGhostingPolygonCurve.new(
                 token.address,
-                pool.address,       
-                tokenPosition,
+                pool.address,
                 tokenPosition,
                 0,
                 ZERO_ADDRESS,
@@ -183,7 +180,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 token.address,
                 pool.address,
                 tokenPosition,
-                tokenPosition,
                 0,
                 gauge.address,
                 segmentCount,
@@ -204,7 +200,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await truffleAssert.reverts(GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
-                tokenPosition,
                 tokenPosition,
                 2,
                 gauge.address,
@@ -227,7 +222,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 token.address,
                 pool.address,
                 NUM_AAVE_POOL_TOKENS, // 0-based index, so must revert; correct is NUM_AAVE_POOL_TOKENS - 1
-                NUM_AAVE_POOL_TOKENS,
                 0,
                 gauge.address,
                 segmentCount,
@@ -241,7 +235,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 ZERO_ADDRESS,
                 { from: admin },
             ),
-            "invalid _inboundTokenIndexInt value");
+            "invalid _inboundTokenIndex value for _poolType 0");
         });
 
         it("reverts if the contract is deployed with pool type ONE and token position out of range", async () => {
@@ -249,8 +243,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 token.address,
                 pool.address,
                 NUM_ATRI_CRYPTO_POOL_TOKENS, // 0-based index, so must revert; correct is NUM_ATRI_CRYPTO_POOL_TOKENS - 1
-                NUM_ATRI_CRYPTO_POOL_TOKENS,
-                0,
+                1,
                 gauge.address,
                 segmentCount,
                 segmentLength,
@@ -263,7 +256,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 ZERO_ADDRESS,
                 { from: admin },
             ),
-            "invalid _inboundTokenIndexInt value");
+            "invalid _inboundTokenIndex value for _poolType 1");
         });
 
 
@@ -271,7 +264,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const contract = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
-                0,
                 0,
                 1,
                 gauge.address,
@@ -296,7 +288,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 token.address,
                 pool.address,
                 NUM_ATRI_CRYPTO_POOL_TOKENS - 1,
-                NUM_ATRI_CRYPTO_POOL_TOKENS - 1,
                 1,
                 gauge.address,
                 segmentCount,
@@ -320,7 +311,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 pool.address,
                 0,
                 0,
-                0,
                 gauge.address,
                 segmentCount,
                 segmentLength,
@@ -341,7 +331,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const contract = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
-                NUM_AAVE_POOL_TOKENS - 1,
                 NUM_AAVE_POOL_TOKENS - 1,
                 0,
                 gauge.address,
@@ -390,7 +379,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 token.address,
                 pool.address,
                 tokenPosition,
-                tokenPosition,
                 0,
                 gauge.address,
                 segmentCount,
@@ -425,7 +413,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 token.address,
                 pool.address,
                 tokenPosition,
-                tokenPosition,
                 0,
                 gauge.address,
                 segmentCount,
@@ -459,7 +446,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const contract = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
-                tokenPosition,
                 tokenPosition,
                 0,
                 gauge.address,
@@ -707,11 +693,10 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         });
 
         it("for a pool with 1 segment make sure that winner array get's populated", async() => {
-            incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
+            const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
             goodGhosting = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
-                tokenPosition,
                 tokenPosition,
                 0,
                 gauge.address,
@@ -729,12 +714,12 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(0, { from: player1 });
             const playerInfo = await goodGhosting.players(player1);
-            const winnerCount = await goodGhosting.winnerCount()
+            const winnerCount = await goodGhosting.winnerCount();
             const winner = await goodGhosting.winners(new BN(0));
             assert(winner === player1);
             assert(playerInfo.isWinner);
-            assert(winnerCount.eq(new BN(1)))
-        })
+            assert(winnerCount.eq(new BN(1)));
+        });
         it("makes sure the winnerIndex get's updated when 2 players complete the game", async() => {
             await approveDaiToContract(player1);
             await goodGhosting.joinGame(0,{ from: player1 });
@@ -753,7 +738,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const player2Info = await goodGhosting.players(player2);
             assert(player2Info.winnerIndex.eq(new BN(1)));
             await timeMachine.advanceTime(weekInSecs * 2);
-        })
+        });
 
     });
 
@@ -912,12 +897,12 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
             // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
             await timeMachine.advanceTime(weekInSecs);
-            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
+            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
             await goodGhosting.earlyWithdraw(0,{ from: player1 });
-            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
-            assert(winnerCountBeforeEarlyWithdraw.eq(new BN(1)))
-            assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)))
-        })
+            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
+            assert(winnerCountBeforeEarlyWithdraw.eq(new BN(1)));
+            assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)));
+        });
 
         it("winner address in the winner array changes to zero address when a potential winner withdraws after the last segment", async () => {
             await approveDaiToContract(player1);
@@ -931,15 +916,15 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
             // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
             await timeMachine.advanceTime(weekInSecs);
-            const playerInfoBeforeWithdraw = await goodGhosting.players(player1)
+            const playerInfoBeforeWithdraw = await goodGhosting.players(player1);
             let winner = await goodGhosting.winners(playerInfoBeforeWithdraw.winnerIndex);
-            assert(winner == player1)
+            assert(winner == player1);
             await goodGhosting.earlyWithdraw(0,{ from: player1 });
-            const playerInfoAfterWithdraw = await goodGhosting.players(player1)
-            console.log()
+            const playerInfoAfterWithdraw = await goodGhosting.players(player1);
+            console.log();
             winner = await goodGhosting.winners(playerInfoAfterWithdraw.winnerIndex);
-            assert(winner == ZERO_ADDRESS)
-        })
+            assert(winner == ZERO_ADDRESS);
+        });
 
         it("winner count reduces when a potential winner withdraws during the last segment after the deposit", async () => {
             await approveDaiToContract(player1);
@@ -952,11 +937,11 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     await goodGhosting.makeDeposit(0,{ from: player1 });
                 } else {
                     await goodGhosting.makeDeposit(0,{ from: player1 });
-                    const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
+                    const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
                     await goodGhosting.earlyWithdraw(0,{ from: player1 });
-                    const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
-                    assert(winnerCountBeforeEarlyWithdraw.eq(new BN(1)))
-                    assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)))
+                    const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
+                    assert(winnerCountBeforeEarlyWithdraw.eq(new BN(1)));
+                    assert(winnerCountaAfterEarlyWithdraw.eq(new BN(0)));
                 }
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -976,11 +961,11 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     await goodGhosting.makeDeposit(0,{ from: player1 });
                 } else {
                     await goodGhosting.makeDeposit(0,{ from: player1 });
-                    const playerInfoBeforeWithdraw = await goodGhosting.players(player1)
+                    const playerInfoBeforeWithdraw = await goodGhosting.players(player1);
                     await goodGhosting.earlyWithdraw(0,{ from: player1 });
-                    const playerInfoAfterWithdraw = await goodGhosting.players(player1)
-                    assert(playerInfoBeforeWithdraw.isWinner)
-                    assert(!playerInfoAfterWithdraw.isWinner)
+                    const playerInfoAfterWithdraw = await goodGhosting.players(player1);
+                    assert(playerInfoBeforeWithdraw.isWinner);
+                    assert(!playerInfoAfterWithdraw.isWinner);
                 }
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -999,10 +984,10 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     await goodGhosting.makeDeposit(0,{ from: player1 });
                 }
                 if (index == segmentCount - 1) {
-                    const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
+                    const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
                     await goodGhosting.earlyWithdraw(0,{ from: player1 });
-                    const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
-                    assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
+                    const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
+                    assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw));
                 }
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
@@ -1015,10 +1000,10 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await goodGhosting.joinGame(0,{ from: player1 });
             await timeMachine.advanceTime(weekInSecs);
             await approveDaiToContract(player1);
-            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
+            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
             await goodGhosting.earlyWithdraw(0,{ from: player1 });
-            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
-            assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
+            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
+            assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw));
         });
 
         it("winner count does not reduces when a non-winner withdraws after the last deposit segment", async () => {
@@ -1029,18 +1014,17 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 await timeMachine.advanceTime(weekInSecs);
                 await approveDaiToContract(player1);
             }
-            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount()
+            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
             await goodGhosting.earlyWithdraw(0,{ from: player1 });
-            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
-            assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw))
+            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount();
+            assert(winnerCountBeforeEarlyWithdraw.eq(winnerCountaAfterEarlyWithdraw));
         });
 
         it("when a player tries to earlyWithdraw and the contract balance from removing liquidity is less than the withdraw amount", async () => {
-            incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
+            const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
             const instance = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
-                tokenPosition,
                 tokenPosition,
                 0,
                 gauge.address,
@@ -1058,14 +1042,14 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             await token.approve(instance.address, "1000000000000000000", { from: player1 });
             await instance.joinGame(0,{ from: player1 });
             const withdrawalAmount = new BN("1000000000000000000").sub(new BN("1000000000000000000").div(new BN(10)));
-            const preWithdrawBalance = await token.balanceOf(player1)
+            const preWithdrawBalance = await token.balanceOf(player1);
             await instance.earlyWithdraw("900000000000000000",{ from: player1 });
-            const postWithdrawBalance = await token.balanceOf(player1)
+            const postWithdrawBalance = await token.balanceOf(player1);
             // amount received is less due to pool imbalance
-            assert(postWithdrawBalance.sub(preWithdrawBalance).lt(withdrawalAmount))
+            assert(postWithdrawBalance.sub(preWithdrawBalance).lt(withdrawalAmount));
 
-        })
-    })
+        });
+    });
 
     describe("when an user tries to redeem from the external pool", async () => {
 
@@ -1138,7 +1122,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 contract = await GoodGhostingPolygonCurve.new(
                     token.address,
                     pool.address,
-                    tokenPosition,
                     tokenPosition,
                     0,
                     gauge.address,
@@ -1390,7 +1373,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     token.address,
                     pool.address,
                     tokenPosition,
-                    tokenPosition,
                     0,
                     gauge.address,
                     segmentCount,
@@ -1634,7 +1616,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     token.address,
                     pool.address,
                     tokenPosition,
-                    tokenPosition,
                     0,
                     gauge.address,
                     segmentCount,
@@ -1771,7 +1752,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                     token.address,
                     pool.address,
                     tokenPosition,
-                    tokenPosition,
                     0,
                     gauge.address,
                     segmentCount,
@@ -1809,7 +1789,7 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
         });
     });
 
-    describe('use atricrypto pool', async () => {
+    describe("use atricrypto pool", async () => {
         context("the pool is deployed with atricrypto pool", async () => {
             let contract;
             let incentiveToken;
@@ -1820,7 +1800,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 contract = await GoodGhostingPolygonCurve.new(
                     token.address,
                     pool.address,
-                    tokenPosition,
                     tokenPosition,
                     1,
                     gauge.address,
@@ -1840,8 +1819,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             it("player is able to early withdraw after joining the pool", async () => {
                 await token.approve(contract.address, approvalAmount, { from: player1 });
                 await contract.joinGame(0, { from: player1 });
-                await truffleAssert.passes(contract.earlyWithdraw(0, { from: player1 }))
-            })
+                await truffleAssert.passes(contract.earlyWithdraw(0, { from: player1 }));
+            });
             
             it("admin is able to redeem funds from the pool that uses atricrypto pool", async () => {
                 await token.approve(contract.address, approvalAmount, { from: player1 });
@@ -1850,16 +1829,15 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 await truffleAssert.passes(contract.redeemFromExternalPool(0,{ from: player1 }));
                 let contractCurveBalanceAfterRedeem = await curve.balanceOf(contract.address);
                 assert(contractCurveBalanceAfterRedeem.gt(contractCurveBalanceBeforeRedeem));
-            })
-    })
-})
+            });
+        });
+    });
 
     describe("admin tries to withdraw fees with admin percentage fee equal to 0 and no winners", async () => {
         it("does not revert when there is no interest generated", async () => {
             goodGhosting = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
-                tokenPosition,
                 tokenPosition,
                 0,
                 gauge.address,
@@ -1899,7 +1877,6 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
             const contract = await GoodGhostingPolygonCurve.new(
                 token.address,
                 pool.address,
-                tokenPosition,
                 tokenPosition,
                 0,
                 gauge.address,

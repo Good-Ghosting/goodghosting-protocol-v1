@@ -52,15 +52,11 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     uint256 public winnerCount = 0;
     /// @notice flag to differentiate between aave poll (0) and atricrypto pool (1)
     uint64 public immutable poolType;
-    /// for some reason the curve contracts have int128 as param in the withdraw function
-    /// hence the two types since type conversion is not possible
-    /// @notice token index in the pool in int form. It's used for the Aave Pool
-    /// @dev accepted values are: 0: DAI; 1: USDC; 2: USDT
-    int128 public inboundTokenIndexInt;
-    /// @notice token index in the pool in uint form. It's used for the AtriCrypto Pool
-    /// @dev accepted values are: 0: DAI; 1: USDC; 2: USDT; 3: WBTC; 4: WETH
-    uint256 public inboundTokenIndexUint;
-
+    /// @notice inbound token index to be deposited in the pool.
+    /// @dev accepted values are:
+    ///     Aave Pool: 0: DAI; 1: USDC; 2: USDT
+    ///     AtriCrypto Pool: 0: DAI; 1: USDC; 2: USDT; 3: WBTC; 4: WETH
+    int128 public immutable inboundTokenIndex;
     /// @notice controls if admin withdrew or not the performance fee.
     bool public adminWithdraw;
     /// @notice Controls if tokens were redeemed or not from the pool
@@ -148,8 +144,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         Creates a new instance of GoodGhosting game
         @param _inboundCurrency Smart contract address of inbound currency used for the game.
         @param _pool Smart contract address of the curve pool.
-        @param _inboundTokenIndexInt token index in int form.
-        @param _inboundTokenIndexUint token index in uint form.
+        @param _inboundTokenIndex token index in int form.
         @param _poolType flag to differentiate between aave and atricrypto pool.
         @param _gauge Smart contract address of the cure poogauge to stake lp tokensl.
         @param _segmentCount Number of segments in the game.
@@ -165,8 +160,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     constructor(
         IERC20 _inboundCurrency,
         ICurvePool _pool,
-        int128 _inboundTokenIndexInt,
-        uint256 _inboundTokenIndexUint,
+        int128 _inboundTokenIndex,
         uint64 _poolType,
         ICurveGauge _gauge,
         uint256 _segmentCount,
@@ -210,21 +204,19 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         require(address(_curve) != address(0), "invalid _curve address");
         require(address(_matic) != address(0), "invalid _matic address");
         require(
-            _poolType >= AAVE_POOL && _poolType <= ATRI_CRYPTO_POOL,
+            _poolType == AAVE_POOL || _poolType == ATRI_CRYPTO_POOL,
             "invalid _poolType value"
         );
 
-        // Aave Pool uses inboundTokenIndexInt
-        // AtriCrypto pool uses inboundTokenIndexUInt
         if (_poolType == AAVE_POOL) {
             require(
-                _inboundTokenIndexInt >= 0 && _inboundTokenIndexInt < NUM_AAVE_TOKENS,
-                "invalid _inboundTokenIndexInt value"
+                _inboundTokenIndex >= 0 && _inboundTokenIndex < NUM_AAVE_TOKENS,
+                "invalid _inboundTokenIndex value for _poolType 0"
             );
         } else {
             require(
-                _inboundTokenIndexUint >= 0 && _inboundTokenIndexUint < NUM_ATRI_CRYPTO_TOKENS,
-                "invalid _inboundTokenIndexUint value"
+                _inboundTokenIndex >= 0 && _inboundTokenIndex < NUM_ATRI_CRYPTO_TOKENS,
+                "invalid _inboundTokenIndex value for _poolType 1"
             );
         }
 
@@ -233,8 +225,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         gauge = _gauge;
         curve = _curve;
         matic = _matic;
-        inboundTokenIndexInt = _inboundTokenIndexInt;
-        inboundTokenIndexUint = _inboundTokenIndexUint;
+        inboundTokenIndex = _inboundTokenIndex;
         poolType = _poolType;
         firstSegmentStart = block.timestamp; //gets current time
         lastSegment = _segmentCount;
@@ -372,7 +363,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             if (poolType == AAVE_POOL) {
                 uint256[NUM_AAVE_TOKENS] memory amounts;
                 for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
-                    if (i == uint256(inboundTokenIndexInt)) {
+                    if (i == uint256(inboundTokenIndex)) {
                         amounts[i] = withdrawAmount;
                     } else {
                         amounts[i] = 0;
@@ -389,14 +380,14 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
                 pool.remove_liquidity_one_coin(
                     poolWithdrawAmount,
-                    inboundTokenIndexInt,
+                    inboundTokenIndex,
                     _minAmount,
                     true // redeems underlying coin (dai, usdc, usdt), instead of aTokens
                 );
             } else if (poolType == ATRI_CRYPTO_POOL) {
                 uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts;
                 for (uint256 i = 0; i < NUM_ATRI_CRYPTO_TOKENS; i++) {
-                    if (i == inboundTokenIndexUint) {
+                    if (i == uint256(inboundTokenIndex)) {
                         amounts[i] = withdrawAmount;
                     } else {
                         amounts[i] = 0;
@@ -417,7 +408,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 );
                 pool.remove_liquidity_one_coin(
                     poolWithdrawAmount,
-                    inboundTokenIndexUint,
+                    uint256(inboundTokenIndex),
                     _minAmount
                 );
             }
@@ -582,7 +573,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             if (poolType == AAVE_POOL) {
                 pool.remove_liquidity_one_coin(
                     lpTokenBalance,
-                    inboundTokenIndexInt,
+                    inboundTokenIndex,
                     _minAmount,
                     true // redeems underlying coin (dai, usdc, usdt), instead of aTokens
                 );
@@ -597,7 +588,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
 
                 pool.remove_liquidity_one_coin(
                     lpTokenBalance,
-                    inboundTokenIndexUint,
+                    uint256(inboundTokenIndex),
                     _minAmount
                 );
             }
@@ -716,7 +707,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         if (poolType == AAVE_POOL) {
             uint256[NUM_AAVE_TOKENS] memory amounts;
             for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
-                if (i == uint256(inboundTokenIndexInt)) {
+                if (i == uint256(inboundTokenIndex)) {
                     amounts[i] = segmentPayment;
                 } else {
                     amounts[i] = 0;
@@ -726,7 +717,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         } else if (poolType == ATRI_CRYPTO_POOL) {
             uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts;
             for (uint256 i = 0; i < NUM_ATRI_CRYPTO_TOKENS; i++) {
-                if (i == inboundTokenIndexUint) {
+                if (i == uint256(inboundTokenIndex)) {
                     amounts[i] = segmentPayment;
                 } else {
                     amounts[i] = 0;

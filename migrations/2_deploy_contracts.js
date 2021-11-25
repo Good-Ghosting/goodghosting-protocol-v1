@@ -7,7 +7,6 @@ const GoodGhostingContract = artifacts.require("GoodGhosting");
 const GoodGhostingPolygonContract = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonCurveContract = artifacts.require("GoodGhostingPolygonCurve");
 const GoodGhostingPolygonWhitelisted = artifacts.require("GoodGhostingPolygonWhitelisted");
-const BN = web3.utils.BN;
 const { providers, deployConfigs } = require("../deploy.config");
 
 
@@ -50,7 +49,7 @@ function printSummary(
         curvePool,
         curvePoolTokenIndex,
         curveGauge,
-        curvePoolType
+        curvePoolType,
     },
     // additional logging info
     {
@@ -108,7 +107,6 @@ function printSummary(
             "address",
             "int128",
             "uint256",
-            "uint256",
             "address",
             "uint256",
             "uint256",
@@ -116,15 +114,14 @@ function printSummary(
             "uint256",
             "uint256",
             "uint256",
-            "address", 
+            "address",
             "address",
             "address"
-        ]
+        ];
 
         parameterValues = [
             inboundCurrencyAddress,
             curvePool,
-            curvePoolTokenIndex,
             curvePoolTokenIndex,
             curvePoolType,
             curveGauge,
@@ -137,7 +134,7 @@ function printSummary(
             curve,
             wmatic,
             incentiveToken
-        ]
+        ];
     }
 
     if (isPolygonWhitelisted) {
@@ -228,7 +225,7 @@ module.exports = function (deployer, network, accounts) {
             goodGhostingContract = GoodGhostingPolygonContract;
         } else if (networkName === "polygon-whitelisted") {
             goodGhostingContract = GoodGhostingPolygonWhitelisted;
-        } else if (networkName === 'polygon-curve') {
+        } else if (networkName === "polygon-curve") {
             goodGhostingContract = GoodGhostingPolygonCurveContract;
         }
 
@@ -262,7 +259,6 @@ module.exports = function (deployer, network, accounts) {
                 goodGhostingContract,
                 inboundCurrencyAddress,
                 poolConfigs.pool,
-                poolConfigs.tokenIndex,
                 poolConfigs.tokenIndex,
                 poolConfigs.poolType,
                 poolConfigs.gauge,
