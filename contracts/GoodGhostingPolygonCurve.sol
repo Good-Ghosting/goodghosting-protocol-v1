@@ -52,9 +52,11 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     uint64 public immutable poolType;
     /// for some reason the curve contracts have int128 as param in the withdraw function
     /// hence the two types since type conversion is not possible
-    /// @notice token index in the pool in int form
+    /// @notice token index in the pool in int form. It's used for the Aave Pool
+    /// @dev accepted values are: 0: DAI; 1: USDC; 2: USDT
     int128 inboundTokenIndexInt;
-    /// @notice token index in the pool in uint form
+    /// @notice token index in the pool in uint form. It's used for the AtriCrypto Pool
+    /// @dev accepted values are: 0: DAI; 1: USDC; 2: USDT; 3: WBTC; 4: WETH
     uint256 inboundTokenIndexUint;
 
     /// @notice controls if admin withdrew or not the performance fee.
