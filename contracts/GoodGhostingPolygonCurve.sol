@@ -205,6 +205,25 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         require(address(_gauge) != address(0), "invalid _gauge address");
         require(address(_curve) != address(0), "invalid _curve address");
         require(address(_matic) != address(0), "invalid _matic address");
+        require(
+            _poolType >= AAVE_POOL && _poolType <= ATRI_CRYPTO_POOL,
+            "invalid _poolType value"
+        );
+
+        // Aave Pool uses inboundTokenIndexInt
+        // AtriCrypto pool uses inboundTokenIndexUInt
+        if (_poolType == AAVE_POOL) {
+            require(
+                _inboundTokenIndexInt >= 0 && _inboundTokenIndexInt < NUM_AAVE_TOKENS,
+                "invalid _inboundTokenIndexInt value"
+            );
+        } else {
+            require(
+                _inboundTokenIndexUint >= 0 && _inboundTokenIndexUint < NUM_ATRI_CRYPTO_TOKENS,
+                "invalid _inboundTokenIndexUint value"
+            );
+        }
+
         // Initializes default variables
         pool = _pool;
         gauge = _gauge;
@@ -347,7 +366,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         if (poolType == AAVE_POOL) {
             uint256[NUM_AAVE_TOKENS] memory amounts;
             for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
-                if (i == inboundTokenIndexUint) {
+                if (i == uint256(inboundTokenIndexInt)) {
                     amounts[i] = withdrawAmount;
                 } else {
                     amounts[i] = 0;
@@ -682,7 +701,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         if (poolType == AAVE_POOL) {
             uint256[NUM_AAVE_TOKENS] memory amounts;
             for (uint256 i = 0; i < NUM_AAVE_TOKENS; i++) {
-                if (i == inboundTokenIndexUint) {
+                if (i == uint256(inboundTokenIndexInt)) {
                     amounts[i] = segmentPayment;
                 } else {
                     amounts[i] = 0;

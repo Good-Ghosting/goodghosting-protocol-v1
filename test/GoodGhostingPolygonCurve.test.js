@@ -36,6 +36,8 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
     const maxPlayersCount = new BN(100);
     const tokenPosition = 0;
     const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+    const NUM_AAVE_POOL_TOKENS = 3;
+    const NUM_ATRI_CRYPTO_POOL_TOKENS = 5;
 
     beforeEach(async () => {
         global.web3 = web3;
@@ -196,6 +198,166 @@ contract("GoodGhostingPolygonCurve", (accounts) => {
                 { from: admin },
             ),
             "invalid _curve address");
+        });
+
+        it("reverts if the contract is deployed with invalid pool type", async () => {
+            await truffleAssert.reverts(GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                tokenPosition,
+                tokenPosition,
+                2,
+                gauge.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                { from: admin },
+            ),
+            "invalid _poolType value");
+        });
+
+        it("reverts if the contract is deployed with pool type ZERO and token position out of range", async () => {
+            await truffleAssert.reverts(GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                NUM_AAVE_POOL_TOKENS, // 0-based index, so must revert; correct is NUM_AAVE_POOL_TOKENS - 1
+                NUM_AAVE_POOL_TOKENS,
+                0,
+                gauge.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                { from: admin },
+            ),
+            "invalid _inboundTokenIndexInt value");
+        });
+
+        it("reverts if the contract is deployed with pool type ONE and token position out of range", async () => {
+            await truffleAssert.reverts(GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                NUM_ATRI_CRYPTO_POOL_TOKENS, // 0-based index, so must revert; correct is NUM_ATRI_CRYPTO_POOL_TOKENS - 1
+                NUM_ATRI_CRYPTO_POOL_TOKENS,
+                0,
+                gauge.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                { from: admin },
+            ),
+            "invalid _inboundTokenIndexInt value");
+        });
+
+
+        it("allows deploying contract will pool type equal to ONE  and token position in the LOWER BOUND", async () => {
+            const contract = await GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                0,
+                0,
+                1,
+                gauge.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                { from: admin },
+            );
+            const poolType = await contract.poolType.call();
+            assert(poolType.toString() === "1");                
+        });
+
+
+        it("allows deploying contract will pool type equal to ONE and token position in the UPPER BOUND", async () => {
+            const contract = await GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                NUM_ATRI_CRYPTO_POOL_TOKENS - 1,
+                NUM_ATRI_CRYPTO_POOL_TOKENS - 1,
+                1,
+                gauge.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                { from: admin },
+            );
+            const poolType = await contract.poolType.call();
+            assert(poolType.toString() === "1");                
+        });
+
+        it("allows deploying contract will pool type equal to ZERO and token position in the LOWER BOUND", async () => {
+            const contract = await GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                0,
+                0,
+                0,
+                gauge.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                { from: admin },
+            );
+            const poolType = await contract.poolType.call();
+            assert(poolType.toString() === "0");                
+        });
+
+        it("allows deploying contract will pool type equal to ZERO and token position in the UPPER BOUND", async () => {
+            const contract = await GoodGhostingPolygonCurve.new(
+                token.address,
+                pool.address,
+                NUM_AAVE_POOL_TOKENS - 1,
+                NUM_AAVE_POOL_TOKENS - 1,
+                0,
+                gauge.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                adminFee,
+                maxPlayersCount,
+                curve.address,
+                incentiveController.address,
+                ZERO_ADDRESS,
+                { from: admin },
+            );
+            const poolType = await contract.poolType.call();
+            assert(poolType.toString() === "0");
         });
     });
 
