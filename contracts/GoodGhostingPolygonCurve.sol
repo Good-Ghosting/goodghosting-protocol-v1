@@ -140,7 +140,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         _;
     }
 
-        /**
+    /**
         Creates a new instance of GoodGhosting game
         @param _inboundCurrency Smart contract address of inbound currency used for the game.
         @param _pool Smart contract address of the curve pool.
@@ -156,7 +156,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         @param _curve Smart contract address of curve token
         @param _matic Smart contract address of wmatic token.
         @param _incentiveToken optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
-     */
+    */
     constructor(
         IERC20 _inboundCurrency,
         ICurvePool _pool,
@@ -351,12 +351,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         Curve's Atricrypto pool (pool type 1): this contract integrates with other pools
             and funds sit in those pools. Hence, an approval transaction is required because
             it is communicating with external contracts
-        Constants "NUM_AAVE_TOKENS" and "NUM_ATRI_CRYPTO_TOKENS" have to be a constant type actually,
-            otherwise the signature becomes different and the external call will fail.
-            If we use an "if" condition based on pool type, and dynamically set
-            a value for these variables, the assignment will be to a non-constant
-            which will result in failure. This is due to the structure of how
-            the curve contracts are written
         */
         uint256 gaugeBalance = gauge.balanceOf(address(this));
         if (gaugeBalance > 0) {
@@ -549,12 +543,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         Curve's Atricrypto pool (pool type 1): this contract integrates with other pools
             and funds sit in those pools. Hence, an approval transaction is required because
             it is communicating with external contracts
-        Constants "NUM_AAVE_TOKENS" and "NUM_ATRI_CRYPTO_TOKENS" have to be a constant type actually,
-            otherwise the signature becomes different and the external call will fail.
-            If we use an "if" condition based on pool type, and dynamically set
-            a value for these variables, the assignment will be to a non-constant
-            which will result in failure. This is due to the structure of how
-            the curve contracts are written
         */
         uint256 lpTokenBalance = lpToken.balanceOf(address(this));
         if (lpTokenBalance > 0) {

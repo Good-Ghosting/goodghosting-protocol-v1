@@ -88,7 +88,7 @@ function shouldBehaveLikeGoodGhostingPolygonCurve(accounts, poolType) {
         await timeMachine.advanceTime(weekInSecs * 3);
     }
 
-    describe(`PoolType ${poolType} - ${poolType ? "Aave" : "AtriCrypto"} Pool`, async () => {
+    describe(`PoolType ${poolType} - ${poolType === 0 ? "Aave" : "AtriCrypto"} Pool`, async () => {
 
         beforeEach(async () => {
             global.web3 = web3;
