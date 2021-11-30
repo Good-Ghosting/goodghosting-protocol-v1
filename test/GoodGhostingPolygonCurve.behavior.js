@@ -1139,7 +1139,7 @@ function shouldBehaveLikeGoodGhostingPolygonCurve(accounts, poolType) {
                 await instance.joinGame(0,{ from: player1 });
                 const withdrawalAmount = new BN("1000000000000000000").sub(new BN("1000000000000000000").div(new BN(10)));
                 const preWithdrawBalance = await token.balanceOf(player1);
-                await instance.earlyWithdraw("900000000000000000",{ from: player1 });
+                await instance.earlyWithdraw("800000000000000000",{ from: player1 });
                 const postWithdrawBalance = await token.balanceOf(player1);
                 // amount received is less due to pool imbalance
                 assert(postWithdrawBalance.sub(preWithdrawBalance).lt(withdrawalAmount));
@@ -1205,6 +1205,19 @@ function shouldBehaveLikeGoodGhostingPolygonCurve(accounts, poolType) {
                     ),
                     "FundsRedeemedFromExternalPool event should be emitted when funds are redeemed from external pool",
                 );
+            });
+
+            it("we are able to redeem if there is impermanent loss", async() => {
+                await joinGamePaySegmentsAndComplete(player1);
+                // to trigger impermanent loss
+                const principalAmount = await goodGhosting.totalGamePrincipal();
+                await goodGhosting.redeemFromExternalPool("900000000000000000",{ from: player2 });
+                const contractDaiBalance = await token.balanceOf(goodGhosting.address);
+
+                const calculatedImpermanentLossShare = new BN(contractDaiBalance).mul(new BN(100)).div(new BN(principalAmount));
+                const impermanentLossShareFromContract = await goodGhosting.impermanentLossShare();
+
+                assert(impermanentLossShareFromContract .eq(calculatedImpermanentLossShare));
             });
 
             context("when incentive token is defined", async () => {
@@ -1305,6 +1318,21 @@ function shouldBehaveLikeGoodGhostingPolygonCurve(accounts, poolType) {
                 const player1Result = await goodGhosting.players.call(player1);
                 assert(player1Result.withdrawn);
             });
+
+            it("player is able to withdraw if there is impermanent loss", async () => {
+                await joinGamePaySegmentsAndComplete(player1);
+                await goodGhosting.redeemFromExternalPool("900000000000000000",{ from: player1 });
+                const impermanentLossShareFromContract = await goodGhosting.impermanentLossShare();
+                const playerBeforeWithdrawBalance = await token.balanceOf(player1);
+                const playerInfo = await goodGhosting.players(player1);
+                
+                await goodGhosting.withdraw(0,{ from: player1 });
+                const playerAfterWithdrawBalance = await token.balanceOf(player1);
+                const difference = playerAfterWithdrawBalance.sub(playerBeforeWithdrawBalance);
+                const actualAmountReceived = playerInfo.amountPaid.mul(impermanentLossShareFromContract).div(new BN(100));
+
+                assert(difference.eq(actualAmountReceived));
+            })
 
             it("withdraws from external pool on first withdraw if funds weren't redeemed yet", async () => {
                 const expectedAmount = web3.utils.toBN(segmentPayment * segmentCount);
@@ -1881,50 +1909,6 @@ function shouldBehaveLikeGoodGhostingPolygonCurve(accounts, poolType) {
                         "AdminWithdrawal",
                         (ev) => ev.adminIncentiveAmount.eq(new BN(0))
                     );
-                });
-            });
-        });
-
-        describe("use atricrypto pool", async () => {
-            context("the pool is deployed with atricrypto pool", async () => {
-                let contract;
-                let incentiveToken;
-                const approvalAmount = segmentPayment.mul(new BN(segmentCount)).toString();
-
-                beforeEach(async () => {
-                    incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
-                    contract = await GoodGhostingPolygonCurve.new(
-                        token.address,
-                        pool.address,
-                        tokenPosition,
-                        1,
-                        gauge.address,
-                        segmentCount,
-                        segmentLength,
-                        segmentPayment,
-                        fee,
-                        0,
-                        maxPlayersCount,
-                        curve.address,
-                        incentiveController.address,
-                        incentiveToken.address,
-                        { from: admin },
-                    );
-                });
-
-                it("player is able to early withdraw after joining the pool", async () => {
-                    await token.approve(contract.address, approvalAmount, { from: player1 });
-                    await contract.joinGame(0, { from: player1 });
-                    await truffleAssert.passes(contract.earlyWithdraw(0, { from: player1 }));
-                });
-                
-                it("admin is able to redeem funds from the pool that uses atricrypto pool", async () => {
-                    await token.approve(contract.address, approvalAmount, { from: player1 });
-                    await joinGamePaySegmentsAndComplete(player1, contract);
-                    let contractCurveBalanceBeforeRedeem = await curve.balanceOf(contract.address);
-                    await truffleAssert.passes(contract.redeemFromExternalPool(0,{ from: player1 }));
-                    let contractCurveBalanceAfterRedeem = await curve.balanceOf(contract.address);
-                    assert(contractCurveBalanceAfterRedeem.gt(contractCurveBalanceBeforeRedeem));
                 });
             });
         });
