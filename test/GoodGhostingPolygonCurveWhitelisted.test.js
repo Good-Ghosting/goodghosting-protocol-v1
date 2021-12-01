@@ -4,7 +4,7 @@ const { shouldBehaveLikeGoodGhostingPolygonCurveWhitelisted } = require("./GoodG
 contract("GoodGhostingPolygonCurveWhitelisted", (accounts) => {
 
     // Only executes this test file IF NOT a local network fork
-    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork",  "local-polygon-vigil-fork-curve", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
+    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork",  "local-polygon-vigil-fork-curve", "local-polygon-whitelisted-vigil-fork", "local-polygon-whitelisted-vigil-fork-curve"].includes(process.env.NETWORK)) return;
 
     // Tests with Aave Pool
     shouldBehaveLikeGoodGhostingPolygonCurveWhitelisted(accounts, 0);

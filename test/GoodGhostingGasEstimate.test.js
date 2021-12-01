@@ -4,6 +4,8 @@ const GoodGhostingPolygonWhitelisted = artifacts.require(
     "GoodGhostingPolygonWhitelisted"
 );
 const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
+const GoodGhostingPolygonCurveWhitelisted = artifacts.require("GoodGhostingPolygonCurveWhitelisted");
+
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
@@ -29,7 +31,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
             "local-celo-fork",
-            "local-polygon-vigil-fork-curve"
+            "local-polygon-vigil-fork-curve",
+            "local-polygon-whitelisted-vigil-fork-curve"
         ].includes(process.env.NETWORK)
     )
         return;
@@ -57,9 +60,16 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             daiABI,
             providersConfigs.curve
         );
-    } else {
+    } else if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
         providersConfigs = configs.providers.aave.polygon;
+    } else {
+        GoodGhostingArtifact = GoodGhostingPolygonCurveWhitelisted;
+        providersConfigs = configs.providers.aave["polygon-curve"];
+        curve = new web3.eth.Contract(
+            daiABI,
+            providersConfigs.curve
+        );
     }
     const {
         segmentCount,
@@ -149,7 +159,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 inboundCurrencyResult === token.options.address,
                 `Inbound currency doesn't match. expected ${token.options.address}; got ${inboundCurrencyResult}`
             );
-            if (process.env.NETWORK !== "local-polygon-vigil-fork-curve") {
+            if (process.env.NETWORK !== "local-polygon-vigil-fork-curve" && process.env.NETWORK !== "local-polygon-whitelisted-vigil-fork-curve") {
                 const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
 
                 assert(
@@ -184,7 +194,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
         it("players approve DAI to contract and join the game", async () => {
             const userSlippageOptions = [1, 0.5, 0.5, 2, 1];
-            for (let i = 0; i < players.length; i++) {
+            for (let i = 0; i < players.length - 1; i++) {
                 const player = players[i];
                 await token.methods
                     .approve(
@@ -198,11 +208,13 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     process.env.NETWORK === "local-mainnet-fork" ||
                     process.env.NETWORK === "local-celo-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
-                    process.env.NETWORK === "local-polygon-vigil-fork-curve"
+                    process.env.NETWORK === "local-polygon-vigil-fork-curve" ||
+                    process.env.NETWORK ===  "local-polygon-whitelisted-vigil-fork-curve"
                 ) {
                     let result, slippageFromContract;
                     let minAmountWithFees = 0;
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                         const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)));
                         if (providersConfigs.poolType == 0) {
                             slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(), 0, 0], true).call();
@@ -214,7 +226,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString())
                             ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("10000")))
                             : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("10000")));
-                        result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                        if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+
+                                result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player, gas: 6000000 });
+                        } else {
+                            result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                        }
                     } else {
                         // gas param is hardcoded to avoid transaction reverts
                         result = await goodGhosting.joinGame({ from: player, gas: 6000000  });
@@ -224,7 +241,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     if (i == 1) {
                         const withdrawAmount = segmentPayment.sub(segmentPayment.mul(new BN(earlyWithdrawFee)).div(new BN(100)));
                         let lpTokenAmount;
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                             if (providersConfigs.poolType == 0) {
                                 lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
                             } else {
@@ -246,7 +263,8 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
                                 minAmount = userProvidedMinAmount;
                             }
-                            await goodGhosting.earlyWithdraw(minAmount.toString(), { from: player });
+
+                            await goodGhosting.earlyWithdraw(minAmount.toString(), { from: player, gas: 6000000 });
                         } else {
                             await goodGhosting.earlyWithdraw({ from: player, gas: 6000000 });
                         }
@@ -259,8 +277,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             )
                             .send({ from: player });
 
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-                            await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+                                if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+                                result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player, gas: 6000000 });
+                            } else {
+                                result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                            }
                         } else {
                             await goodGhosting.joinGame({ from: player, gas: 6000000 });
                         }
@@ -349,7 +371,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 // j must start at 1 - Player1 (index 0) early withdraws after everyone else deposits, so won't continue making deposits
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                         let slippageFromContract;
                         const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)));
                         if (providersConfigs.poolType == 0) {
@@ -360,7 +382,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         }
 
                         const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("1000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("1000")));
-                        depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), { from: player });
+                        depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), { from: player, gas: 6000000 });
                     } else {
                         depositResult = await goodGhosting.makeDeposit({ from: player, gas: 6000000  });
                     }
@@ -381,7 +403,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
                     // const playerInfo = await goodGhosting.methods.players(loser).call()
                     const withdrawAmount = playerInfo.amountPaid.sub(playerInfo.amountPaid.mul(new BN(earlyWithdrawFee)).div(new BN(100)));
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                         let lpTokenAmount;
                         if (providersConfigs.poolType == 0) {
                             lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
@@ -419,7 +441,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             const playerInfo = await goodGhosting.players(userWithdrawingAfterLastSegment);
             const withdrawAmount = playerInfo.amountPaid.sub(playerInfo.amountPaid.mul(new BN(earlyWithdrawFee)).div(new BN(100)));
             let lpTokenAmount;
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
 
                 if (providersConfigs.poolType == 0) {
                     lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
@@ -453,7 +475,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             const userSlippage = 0.2;
             let minAmount;
             let curveBalanceBeforeRedeem, wmaticBalanceBeforeRedeem, curveBalanceAfterRedeem, wmaticBalanceAfterRedeem;
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                 curveBalanceBeforeRedeem = await curve.methods.balanceOf(goodGhosting.address).call();
                 wmaticBalanceBeforeRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call();
 
@@ -468,7 +490,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             
             let eventAmount = new BN(0);
             let result;
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                 result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), {
                     from: admin,
                 });
@@ -478,7 +500,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 });
             }
 
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                 curveBalanceAfterRedeem = await curve.methods.balanceOf(goodGhosting.address).call();
                 wmaticBalanceAfterRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call();
                 // curve rewards accrue slowly
@@ -559,7 +581,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 }
 
                 let result;
-                if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                     // redeem already called hence passing in 0
                     result = await goodGhosting.withdraw(0, { from: player });
                 } else {

@@ -6,6 +6,7 @@ const SafeMathLib = artifacts.require("SafeMath");
 const GoodGhostingContract = artifacts.require("GoodGhosting");
 const GoodGhostingPolygonContract = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonCurveContract = artifacts.require("GoodGhostingPolygonCurve");
+const GoodGhostingPolygonCurveWhitelisted = artifacts.require("GoodGhostingPolygonCurveWhitelisted");
 const GoodGhostingPolygonWhitelisted = artifacts.require("GoodGhostingPolygonWhitelisted");
 const { providers, deployConfigs } = require("../deploy.config");
 
@@ -63,8 +64,8 @@ function printSummary(
 ) {
     const isPolygon = networkName.toLowerCase() === "polygon";
     const isPolygonCurve = networkName.toLowerCase() === "polygon-curve";
+    const isPolygonCurveWhitelisted = networkName.toLowerCase() === "local-polygon-whitelisted-vigil-fork-curve" || networkName.toLowerCase() === "polygon-curve-whitelisted";
     const isPolygonWhitelisted = networkName.toLowerCase() === "polygon-whitelisted" || ["polygon-whitelisted"].includes(networkName.toLowerCase()); // for local network
-
     var parameterTypes = [
         "address", // inboundCurrencyAddress
         "address", // lendingPoolAddressProvider
@@ -137,17 +138,55 @@ function printSummary(
         ];
     }
 
-    if (isPolygonWhitelisted) {
-        parameterTypes.push(
-            "address", // IncentiveController
-            "address", // wmatic token
-            "bytes32" // merkle root
-        );
-        parameterValues.push(
-            incentiveController,
+    if (isPolygonCurveWhitelisted) {
+        parameterTypes = [
+            "address",
+            "address",
+            "int128",
+            "uint256",
+            "address",
+            "uint256",
+            "uint256",
+            "uint256",
+            "uint256",
+            "uint256",
+            "uint256",
+            "address",
+            "address",
+            "address",
+            "bytes32"
+        ];
+
+        parameterValues = [
+            inboundCurrencyAddress,
+            curvePool,
+            curvePoolTokenIndex,
+            curvePoolType,
+            curveGauge,
+            segmentCount,
+            segmentLength,
+            segmentPaymentWei,
+            earlyWithdrawFee,
+            customFee,
+            maxPlayersCount,
+            curve,
             wmatic,
+            incentiveToken,
             merkleRoot
-        );
+        ];
+    }
+
+    if (isPolygonWhitelisted) {
+            parameterTypes.push(
+                "address", // IncentiveController
+                "address", // wmatic token
+                "bytes32" // merkle root
+            );
+            parameterValues.push(
+                incentiveController,
+                wmatic,
+                merkleRoot
+            );
     }
 
     var encodedParameters = abi.rawEncode(parameterTypes, parameterValues);
@@ -188,6 +227,15 @@ function printSummary(
         console.log(`Curve Token: ${curve}`);
         console.log(`Matic Token: ${wmatic}`);
     }
+    if (isPolygonCurveWhitelisted) {
+        console.log(`Curve Pool: ${curvePool}`);
+        console.log(`Curve Pool Type: ${curvePoolType}`);
+        console.log(`Curve Gauge: ${curveGauge}`);
+        console.log(`Curve Deposit Token Index: ${curvePoolTokenIndex}`);
+        console.log(`Curve Token: ${curve}`);
+        console.log(`Matic Token: ${wmatic}`);
+        console.log(`Merkle Root: ${merkleRoot}`);
+    }
     console.log("\n\nConstructor Arguments ABI-Encoded:");
     console.log(encodedParameters.toString("hex"));
     console.log("\n\n\n\n");
@@ -218,15 +266,21 @@ module.exports = function (deployer, network, accounts) {
         const incentiveToken = poolConfigs.incentiveToken;
         let aaveContractAddress = poolConfigs.dataProvider;
         let goodGhostingContract = GoodGhostingContract; // defaults to Ethereum version
-        if (network.includes("polygon-whitelisted")) {
+        if (network.includes("polygon-whitelisted") && !network.includes('curve')) {
             networkName = "polygon-whitelisted";
         }
+        if (network.includes("polygon") && network.includes("curve") && network.includes("whitelisted")) {
+            networkName = "polygon-curve-whitelisted";
+        }
+
         if (networkName === "polygon") {
             goodGhostingContract = GoodGhostingPolygonContract;
         } else if (networkName === "polygon-whitelisted") {
             goodGhostingContract = GoodGhostingPolygonWhitelisted;
         } else if (networkName === "polygon-curve") {
             goodGhostingContract = GoodGhostingPolygonCurveContract;
+        } else if (networkName === "polygon-curve-whitelisted") {
+            goodGhostingContract = GoodGhostingPolygonCurveWhitelisted;
         }
 
         // Prepares deployment arguments
@@ -271,6 +325,25 @@ module.exports = function (deployer, network, accounts) {
                 poolConfigs.curve,
                 wmatic,
                 incentiveToken
+            ];
+        } else if (networkName === "polygon-curve-whitelisted") {
+            deploymentArgs = [
+                goodGhostingContract,
+                inboundCurrencyAddress,
+                poolConfigs.pool,
+                poolConfigs.tokenIndex,
+                poolConfigs.poolType,
+                poolConfigs.gauge,
+                deployConfigs.segmentCount,
+                deployConfigs.segmentLength,
+                segmentPaymentWei,
+                deployConfigs.earlyWithdrawFee,
+                deployConfigs.customFee,
+                maxPlayersCount,
+                poolConfigs.curve,
+                wmatic,
+                incentiveToken,
+                deployConfigs.merkleroot
             ];
         }
 
