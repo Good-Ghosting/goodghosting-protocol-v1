@@ -28,6 +28,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     uint256 public totalGameInterest;
     /// @notice total principal amount
     uint256 public totalGamePrincipal;
+    /// @notice share % from impermanent loss
+    uint256 public impermanentLossShare;
     /// @notice performance fee amount allocated to the admin
     uint256 public adminFeeAmount;
     /// @notice total amount of incentive tokens to be distributed among winners
@@ -395,7 +397,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 );
             }
         }
-
+        // check for impermanent loss
         if (daiToken.balanceOf(address(this)) < withdrawAmount) {
             withdrawAmount = daiToken.balanceOf(address(this));
         }
@@ -424,8 +426,14 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         uint256 playerReward = 0;
         uint256 playerCurveReward = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
-            // Player is a winner and gets a bonus!
-            payout = payout.add(totalGameInterest.div(winnerCount));
+            if (impermanentLossShare > 0) {
+                // new payput in case of impermanent loss
+                payout = player.amountPaid.mul(impermanentLossShare).div(uint(100));
+            } else {
+                // Player is a winner and gets a bonus!
+                payout = payout.add(totalGameInterest.div(winnerCount));
+            }
+
             playerReward = rewardsPerPlayer;
             playerCurveReward = curveRewardsPerPlayer;
             // If there's additional incentives, distributes them to winners
@@ -570,6 +578,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             }
         }
 
+
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
         uint256 curveRewardAmount = IERC20(curve).balanceOf(address(this));
@@ -586,6 +595,10 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         // aToken vs. Token in the future (i.e., 1 aDAI is worth less than 1 DAI)
         if (totalBalance > totalGamePrincipal) {
             grossInterest = totalBalance.sub(totalGamePrincipal);
+        } else {
+            // handling impermanent loss case
+            impermanentLossShare = (totalBalance.mul(uint(100))).div(totalGamePrincipal);
+            totalGamePrincipal = totalBalance;
         }
         // calculates the performance/admin fee (takes a cut - the admin percentage fee - from the pool's interest).
         // calculates the "gameInterest" (net interest) that will be split among winners in the game
