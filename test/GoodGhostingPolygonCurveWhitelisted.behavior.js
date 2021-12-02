@@ -359,6 +359,7 @@ function shouldBehaveLikeGoodGhostingPolygonCurveWhitelisted(accounts, poolType)
                 const adminFee = await goodGhosting.customFee.call();
                 const maxPlayersCountResult = await goodGhosting.maxPlayersCount.call();
                 const incentiveToken = await goodGhosting.incentiveToken.call();
+                const merkleRootResult = await goodGhosting.merkleRoot.call();
               
                 assert(poolResult === pool.address, `Pool address doesn't match. expected ${pool.address}; got ${poolResult}`);
                 assert(gaugeResult === gauge.address, `Gauge address doesn't match. expected ${gauge.address}; got ${gaugeResult}`);
@@ -371,6 +372,7 @@ function shouldBehaveLikeGoodGhostingPolygonCurveWhitelisted(accounts, poolType)
                 assert(new BN(segmentPaymentResult).eq(new BN(segmentPayment)), `SegmentPayment doesn't match. expected ${segmentPayment}; got ${segmentPaymentResult}`);
                 assert(new BN(earlyWithdrawFee).eq(new BN(10)), `Early Withdraw Fee doesn't match, expected 10 got ${earlyWithdrawFee}`);
                 assert(new BN(adminFee).eq(new BN(5)), `Admin Fee doesn't match, expected 5 got ${adminFee}`);
+                assert(merkleRootResult === merkleRoot, `MerkleRoot doesn't match. expected ${merkleRoot}; got ${merkleRootResult}`);
                 assert(new BN(maxPlayersCountResult).eq(maxPlayersCount), `MaxPlayersCount doesn't match. expected ${maxPlayersCount.toString()}; got ${maxPlayersCountResult}`);
                 assert(incentiveToken === ZERO_ADDRESS);
             });

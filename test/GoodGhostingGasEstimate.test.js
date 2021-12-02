@@ -12,7 +12,7 @@ const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
 const aavepoolABI = require("../abi-external/curve-aave-pool-abi.json");
 const atricryptopoolABI = require("../abi-external/curve-atricrypto-pool-abi.json");
-
+const gaugeABI = require("../abi-external/gauge.json")
 const configs = require("../deploy.config");
 const whitelistedPlayerConfig = [
     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
@@ -105,7 +105,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 providersConfigs.wmatic
             );
             goodGhosting = await GoodGhostingArtifact.deployed();
-            gaugeToken = new web3.eth.Contract(daiABI, providersConfigs.gauge);
+            gaugeToken = new web3.eth.Contract(gaugeABI, providersConfigs.gauge);
 
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
@@ -227,14 +227,13 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("10000")))
                             : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("10000")));
                         if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-
-                                result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player, gas: 6000000 });
+                            result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player });
                         } else {
                             result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
                         }
                     } else {
                         // gas param is hardcoded to avoid transaction reverts
-                        result = await goodGhosting.joinGame({ from: player, gas: 6000000  });
+                        result = await goodGhosting.joinGame({ from: player  });
                     }
 
                     // player 1 early withdraws in segment 0 and joins again
@@ -264,9 +263,9 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                                 minAmount = userProvidedMinAmount;
                             }
 
-                            await goodGhosting.earlyWithdraw(minAmount.toString(), { from: player, gas: 6000000 });
+                            await goodGhosting.earlyWithdraw(minAmount.toString(), { from: player });
                         } else {
-                            await goodGhosting.earlyWithdraw({ from: player, gas: 6000000 });
+                            await goodGhosting.earlyWithdraw({ from: player });
                         }
                         await token.methods
                             .approve(
@@ -279,12 +278,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
                             if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                                 if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                                result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player, gas: 6000000 });
+                                result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player });
                             } else {
                                 result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
                             }
                         } else {
-                            await goodGhosting.joinGame({ from: player, gas: 6000000 });
+                            await goodGhosting.joinGame({ from: player });
                         }
                     }
                     // got logs not defined error when keep the event assertion check outside of the if-else
@@ -309,7 +308,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             goodGhosting.joinWhitelistedGame(
                                 whitelistedPlayerConfig[i][player].index,
                                 whitelistedPlayerConfig[i][player].proof,
-                                { from: player, gas: 6000000 }
+                                { from: player }
                             ),
                             "MerkleDistributor: Invalid proof."
                         );
@@ -317,11 +316,11 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         const result = await goodGhosting.joinWhitelistedGame(
                             whitelistedPlayerConfig[i][player].index,
                             whitelistedPlayerConfig[i][player].proof,
-                            { from: player, gas: 6000000 }
+                            { from: player }
                         );
                         // player 1 early withdraws in segment 0 and joins again
                         if (i == 1) {
-                            await goodGhosting.earlyWithdraw({ from: player, gas: 6000000 });
+                            await goodGhosting.earlyWithdraw({ from: player });
                             await token.methods
                                 .approve(
                                     goodGhosting.address,
@@ -333,7 +332,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             await goodGhosting.joinWhitelistedGame(
                                 whitelistedPlayerConfig[i][player].index,
                                 whitelistedPlayerConfig[i][player].proof,
-                                { from: player, gas: 6000000 }
+                                { from: player }
                             );
                         }
                         // got logs not defined error when keep the event assertion check outside of the if-else
@@ -382,9 +381,9 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                         }
 
                         const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("1000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("1000")));
-                        depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), { from: player, gas: 6000000 });
+                        depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), { from: player });
                     } else {
-                        depositResult = await goodGhosting.makeDeposit({ from: player, gas: 6000000  });
+                        depositResult = await goodGhosting.makeDeposit({ from: player  });
                     }
 
                     truffleAssert.eventEmitted(
@@ -424,7 +423,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
                         earlyWithdrawResult = await goodGhosting.earlyWithdraw(minAmount.toString(), { from: loser });                 
                     } else {
-                        earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser, gas: 6000000  });
+                        earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser  });
                     }
                     
                     truffleAssert.eventEmitted(
@@ -462,7 +461,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
                 await goodGhosting.earlyWithdraw(minAmount.toString(), { from: userWithdrawingAfterLastSegment });
             } else {
-                await goodGhosting.earlyWithdraw({ from: userWithdrawingAfterLastSegment, gas: 6000000 });
+                await goodGhosting.earlyWithdraw({ from: userWithdrawingAfterLastSegment });
             }
             const winnerCountAfterEarlyWithdraw = await goodGhosting.winnerCount();
 
@@ -487,7 +486,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     minAmount = userProvidedMinAmount;
                 }
             }
-            
+
             let eventAmount = new BN(0);
             let result;
             if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
@@ -503,6 +502,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                 curveBalanceAfterRedeem = await curve.methods.balanceOf(goodGhosting.address).call();
                 wmaticBalanceAfterRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call();
+
                 // curve rewards accrue slowly
                 assert(new BN(curveBalanceBeforeRedeem).lte(new BN(curveBalanceAfterRedeem)));
                 // no wmatic rewards in atricrypto pool
@@ -585,7 +585,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     // redeem already called hence passing in 0
                     result = await goodGhosting.withdraw(0, { from: player });
                 } else {
-                    result = await goodGhosting.withdraw({ from: player, gas: 6000000 });
+                    result = await goodGhosting.withdraw({ from: player });
                 }
 
                 if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
