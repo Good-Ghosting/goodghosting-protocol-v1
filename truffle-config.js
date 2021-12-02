@@ -63,6 +63,12 @@ module.exports = {
             network_id: "*",
             gas: 5000000
         },
+        "local-polygon-whitelisted-vigil-fork-curve": {
+            host: "127.0.0.1",
+            port: 8545,
+            network_id: "*",
+            gas: 5000000
+        },
         "local-polygon-whitelisted-vigil-fork": {
             host: "127.0.0.1",
             port: 8545,
@@ -114,6 +120,22 @@ module.exports = {
             skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
         },
         "polygon-curve": {
+            provider: () => new HDWalletProvider(
+                process.env.POLYGON_MAINNET_MNEMONIC,
+                process.env.POLYGON_MAINNET_PROVIDER_URL,
+                0, //address_index
+                10, // num_addresses
+                true // shareNonce
+            ),
+            network_id: 137, // Polygon mainnet id
+            networkCheckTimeout: 60000,
+            //gas: 7017622, //
+            gasPrice: 30000000000,// 30 Gwei
+            confirmations: 2, // # of confs to wait between deployments. (default: 0)
+            timeoutBlocks: 50, // # of blocks before a deployment times out  (minimum/default: 50)
+            skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
+        },
+        "polygon-curve-whitelisted": {
             provider: () => new HDWalletProvider(
                 process.env.POLYGON_MAINNET_MNEMONIC,
                 process.env.POLYGON_MAINNET_PROVIDER_URL,

@@ -1,15 +1,15 @@
-const { shouldBehaveLikeGoodGhostingPolygonCurve } = require("./GoodGhostingPolygonCurve.behavior");
+const { shouldBehaveLikeGoodGhostingPolygonCurveWhitelisted } = require("./GoodGhostingPolygonCurveWhitelisted.behavior");
 
 
-contract("GoodGhostingPolygonCurve", (accounts) => {
+contract("GoodGhostingPolygonCurveWhitelisted", (accounts) => {
 
     // Only executes this test file IF NOT a local network fork
     if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork",  "local-polygon-vigil-fork-curve", "local-polygon-whitelisted-vigil-fork", "local-polygon-whitelisted-vigil-fork-curve"].includes(process.env.NETWORK)) return;
 
     // Tests with Aave Pool
-    shouldBehaveLikeGoodGhostingPolygonCurve(accounts, 0);
+    shouldBehaveLikeGoodGhostingPolygonCurveWhitelisted(accounts, 0);
     
     // Tests with AtriCrypto Pool
-    shouldBehaveLikeGoodGhostingPolygonCurve(accounts, 1);
+    shouldBehaveLikeGoodGhostingPolygonCurveWhitelisted(accounts, 1);
 
 });

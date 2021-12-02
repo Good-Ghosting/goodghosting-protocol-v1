@@ -3,6 +3,7 @@ const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonWhitelisted = artifacts.require(
     "GoodGhostingPolygonWhitelisted"
 );
+const GoodGhostingPolygonCurveWhitelisted = artifacts.require("GoodGhostingPolygonCurveWhitelisted");
 const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
@@ -30,7 +31,8 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
             "local-celo-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
-            "local-polygon-vigil-fork-curve"
+            "local-polygon-vigil-fork-curve",
+            "local-polygon-whitelisted-vigil-fork-curve"
         ].includes(process.env.NETWORK)
     )
         return;
@@ -53,9 +55,16 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
     } else if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
         GoodGhostingArtifact = GoodGhostingPolygonCurve;
         providersConfigs = configs.providers.aave["polygon-curve"];
-    } else {
+    } else if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
         providersConfigs = configs.providers.aave.polygon;
+    } else {
+        GoodGhostingArtifact = GoodGhostingPolygonCurveWhitelisted;
+        providersConfigs = configs.providers.aave["polygon-curve"];
+        curve = new web3.eth.Contract(
+            daiABI,
+            providersConfigs.curve
+        );
     }
 
     const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt, customFee, earlyWithdrawFee } = configs.deployConfigs;
@@ -109,7 +118,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
             const expectedSegment = new BN(0);
             const currentSegmentResult = await goodGhosting.getCurrentSegment.call({ from: admin });
             assert(inboundCurrencyResult === token.options.address, `Inbound currency doesn't match. expected ${token.options.address}; got ${inboundCurrencyResult}`);
-            if (process.env.NETWORK !== "local-polygon-vigil-fork-curve") {
+            if (process.env.NETWORK !== "local-polygon-vigil-fork-curve" && process.env.NETWORK !== "local-polygon-whitelisted-vigil-fork-curve") {
                 const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
 
                 assert(
@@ -127,7 +136,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
         it("players approve DAI to contract and join the game", async () => {
             const userSlippageOptions = [3, 5, 1, 2.5, 1.5];
 
-            for (let i = 0; i < players.length; i++) {
+            for (let i = 0; i < players.length - 1; i++) {
                 const player = players[i];
                 await token.methods
                     .approve(goodGhosting.address, segmentPayment.mul(new BN(segmentCount)).toString())
@@ -138,10 +147,11 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     process.env.NETWORK === "local-mainnet-fork" ||
                     process.env.NETWORK === "local-celo-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork" ||
-                    process.env.NETWORK === "local-polygon-vigil-fork-curve"
+                    process.env.NETWORK === "local-polygon-vigil-fork-curve" ||
+                    process.env.NETWORK ===  "local-polygon-whitelisted-vigil-fork-curve"
                 ) {
                     let result, slippageFromContract;
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                         const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)));
                         if (providersConfigs.poolType == 0) {
                             slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
@@ -149,7 +159,11 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                             slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0,0,0], true).call();
                         }
                         const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("10000")));
-                        result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                        if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+                            result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player, gas: 6000000 });
+                        } else {
+                            result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                        }
                     } else {
                         result = await goodGhosting.joinGame({ from: player, gas: 6000000 });
                     }
@@ -218,7 +232,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                 if (segmentIndex === 1) {
                     const withdrawAmount = segmentPayment.sub(segmentPayment.mul(new BN(earlyWithdrawFee)).div(new BN(100)));
                     let lpTokenAmount;
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                         if (providersConfigs.poolType == 0) {
                             lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
                         } else {
@@ -258,7 +272,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     let userProvidedMinAmount, slippageFromContract, minAmountWithFees;
                     for (let j = 1; j < players.length - 1; j++) {
                         const player = players[j];
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                             userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)));
                             if (providersConfigs.poolType == 0) {
                                 slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
@@ -282,7 +296,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     if (segmentIndex === 2) {
                         const withdrawAmount = segmentPayment.sub(segmentPayment.mul(new BN(earlyWithdrawFee)).div(new BN(100)));
                         let lpTokenAmount;
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                             if (providersConfigs.poolType == 0) {
                                 lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
                             } else {
@@ -318,7 +332,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     for (let j = 2; j < players.length - 1; j++) {
                         const player = players[j];
                         let userProvidedMinAmount, slippageFromContract, minAmountWithFees;
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                             userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)));
                             if (providersConfigs.poolType == 0) {
                                 slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
@@ -350,7 +364,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
 
             let eventAmount = new BN(0);
             let result;
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                 const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call();
                 let minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call();
                 const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)));
@@ -397,7 +411,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                 }
 
                 let result;
-                if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+                if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
                     // redeem already called hence passing in 0
                     result = await goodGhosting.withdraw(0, { from: player });
                 } else {

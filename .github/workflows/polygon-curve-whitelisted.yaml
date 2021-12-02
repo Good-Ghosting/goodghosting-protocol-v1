@@ -1,0 +1,31 @@
+name: Polygon Curve Whitelisted Fork Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    env:
+      DAI_ACCOUNT_HOLDER_FORKED_NETWORK: '0xc75a0ff40db54203d66bff76315ed25d66037ce1'
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: yarn install
+      - run: yarn add global truffle
+      - run: yarn add global ganache-cli
+      - run: |
+          npx ganache-cli -f https://matic-mainnet.chainstacklabs.com -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0xc75a0ff40db54203d66bff76315ed25d66037ce1 &
+          yarn test:fork:polygon-whitelisted:curve
