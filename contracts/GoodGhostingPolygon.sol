@@ -188,10 +188,14 @@ contract GoodGhostingPolygon is GoodGhosting {
 
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
+        if (address(daiToken) == address(matic)) {
+            rewardsAmount = 0;
+        }
         // If there's an incentive token address defined, sets the total incentive amount to be distributed among winners.
-        if (address(incentiveToken) != address(0)) {
+        if (address(incentiveToken) != address(0) && (address(daiToken) != address(incentiveToken) && address(matic) != address(incentiveToken))) {
             totalIncentiveAmount = IERC20(incentiveToken).balanceOf(address(this));
         }
+
         // calculates gross interest
         uint256 grossInterest = 0;
         // Sanity check to avoid reverting due to overflow in the "subtraction" below.
