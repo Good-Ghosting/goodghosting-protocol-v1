@@ -83,12 +83,13 @@ contract GoodGhostingPolygon is GoodGhosting {
         // when there are no winners, admin will be able to withdraw the
         // additional incentives sent to the pool, avoiding locking the funds.
         uint256 adminIncentiveAmount = 0;
+        // if totalIncentiveAmount = 0 either there is no incentive or the incentive token address is same as the deposit or matic token or same as both
         if (winnerCount == 0 && totalIncentiveAmount > 0) {
             adminIncentiveAmount = totalIncentiveAmount;
         }
 
         emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount, adminIncentiveAmount);
-
+        // in the instance daiToken is similar to matic or incentive or both then also only the adminFeeAmount will get sent
         if (adminFeeAmount > 0) {
             require(
                 IERC20(daiToken).transfer(owner(), adminFeeAmount),
@@ -102,8 +103,9 @@ contract GoodGhostingPolygon is GoodGhosting {
                 "Fail to transfer ER20 incentive tokens to admin"
             );
         }
-
-        if (rewardsPerPlayer == 0) {
+        // rewardsPerPlayer will be 0 in case of same token address as deposit token
+        // in the instance the maitic token is not same as the daiToken then only the matic balance will be sent
+        if (winnerCount == 0 && rewardsPerPlayer == 0 && address(daiToken) != address(matic)) {
             uint256 balance = IERC20(matic).balanceOf(address(this));
             require(
                 IERC20(matic).transfer(owner(), balance),
