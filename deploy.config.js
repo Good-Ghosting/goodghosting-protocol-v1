@@ -21,7 +21,8 @@ exports.providers = {
             lendingPoolAddressProvider: "0xd05e3E715d945B59290df0ae8eF85c1BdB684744",
             dataProvider: "0x7551b5D2763519d4e37e8B81929D336De671d46d",
             incentiveController: "0x357D51124f59836DeD84c8a1730D72B749d8BC23",
-            wmatic: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+            wmatic: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+            wethGateway: "0xbEadf48d62aCC944a06EEaE0A9054A90E5A7dc97",
             dai: {
                 address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
                 decimals: 18,

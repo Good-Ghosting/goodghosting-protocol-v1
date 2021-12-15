@@ -21,6 +21,7 @@ function getNetworkName(network) {
     if (name.includes("kovan")) return "kovan";
     if (name.includes("ropsten")) return "ropsten";
     if (name.includes("mainnet")) return "mainnet";
+    if (name.includes("polygon-same-tokens")) return "polygon-same-tokens"
     if (name.includes("polygon")) return "polygon";
     if (name.includes("alfajores")) return "alfajores";
     if (name.includes("celo")) return "celo";
@@ -43,6 +44,7 @@ function printSummary(
         incentiveToken,
         incentiveController,
         wmatic,
+        wethGateway,
         merkleRoot,
     },
     // additional logging info
@@ -55,7 +57,7 @@ function printSummary(
     }
 
 ) {
-    const isPolygon = networkName.toLowerCase() === "polygon";
+    const isPolygon = networkName.toLowerCase() === "polygon" || "polygon-same-tokens";
     const isPolygonWhitelisted = networkName.toLowerCase() === "polygon-whitelisted" || ["polygon-whitelisted"].includes(networkName.toLowerCase()); // for local network
 
     var parameterTypes = [
@@ -86,11 +88,13 @@ function printSummary(
     if (isPolygon) {
         parameterTypes.push(
             "address", // IncentiveController
-            "address" // wmatic token
+            "address", // wmatic token
+            "address" // wethGateway
         );
         parameterValues.push(
             incentiveController,
-            wmatic
+            wmatic,
+            wethGateway
         );
     }
 
@@ -98,11 +102,13 @@ function printSummary(
         parameterTypes.push(
             "address", // IncentiveController
             "address", // wmatic token
+            "address", // wethGateway
             "bytes32" // merkle root
         );
         parameterValues.push(
             incentiveController,
             wmatic,
+            wethGateway,
             merkleRoot
         );
     }
@@ -128,10 +134,13 @@ function printSummary(
     if (isPolygon) {
         console.log(`Incentive Controller: ${incentiveController}`);
         console.log(`Matic Token: ${wmatic}`);
+        console.log(`WETH Gateway: ${wethGateway}`);
+
     }
     if (isPolygonWhitelisted) {
         console.log(`Incentive Controller: ${incentiveController}`);
         console.log(`Matic Token: ${wmatic}`);
+        console.log(`WETH Gateway: ${wethGateway}`);
         console.log(`Merkle Root: ${merkleRoot}`);
 
     }
@@ -155,9 +164,15 @@ module.exports = function (deployer, network, accounts) {
             deployConfigs.selectedProvider = "moola";
             deployConfigs.inboundCurrencySymbol = "cusd";
         }
-        const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkName];
+        let networkConfig;
+        if (networkName === "polygon" || networkName === "polygon-same-tokens") {
+            networkConfig = "polygon";
+        } else {
+            networkConfig = networkName;
+        }
+        const poolConfigs = providers[deployConfigs.selectedProvider.toLowerCase()][networkConfig];
         const lendingPoolAddressProvider = poolConfigs.lendingPoolAddressProvider;
-        const inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
+        let inboundCurrencyAddress = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].address;
         const inboundCurrencyDecimals = poolConfigs[deployConfigs.inboundCurrencySymbol.toLowerCase()].decimals;
         const segmentPaymentWei = (deployConfigs.segmentPayment * 10 ** inboundCurrencyDecimals).toString();
         const incentiveController = poolConfigs.incentiveController;
@@ -171,14 +186,14 @@ module.exports = function (deployer, network, accounts) {
             networkName = "polygon-whitelisted";
         }
 
-        if (networkName === "polygon") {
+        if (networkName === "polygon" || networkName === "polygon-same-tokens") {
             goodGhostingContract = GoodGhostingPolygonContract;
         } else if (networkName === "polygon-whitelisted") {
             goodGhostingContract = GoodGhostingPolygonWhitelisted;
         }
 
         // Prepares deployment arguments
-        const deploymentArgs = [
+        let deploymentArgs = [
             goodGhostingContract,
             inboundCurrencyAddress,
             lendingPoolAddressProvider,
@@ -194,14 +209,35 @@ module.exports = function (deployer, network, accounts) {
         if (networkName === "polygon") {
             deploymentArgs.push(
                 incentiveController,
-                wmatic
+                wmatic,
+                poolConfigs.wethGateway
             );
         } else if (networkName === "polygon-whitelisted") {
             deploymentArgs.push(
                 incentiveController,
                 wmatic,
+                poolConfigs.wethGateway,
                 deployConfigs.merkleroot
             );
+        } else if (networkName === "polygon-same-tokens") {
+            inboundCurrencyAddress = wmatic;
+            // deposit and reward token addresses same
+            deploymentArgs = [
+                goodGhostingContract,
+                wmatic,
+                lendingPoolAddressProvider,
+                deployConfigs.segmentCount,
+                deployConfigs.segmentLength,
+                segmentPaymentWei,
+                deployConfigs.earlyWithdrawFee,
+                deployConfigs.customFee,
+                aaveContractAddress,
+                maxPlayersCount,
+                incentiveToken,
+                incentiveController,
+                wmatic,
+                poolConfigs.wethGateway
+            ];
         }
 
         // Deploys GoodGhosting contract based on network
@@ -224,6 +260,7 @@ module.exports = function (deployer, network, accounts) {
                 incentiveToken,
                 incentiveController,
                 wmatic,
+                wethGateway:  poolConfigs.wethGateway,
                 merkleRoot: deployConfigs.merkleroot,
             },
             {
