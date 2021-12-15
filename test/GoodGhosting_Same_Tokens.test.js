@@ -221,7 +221,7 @@ contract("GoodGhosting Pool with same deposit and reward tokens", (accounts) => 
                 from: admin,
             });
             const contractMaticBalance = await web3.eth.getBalance(goodGhosting.address)
-            console.log("contractsDaiBalance", contractMaticBalance.toString());
+            console.log("contractMaticBalance", contractMaticBalance.toString());
             truffleAssert.eventEmitted(
                 result,
                 "FundsRedeemedFromExternalPool",

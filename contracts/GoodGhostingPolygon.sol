@@ -376,8 +376,6 @@ contract GoodGhostingPolygon is GoodGhosting {
 
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
 
-        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
-        uint256 contractBalance = daiToken.balanceOf(address(this));
         if (address(daiToken) != address(matic)) {
             require(
                 daiToken.transferFrom(
@@ -387,10 +385,13 @@ contract GoodGhostingPolygon is GoodGhosting {
                 ),
                 "Transfer failed"
             );
+            // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
+            uint256 contractBalance = daiToken.balanceOf(address(this));
             require(
                 daiToken.approve(address(lendingPool), contractBalance),
                 "Fail to approve allowance to lending pool"
             );
+
 
             lendingPool.deposit(
                 address(daiToken),
