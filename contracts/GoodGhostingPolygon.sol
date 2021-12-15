@@ -8,6 +8,7 @@ import "./aave/ILendingPoolAddressesProvider.sol";
 import "./aave/ILendingPool.sol";
 import "./aave/AToken.sol";
 import "./aave/IncentiveController.sol";
+import "./aave/IWETHGateway.sol";
 import "./GoodGhosting.sol";
 
 /// @title GoodGhosting Game Contract
@@ -16,6 +17,8 @@ import "./GoodGhosting.sol";
 contract GoodGhostingPolygon is GoodGhosting {
     IncentiveController public incentiveController;
     IERC20 public immutable matic;
+    // we can make this immutable by removing the if else in constructor ****
+    IWETHGateway public wethGateway;
     uint256 public rewardsPerPlayer;
 
     /**
@@ -31,7 +34,8 @@ contract GoodGhostingPolygon is GoodGhosting {
         @param _maxPlayersCount max quantity of players allowed to join the game
         @param _incentiveToken optional token address used to provide additional incentives to users. Accepts "0x0" adresses when no incentive token exists.
         @param _incentiveController matic reward claim contract.
-        @param _matic matic token address.
+        @param _matic wmatic token address.
+        @param _wethGateway needed if the deposit token is wmatic
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -45,7 +49,8 @@ contract GoodGhostingPolygon is GoodGhosting {
         uint256 _maxPlayersCount,
         IERC20 _incentiveToken,
         address _incentiveController,
-        IERC20 _matic
+        IERC20 _matic,
+        IWETHGateway _wethGateway
     )
         public
         GoodGhosting(
@@ -61,8 +66,20 @@ contract GoodGhostingPolygon is GoodGhosting {
             _incentiveToken
         )
     {
-        require(_incentiveController != address(0), "invalid _incentiveController address");
+        require(
+            _incentiveController != address(0),
+            "invalid _incentiveController address"
+        );
         require(address(_matic) != address(0), "invalid _matic address");
+        if (address(_matic) == address(_inboundCurrency)) {
+            require(
+                address(_wethGateway) != address(0),
+                "invalid _wethGateway address"
+            );
+            wethGateway = _wethGateway;
+        } else {
+            wethGateway = IWETHGateway(address(0));
+        }
         // initializing incentiveController contract
         incentiveController = IncentiveController(_incentiveController);
         matic = _matic;
@@ -88,7 +105,12 @@ contract GoodGhostingPolygon is GoodGhosting {
             adminIncentiveAmount = totalIncentiveAmount;
         }
 
-        emit AdminWithdrawal(owner(), totalGameInterest, adminFeeAmount, adminIncentiveAmount);
+        emit AdminWithdrawal(
+            owner(),
+            totalGameInterest,
+            adminFeeAmount,
+            adminIncentiveAmount
+        );
         // in the instance daiToken is similar to matic or incentive or both then also only the adminFeeAmount will get sent
         if (adminFeeAmount > 0) {
             require(
@@ -105,12 +127,71 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
         // rewardsPerPlayer will be 0 in case of same token address as deposit token
         // in the instance the maitic token is not same as the daiToken then only the matic balance will be sent
-        if (winnerCount == 0 && rewardsPerPlayer == 0 && address(daiToken) != address(matic)) {
+        if (rewardsPerPlayer == 0) {
             uint256 balance = IERC20(matic).balanceOf(address(this));
             require(
                 IERC20(matic).transfer(owner(), balance),
                 "Fail to transfer ERC20 rewards tokens to admin"
             );
+        }
+    }
+
+    /// @notice Allows a player to withdraw funds before the game ends. An early withdrawal fee is charged.
+    /// @dev Cannot be called after the game is completed.
+    function earlyWithdraw()
+        external
+        override
+        whenNotPaused
+        whenGameIsNotCompleted
+    {
+        Player storage player = players[msg.sender];
+        require(player.amountPaid > 0, "Player does not exist");
+        require(!player.withdrawn, "Player has already withdrawn");
+        player.withdrawn = true;
+        activePlayersCount = activePlayersCount.sub(1);
+        if (winnerCount > 0 && player.isWinner) {
+            winnerCount = winnerCount.sub(uint256(1));
+            player.isWinner = false;
+            winners[player.winnerIndex] = address(0);
+        }
+
+        // In an early withdraw, users get their principal minus the earlyWithdrawalFee % defined in the constructor.
+        uint256 withdrawAmount = player.amountPaid.sub(
+            player.amountPaid.mul(earlyWithdrawalFee).div(100)
+        );
+        // Decreases the totalGamePrincipal on earlyWithdraw
+        totalGamePrincipal = totalGamePrincipal.sub(player.amountPaid);
+        uint256 currentSegment = getCurrentSegment();
+
+        // Users that early withdraw during the first segment, are allowed to rejoin.
+        if (currentSegment == 0) {
+            player.canRejoin = true;
+        }
+
+        emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
+        if (address(daiToken) != address(matic)) {
+            lendingPool.withdraw(
+                address(daiToken),
+                withdrawAmount,
+                address(this)
+            );
+            require(
+                IERC20(daiToken).transfer(msg.sender, withdrawAmount),
+                "Fail to transfer ERC20 tokens on early withdraw"
+            );
+        } else {
+            require(
+                adaiToken.approve(address(wethGateway), withdrawAmount),
+                "Fail to approve allowance to wethGateway"
+            );
+
+            wethGateway.withdrawETH(
+                address(lendingPool),
+                withdrawAmount,
+                address(this)
+            );
+            (bool success, ) = msg.sender.call{value: withdrawAmount}("");
+            require(success);
         }
     }
 
@@ -139,11 +220,15 @@ contract GoodGhostingPolygon is GoodGhosting {
             }
         }
         emit Withdrawal(msg.sender, payout, playerReward, playerIncentive);
-
-        require(
-            IERC20(daiToken).transfer(msg.sender, payout),
-            "Fail to transfer ERC20 tokens on withdraw"
-        );
+        if (address(daiToken) != address(matic)) {
+            require(
+                IERC20(daiToken).transfer(msg.sender, payout),
+                "Fail to transfer ERC20 tokens on withdraw"
+            );
+        } else {
+            (bool success, ) = msg.sender.call{value: payout}("");
+            require(success);
+        }
 
         if (playerIncentive > 0) {
             require(
@@ -167,11 +252,24 @@ contract GoodGhostingPolygon is GoodGhosting {
         redeemed = true;
         // Withdraws funds (principal + interest + rewards) from external pool
         if (adaiToken.balanceOf(address(this)) > 0) {
-            lendingPool.withdraw(
-                address(daiToken),
-                type(uint256).max,
-                address(this)
-            );
+            if (address(daiToken) != address(matic)) {
+                lendingPool.withdraw(
+                    address(daiToken),
+                    type(uint256).max,
+                    address(this)
+                );
+            } else {
+                require(
+                    adaiToken.approve(address(wethGateway), type(uint256).max),
+                    "Fail to approve allowance to lending pool"
+                );
+
+                wethGateway.withdrawETH(
+                    address(lendingPool),
+                    type(uint256).max,
+                    address(this)
+                );
+            }
             // Claims the rewards from the external pool
             address[] memory assets = new address[](1);
             assets[0] = address(adaiToken);
@@ -187,15 +285,23 @@ contract GoodGhostingPolygon is GoodGhosting {
                 );
             }
         }
-
-        uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
-        uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
-        if (address(daiToken) == address(matic)) {
-            rewardsAmount = 0;
+        uint256 totalBalance = 0;
+        if (address(daiToken) != address(matic)) {
+            totalBalance = IERC20(daiToken).balanceOf(address(this));
+        } else {
+            totalBalance = address(this).balance;
         }
+
+        uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
+
         // If there's an incentive token address defined, sets the total incentive amount to be distributed among winners.
-        if (address(incentiveToken) != address(0) && (address(daiToken) != address(incentiveToken) && address(matic) != address(incentiveToken))) {
-            totalIncentiveAmount = IERC20(incentiveToken).balanceOf(address(this));
+        if (
+            address(incentiveToken) != address(0) &&
+            address(matic) != address(incentiveToken)
+        ) {
+            totalIncentiveAmount = IERC20(incentiveToken).balanceOf(
+                address(this)
+            );
         }
 
         // calculates gross interest
@@ -234,5 +340,61 @@ contract GoodGhostingPolygon is GoodGhosting {
             totalIncentiveAmount
         );
         emit WinnersAnnouncement(winners);
+    }
+
+    /**
+        @dev Manages the transfer of funds from the player to the contract, recording
+        the required accounting operations to control the user's position in the pool.
+     */
+    function _transferDaiToContract() internal override {
+        if (address(daiToken) != address(matic)) {
+            require(
+                daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
+                "You need to have allowance to do transfer DAI on the smart contract"
+            );
+        }
+
+        uint256 currentSegment = getCurrentSegment();
+        players[msg.sender].mostRecentSegmentPaid = currentSegment;
+        players[msg.sender].amountPaid = players[msg.sender].amountPaid.add(
+            segmentPayment
+        );
+        // check if this is deposit for the last segment. If yes, the player is a winner.
+        // since both join game and deposit method call this method so having it here
+        if (currentSegment == lastSegment.sub(1)) {
+            winners.push(msg.sender);
+            // array indexes start from 0
+            players[msg.sender].winnerIndex = winners.length.sub(uint256(1));
+            winnerCount = winnerCount.add(uint256(1));
+            players[msg.sender].isWinner = true;
+        }
+
+        totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
+        require(
+            daiToken.transferFrom(msg.sender, address(this), segmentPayment),
+            "Transfer failed"
+        );
+
+        // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
+        uint256 contractBalance = daiToken.balanceOf(address(this));
+        if (address(daiToken) != address(matic)) {
+            require(
+                daiToken.approve(address(lendingPool), contractBalance),
+                "Fail to approve allowance to lending pool"
+            );
+
+            lendingPool.deposit(
+                address(daiToken),
+                contractBalance,
+                address(this),
+                155
+            );
+        } else {
+            wethGateway.depositETH{value: segmentPayment}(
+                address(lendingPool),
+                address(this),
+                155
+            );
+        }
     }
 }
