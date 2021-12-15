@@ -11,7 +11,7 @@ const truffleAssert = require("truffle-assertions");
 
 contract("GoodGhostingPolygon", (accounts) => {
     // Only executes this test file IF NOT a local network fork
-    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
+    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork", "local-polygon-whitelisted-vigil-fork", "local-polygon-same-tokens-vigil-fork"].includes(process.env.NETWORK)) return;
 
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     const admin = accounts[0];

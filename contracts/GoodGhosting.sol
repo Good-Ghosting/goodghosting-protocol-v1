@@ -233,6 +233,7 @@ contract GoodGhosting is Ownable, Pausable {
     /// @notice Allows a player to join the game
     function joinGame()
         external
+        payable
         virtual
         whenNotPaused
     {
@@ -314,7 +315,7 @@ contract GoodGhosting is Ownable, Pausable {
     }
 
     /// @notice Allows players to make deposits for the game segments, after joining the game.
-    function makeDeposit() external whenNotPaused {
+    function makeDeposit() external payable whenNotPaused {
         Player storage player = players[msg.sender];
         require(
             !player.withdrawn,
@@ -502,4 +503,7 @@ contract GoodGhosting is Ownable, Pausable {
         emit JoinedGame(msg.sender, segmentPayment);
         _transferDaiToContract();
     }
+
+    // Fallback Functions for calldata and reciever for handling only ether transfer
+    receive() external payable {}
 }

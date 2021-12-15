@@ -9,6 +9,7 @@
     "test:fork:mainnet": "truffle test --network local-mainnet-fork",
     "test:fork:celo": "truffle test --network local-celo-fork",
     "test:fork:polygon:vigil": "truffle test --network local-polygon-vigil-fork",
+    "test:fork:polygon:vigil:same:token": "truffle test --network local-polygon-same-tokens-vigil-fork",
     "test:fork:polygon-whitelisted:vigil": "truffle test --network local-polygon-whitelisted-vigil-fork",
     "coverage": "truffle run coverage --network soliditycoverage",
     "deploy:ropsten": "truffle deploy -f 2 --network ropsten --reset",

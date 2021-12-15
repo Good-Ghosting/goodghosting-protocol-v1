@@ -113,10 +113,15 @@ contract GoodGhostingPolygon is GoodGhosting {
         );
         // in the instance daiToken is similar to matic or incentive or both then also only the adminFeeAmount will get sent
         if (adminFeeAmount > 0) {
-            require(
-                IERC20(daiToken).transfer(owner(), adminFeeAmount),
-                "Fail to transfer ER20 tokens to admin"
-            );
+            if (address(daiToken) != address(matic)) {
+                require(
+                    IERC20(daiToken).transfer(owner(), adminFeeAmount),
+                    "Fail to transfer ER20 tokens to admin"
+                );
+            } else {
+                (bool success, ) = msg.sender.call{value: adminFeeAmount}("");
+                require(success);
+            }
         }
 
         if (adminIncentiveAmount > 0) {
@@ -370,14 +375,18 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
 
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
-        require(
-            daiToken.transferFrom(msg.sender, address(this), segmentPayment),
-            "Transfer failed"
-        );
 
         // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
         uint256 contractBalance = daiToken.balanceOf(address(this));
         if (address(daiToken) != address(matic)) {
+            require(
+                daiToken.transferFrom(
+                    msg.sender,
+                    address(this),
+                    segmentPayment
+                ),
+                "Transfer failed"
+            );
             require(
                 daiToken.approve(address(lendingPool), contractBalance),
                 "Fail to approve allowance to lending pool"

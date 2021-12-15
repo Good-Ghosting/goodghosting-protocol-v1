@@ -57,6 +57,12 @@ module.exports = {
             port: 8545,
             network_id: "*",
         },
+        "local-polygon-same-tokens-vigil-fork": {
+            host: "127.0.0.1",
+            port: 8545,
+            network_id: "*",
+            gas: 6000000
+        },
         "local-polygon-whitelisted-vigil-fork": {
             host: "127.0.0.1",
             port: 8545,
