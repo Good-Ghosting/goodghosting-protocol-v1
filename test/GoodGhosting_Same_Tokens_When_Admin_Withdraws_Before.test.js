@@ -6,7 +6,7 @@ const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
 const configs = require("../deploy.config");
 
-contract("GoodGhosting Pool with same deposit and reward tokens", (accounts) => {
+contract("GoodGhosting Pool with same deposit and reward tokens when admin withdraws before the players", (accounts) => {
     // Only executes this test file for local network fork
     if (
         ![
@@ -271,44 +271,6 @@ contract("GoodGhosting Pool with same deposit and reward tokens", (accounts) => 
             );
         });
 
-        it("players withdraw from contract", async () => {
-            // starts from 2, since player1 (loser), requested an early withdraw and player 2 withdrew after the last segment
-            for (let i = 2; i < players.length - 1; i++) {
-                const player = players[i];
-                let rewardBalanceBefore = new BN(0);
-                let rewardBalanceAfter = new BN(0);
-                    rewardBalanceBefore = new BN(
-                        await rewardToken.methods
-                            .balanceOf(player)
-                            .call({ from: admin })
-                    );
-
-
-                const result = await goodGhosting.withdraw({ from: player });
-
-                    rewardBalanceAfter = new BN(
-                        await rewardToken.methods
-                            .balanceOf(player)
-                            .call({ from: admin })
-                    );
-
-                    assert(
-                        rewardBalanceAfter.gt(rewardBalanceBefore),
-                        "expected rewards balance after withdrawal to be greater than before withdrawal"
-                    );
-
-                truffleAssert.eventEmitted(
-                    result,
-                    "Withdrawal",
-                    async (ev) => {
-                        console.log(
-                            `player${i} withdraw amount: ${ev.amount.toString()}`
-                        );
-                    },
-                    "withdrawal event failure"
-                );
-            }
-        });
 
         it("admin withdraws admin fee from contract", async () => {
             if (customFee > 0) {
@@ -345,6 +307,45 @@ contract("GoodGhosting Pool with same deposit and reward tokens", (accounts) => 
                     "AdminWithdrawal",
                     (ev) => expectedAmount.eq(ev.adminFeeAmount),
                     "admin fee withdrawal event failure"
+                );
+            }
+        });
+
+        it("players withdraw from contract", async () => {
+            // starts from 2, since player1 (loser), requested an early withdraw and player 2 withdrew after the last segment
+            for (let i = 2; i < players.length - 1; i++) {
+                const player = players[i];
+                let rewardBalanceBefore = new BN(0);
+                let rewardBalanceAfter = new BN(0);
+                    rewardBalanceBefore = new BN(
+                        await rewardToken.methods
+                            .balanceOf(player)
+                            .call({ from: admin })
+                    );
+
+
+                const result = await goodGhosting.withdraw({ from: player });
+
+                    rewardBalanceAfter = new BN(
+                        await rewardToken.methods
+                            .balanceOf(player)
+                            .call({ from: admin })
+                    );
+
+                    assert(
+                        rewardBalanceAfter.gt(rewardBalanceBefore),
+                        "expected rewards balance after withdrawal to be greater than before withdrawal"
+                    );
+
+                truffleAssert.eventEmitted(
+                    result,
+                    "Withdrawal",
+                    async (ev) => {
+                        console.log(
+                            `player${i} withdraw amount: ${ev.amount.toString()}`
+                        );
+                    },
+                    "withdrawal event failure"
                 );
             }
         });
