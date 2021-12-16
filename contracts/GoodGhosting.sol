@@ -241,7 +241,7 @@ contract GoodGhosting is Ownable, Pausable {
 
     /// @notice Allows a player to withdraw funds before the game ends. An early withdrawal fee is charged.
     /// @dev Cannot be called after the game is completed.
-    function earlyWithdraw() external whenNotPaused whenGameIsNotCompleted {
+    function earlyWithdraw() external virtual whenNotPaused whenGameIsNotCompleted {
         Player storage player = players[msg.sender];
         require(player.amountPaid > 0, "Player does not exist");
         require(!player.withdrawn, "Player has already withdrawn");
@@ -434,7 +434,7 @@ contract GoodGhosting is Ownable, Pausable {
         @dev Manages the transfer of funds from the player to the contract, recording
         the required accounting operations to control the user's position in the pool.
      */
-    function _transferDaiToContract() internal {
+    function _transferDaiToContract() internal virtual {
         require(
             daiToken.allowance(msg.sender, address(this)) >= segmentPayment,
             "You need to have allowance to do transfer DAI on the smart contract"
@@ -502,4 +502,7 @@ contract GoodGhosting is Ownable, Pausable {
         emit JoinedGame(msg.sender, segmentPayment);
         _transferDaiToContract();
     }
+
+    // Fallback Functions for calldata and reciever for handling only ether transfer
+    receive() external payable {}
 }

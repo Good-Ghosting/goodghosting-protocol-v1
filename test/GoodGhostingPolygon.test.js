@@ -11,7 +11,7 @@ const truffleAssert = require("truffle-assertions");
 
 contract("GoodGhostingPolygon", (accounts) => {
     // Only executes this test file IF NOT a local network fork
-    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
+    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork", "local-polygon-whitelisted-vigil-fork", "local-polygon-same-tokens-vigil-fork"].includes(process.env.NETWORK)) return;
 
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     const admin = accounts[0];
@@ -901,6 +901,416 @@ contract("GoodGhostingPolygon", (accounts) => {
                     );
                 }, "invalid withdraw amounts for player 1");
             });
+        });
+    });
+
+    describe("when reward and deposit token or incentive and deposit token or incentive and reward token are same", async () => {
+        beforeEach(async () => {
+            pap = await LendingPoolAddressesProviderMock.new("TOKEN_NAME", "TOKEN_SYMBOL", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(incentiveController.address);
+            await incentiveController.mint(player1, toWad(1000), { from: admin });
+            await incentiveController.mint(player2, toWad(1000), { from: admin });
+            contract = await GoodGhostingPolygon.new(
+                incentiveController.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                ZERO_ADDRESS,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+        });
+
+        it("ensures the reward params are set correctly after redeem", async () => {
+            const expectedBalance = web3.utils.toBN(segmentPayment * segmentCount * 2);
+            await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+            await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+            await contract.joinGame( { from: player2 });
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+                await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+                await contract.makeDeposit({ from: player1 });
+                await contract.makeDeposit({ from: player2 });
+
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(contract.address);
+            await contract.redeemFromExternalPool({ from: player2 });
+            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(contract.address);
+            const rewardBalance = await contract.rewardsPerPlayer.call();
+            assert(rewardBalance.eq(new BN(0)))
+            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
+            const contractsDaiBalance = await incentiveController.balanceOf(contract.address);
+            // No interest is generated during tests so far, so contract balance must equals the amount deposited.
+            // contractsDaiBalance will have addiional deposit rewards too
+            assert(expectedBalance.lt(contractsDaiBalance));
+        });
+
+        it("emits event FundsRedeemedFromExternalPool when redeem is successful", async () => {
+            await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+            await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+            await contract.joinGame( { from: player2 });
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+                await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+                await contract.makeDeposit({ from: player1 });
+                await contract.makeDeposit({ from: player2 });
+
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(contract.address);
+            const result = await contract.redeemFromExternalPool({ from: player1 });
+            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(contract.address);
+            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
+            const contractsDaiBalance = await incentiveController.balanceOf(contract.address);
+            truffleAssert.eventEmitted(
+                result,
+                "FundsRedeemedFromExternalPool",
+                (ev) => {
+                    return new BN(ev.totalAmount).eq(new BN(contractsDaiBalance));
+                });
+        });
+
+        it("ensures redeem is successfull when there is interest generated in addition to the deposit reward", async () => {
+            await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+            await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+            await contract.joinGame( { from: player2 });
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+                await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+                await contract.makeDeposit({ from: player1 });
+                await contract.makeDeposit({ from: player2 });
+
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            // Simulate some interest 
+            await incentiveController.mint(admin, toWad(1000), { from: admin });
+            await incentiveController.approve(pap.address, toWad(1000), { from: admin });
+            await pap.deposit(incentiveController.address, toWad(1000), pap.address, 0, { from: admin });
+            await aToken.transfer(contract.address, toWad(1000), { from: admin });
+            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(contract.address);
+             await contract.redeemFromExternalPool({ from: player1 });
+            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(contract.address);
+            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
+        });
+
+        it("ensures both winners and admin can withdraw when the tokens are same and the admin fee is non-zero ", async () => {
+            const expectedBalance = web3.utils.toBN(segmentPayment * segmentCount);
+
+            contract = await GoodGhostingPolygon.new(
+                incentiveController.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                1,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                ZERO_ADDRESS,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+            await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+                await contract.makeDeposit({ from: player1 });
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            await contract.redeemFromExternalPool({ from: player1 });
+            const depositTokenBalanceBefore = await incentiveController.balanceOf(admin)
+
+            await contract.adminFeeWithdraw({ from: admin })
+
+            const depositTokenBalanceAfter = await incentiveController.balanceOf(admin)
+    
+            assert(depositTokenBalanceAfter.gt(depositTokenBalanceBefore));
+            // check if non-winners are able to withdraw
+            let playerDepositTokenBalanceBeforeWithdraw = await incentiveController.balanceOf(player1);
+            await contract.withdraw({ from: player1 })
+            let playerDepositTokenBalanceAfterWithdraw = await incentiveController.balanceOf(player1);
+            const totalInterest = await contract.totalGameInterest();
+            const difference = playerDepositTokenBalanceAfterWithdraw.sub(playerDepositTokenBalanceBeforeWithdraw)
+            const actualRecievedInterest = difference.sub(expectedBalance)
+
+            assert(actualRecievedInterest.eq(totalInterest))
+            assert(playerDepositTokenBalanceAfterWithdraw.gt(playerDepositTokenBalanceBeforeWithdraw));
+        });
+
+        it("ensures redeem is successfull when incentive and deposit token are same", async () => {
+            contract = await GoodGhostingPolygon.new(
+                incentiveController.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                incentiveController.address,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+            await incentiveController.mint(contract.address, toWad(1000), { from: admin });
+
+            await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+            await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+            await contract.joinGame( { from: player2 });
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+                await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+                await contract.makeDeposit({ from: player1 });
+                await contract.makeDeposit({ from: player2 });
+
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(contract.address);
+            await contract.redeemFromExternalPool({ from: player1 });
+            const incentiveAmount = await contract.totalIncentiveAmount.call();
+            assert(incentiveAmount.eq(new BN(0)))
+            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(contract.address);
+            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
+        });
+
+        it("ensures redeem is successfull when incentive and reward token are same", async () => {
+            contract = await GoodGhostingPolygon.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                incentiveController.address,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+            await incentiveController.mint(contract.address, toWad(1000), { from: admin });
+            await token.approve(contract.address, segmentPayment, { from: player1 });
+            await token.approve(contract.address, segmentPayment, { from: player2 });
+
+            await contract.joinGame( { from: player2 });
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+                await token.approve(contract.address, segmentPayment, { from: player1 });
+                await token.approve(contract.address, segmentPayment, { from: player2 });
+
+                await contract.makeDeposit({ from: player1 });
+                await contract.makeDeposit({ from: player2 });
+
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(contract.address);
+            await contract.redeemFromExternalPool({ from: player1 });
+            const incentiveAmount = await contract.totalIncentiveAmount.call();
+            assert(incentiveAmount.eq(new BN(0)))
+            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(contract.address);
+            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
+        });
+
+        it("ensures admin is able to redeem when incentive token is defined and it is same as reward token", async () => {
+            contract = await GoodGhostingPolygon.new(
+                token.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                incentiveController.address,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+            await incentiveController.mint(contract.address, toWad(1000), { from: admin });
+            await token.approve(contract.address, segmentPayment, { from: player1 });
+            await token.approve(contract.address, segmentPayment, { from: player2 });
+
+            await contract.joinGame( { from: player2 });
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(contract.address);
+            await contract.redeemFromExternalPool({ from: player1 });
+            const incentiveAmount = await contract.totalIncentiveAmount.call();
+            assert(incentiveAmount.eq(new BN(0)))
+            const rewardAmount = await contract.rewardsPerPlayer.call()
+            assert((rewardAmount.eq(new BN(0))))
+            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(contract.address);
+            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
+            const rewardBalanceBefore = await incentiveController.balanceOf(admin)
+            await contract.adminFeeWithdraw({ from: admin })
+            const rewardBalanceAfter = await incentiveController.balanceOf(admin)
+            assert(rewardBalanceAfter.gt(rewardBalanceBefore));
+            // check if non-winners are able to withdraw
+            let playerDepositBalanceBeforeWithdraw = await token.balanceOf(player1);
+            await contract.withdraw({ from: player1 })
+            let playerDepositBalanceAfterWithdraw = await token.balanceOf(player1);
+            assert(playerDepositBalanceAfterWithdraw.gt(playerDepositBalanceBeforeWithdraw));
+        });
+
+        it("ensures admin is able to redeem when incentive token is defined and all tokens are same", async () => {
+            contract = await GoodGhostingPolygon.new(
+                incentiveController.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                incentiveController.address,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+            await incentiveController.mint(contract.address, toWad(1000), { from: admin });
+            await incentiveController.approve(contract.address, segmentPayment, { from: player1 });
+            await incentiveController.approve(contract.address, segmentPayment, { from: player2 });
+
+            await contract.joinGame( { from: player2 });
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            let contractMaticBalanceBeforeRedeem = await incentiveController.balanceOf(contract.address);
+            await contract.redeemFromExternalPool({ from: player1 });
+            const incentiveAmount = await contract.totalIncentiveAmount.call();
+            assert(incentiveAmount.eq(new BN(0)))
+            const rewardAmount = await contract.rewardsPerPlayer.call()
+            assert((rewardAmount.eq(new BN(0))))
+            let contractMaticBalanceAfterRedeem = await incentiveController.balanceOf(contract.address);
+            assert(contractMaticBalanceAfterRedeem.gt(contractMaticBalanceBeforeRedeem));
+            const rewardBalanceBefore = await incentiveController.balanceOf(admin)
+            await contract.adminFeeWithdraw({ from: admin })
+            const rewardBalanceAfter = await incentiveController.balanceOf(admin)
+            assert(rewardBalanceAfter.gt(rewardBalanceBefore));
+            // check if non-winners are able to withdraw
+            let playerMaticBalanceBeforeWithdraw = await incentiveController.balanceOf(player1);
+            await contract.withdraw({ from: player1 })
+            let playerMaticBalanceAfterWithdraw = await incentiveController.balanceOf(player1);
+            assert(playerMaticBalanceAfterWithdraw.gt(playerMaticBalanceBeforeWithdraw));
+
+        });
+
+        it("ensures admin is able to redeem when incentive token is defined and the deposit and incentive tokens are same ", async () => {
+            const incentiveToken = await ERC20Mintable.new("INCENTIVE", "INCENTIVE", { from: admin });
+            aToken = await IERC20.at(await pap.getLendingPool.call());
+            await pap.setUnderlyingAssetAddress(incentiveToken.address);
+            await incentiveToken.mint(player1, toWad(1000), { from: admin });
+            await incentiveToken.mint(player2, toWad(1000), { from: admin });
+            contract = await GoodGhostingPolygon.new(
+                incentiveToken.address,
+                pap.address,
+                segmentCount,
+                segmentLength,
+                segmentPayment,
+                fee,
+                0,
+                pap.address,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935", // equals to 2**256-1
+                incentiveToken.address,
+                incentiveController.address,
+                incentiveController.address,
+                { from: admin },
+            );
+            await incentiveToken.mint(contract.address, toWad(1000), { from: admin });
+            await incentiveToken.approve(contract.address, segmentPayment, { from: player1 });
+            await incentiveToken.approve(contract.address, segmentPayment, { from: player2 });
+
+            await contract.joinGame( { from: player2 });
+            await contract.joinGame( { from: player1 });
+            for (let index = 1; index < segmentCount; index++) {
+                await timeMachine.advanceTime(weekInSecs);
+
+            }
+            // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+            // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+            await timeMachine.advanceTime(weekInSecs);
+            await timeMachine.advanceTime(weekInSecs);
+            let contractIncentiveBalanceBeforeRedeem = await incentiveToken.balanceOf(contract.address);
+            await contract.redeemFromExternalPool({ from: player1 });
+            const incentiveAmount = await contract.totalIncentiveAmount.call();
+            assert(incentiveAmount.eq(new BN(0)))
+            let contractIncentiveBalanceAfterRedeem = await incentiveToken.balanceOf(contract.address);
+            assert(contractIncentiveBalanceAfterRedeem.gt(contractIncentiveBalanceBeforeRedeem));
+            const incentiveBalanceBefore = await incentiveToken.balanceOf(admin)
+
+            await contract.adminFeeWithdraw({ from: admin })
+
+            const incentiveBalanceAfter = await incentiveToken.balanceOf(admin)
+    
+            assert(incentiveBalanceAfter.gt(incentiveBalanceBefore));
+            // check if non-winners are able to withdraw
+            let playerIncentiveBalanceBeforeWithdraw = await incentiveToken.balanceOf(player1);
+            await contract.withdraw({ from: player1 })
+            let playerIncentiveBalanceAfterWithdraw = await incentiveToken.balanceOf(player1);
+            assert(playerIncentiveBalanceAfterWithdraw.gt(playerIncentiveBalanceBeforeWithdraw));
         });
     });
 

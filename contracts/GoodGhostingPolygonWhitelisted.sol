@@ -22,6 +22,7 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
         @param _incentiveController matic reward claim contract.
         @param _matic matic token address.
         @param _merkleRoot merkle root to verify players on chain to allow only whitelisted users join.
+        @param _wethGateway needed if the deposit token is wmatic
      */
     constructor(
         IERC20 _inboundCurrency,
@@ -36,6 +37,7 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
         IERC20 _incentiveToken,
         address _incentiveController,
         IERC20 _matic,
+        IWETHGateway _wethGateway,
         bytes32 _merkleRoot
     )
         public
@@ -51,7 +53,8 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
             _maxPlayersCount,
             _incentiveToken,
             _incentiveController,
-            _matic
+            _matic,
+            _wethGateway
         )
         MerkleDistributor(_merkleRoot)
     {
