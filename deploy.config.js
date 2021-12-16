@@ -31,6 +31,10 @@ exports.providers = {
                 address: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
                 decimals: 18,
             },
+            "wrapped-matic": {
+                address: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+                decimals: 18,
+            },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         alfajores: {
