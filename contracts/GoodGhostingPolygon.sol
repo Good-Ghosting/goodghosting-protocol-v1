@@ -11,6 +11,8 @@ import "./aave/IncentiveController.sol";
 import "./aave/IWETHGateway.sol";
 import "./GoodGhosting.sol";
 
+import "./polygon/WMatic.sol";
+
 /// @title GoodGhosting Game Contract
 /// @author Francis Odisi & Viraz Malhotra
 /// @notice Used for the games deployed on Polygon using Aave as the underlying external pool.
@@ -113,15 +115,10 @@ contract GoodGhostingPolygon is GoodGhosting {
         );
         // in the instance daiToken is similar to matic or incentive or both then also only the adminFeeAmount will get sent
         if (adminFeeAmount > 0) {
-            if (address(daiToken) != address(matic)) {
-                require(
-                    IERC20(daiToken).transfer(owner(), adminFeeAmount),
-                    "Fail to transfer ER20 tokens to admin"
-                );
-            } else {
-                (bool success, ) = msg.sender.call{value: adminFeeAmount}("");
-                require(success);
-            }
+            require(
+                IERC20(daiToken).transfer(owner(), adminFeeAmount),
+                "Fail to transfer ER20 tokens to admin"
+            );
         }
 
         if (adminIncentiveAmount > 0) {
@@ -132,7 +129,7 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
         // rewardsPerPlayer will be 0 in case of same token address as deposit token
         // in the instance the maitic token is not same as the daiToken then only the matic balance will be sent
-        if (rewardsPerPlayer == 0) {
+        if (rewardsPerPlayer == 0 && address(daiToken) != address(matic)) {
             uint256 balance = IERC20(matic).balanceOf(address(this));
             require(
                 IERC20(matic).transfer(owner(), balance),
@@ -174,15 +171,12 @@ contract GoodGhostingPolygon is GoodGhosting {
         }
 
         emit EarlyWithdrawal(msg.sender, withdrawAmount, totalGamePrincipal);
+
         if (address(daiToken) != address(matic)) {
             lendingPool.withdraw(
                 address(daiToken),
                 withdrawAmount,
                 address(this)
-            );
-            require(
-                IERC20(daiToken).transfer(msg.sender, withdrawAmount),
-                "Fail to transfer ERC20 tokens on early withdraw"
             );
         } else {
             require(
@@ -195,9 +189,14 @@ contract GoodGhostingPolygon is GoodGhosting {
                 withdrawAmount,
                 address(this)
             );
-            (bool success, ) = msg.sender.call{value: withdrawAmount}("");
-            require(success);
+            // Wraps MATIC back into WMATIC
+            WMaticToken(address(matic)).deposit{value: withdrawAmount}();
         }
+
+        require(
+            IERC20(daiToken).transfer(msg.sender, withdrawAmount),
+            "Fail to transfer ERC20 tokens on early withdraw"
+        );
     }
 
     /// @notice Allows player to withdraw their funds after the game ends with no loss (fee). Winners get a share of the interest earned.
@@ -225,15 +224,11 @@ contract GoodGhostingPolygon is GoodGhosting {
             }
         }
         emit Withdrawal(msg.sender, payout, playerReward, playerIncentive);
-        if (address(daiToken) != address(matic)) {
-            require(
-                IERC20(daiToken).transfer(msg.sender, payout),
-                "Fail to transfer ERC20 tokens on withdraw"
-            );
-        } else {
-            (bool success, ) = msg.sender.call{value: payout}("");
-            require(success);
-        }
+
+        require(
+            IERC20(daiToken).transfer(msg.sender, payout),
+            "Fail to transfer ERC20 tokens on withdraw"
+        );
 
         if (playerIncentive > 0) {
             require(
@@ -242,7 +237,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             );
         }
 
-        if (playerReward > 0) {
+        if (playerReward > 0 && address(daiToken) != address(matic)) {
             require(
                 IERC20(matic).transfer(msg.sender, playerReward),
                 "Fail to transfer ERC20 rewards on withdraw"
@@ -266,7 +261,7 @@ contract GoodGhostingPolygon is GoodGhosting {
             } else {
                 require(
                     adaiToken.approve(address(wethGateway), type(uint256).max),
-                    "Fail to approve allowance to lending pool"
+                    "Fail to approve allowance to wethGateway"
                 );
 
                 wethGateway.withdrawETH(
@@ -274,6 +269,9 @@ contract GoodGhostingPolygon is GoodGhosting {
                     type(uint256).max,
                     address(this)
                 );
+
+                // Wraps MATIC back into WMATIC
+                WMaticToken(address(matic)).deposit{value: address(this).balance}();
             }
             // Claims the rewards from the external pool
             address[] memory assets = new address[](1);
@@ -290,14 +288,11 @@ contract GoodGhostingPolygon is GoodGhosting {
                 );
             }
         }
-        uint256 totalBalance = 0;
+        uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
+        uint256 rewardsAmount = 0;
         if (address(daiToken) != address(matic)) {
-            totalBalance = IERC20(daiToken).balanceOf(address(this));
-        } else {
-            totalBalance = address(this).balance;
+            rewardsAmount = IERC20(matic).balanceOf(address(this));
         }
-
-        uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
 
         // If there's an incentive token address defined, sets the total incentive amount to be distributed among winners.
         if (
@@ -376,17 +371,18 @@ contract GoodGhostingPolygon is GoodGhosting {
 
         totalGamePrincipal = totalGamePrincipal.add(segmentPayment);
 
+        require(
+            daiToken.transferFrom(
+                msg.sender,
+                address(this),
+                segmentPayment
+            ),
+            "Transfer failed"
+        );
+        // Allows the lending pool to convert depositToken deposited on this contract to aToken on lending pool
+        uint256 contractBalance = daiToken.balanceOf(address(this));
+
         if (address(daiToken) != address(matic)) {
-            require(
-                daiToken.transferFrom(
-                    msg.sender,
-                    address(this),
-                    segmentPayment
-                ),
-                "Transfer failed"
-            );
-            // Allows the lending pool to convert DAI deposited on this contract to aDAI on lending pool
-            uint256 contractBalance = daiToken.balanceOf(address(this));
             require(
                 daiToken.approve(address(lendingPool), contractBalance),
                 "Fail to approve allowance to lending pool"
@@ -400,7 +396,10 @@ contract GoodGhostingPolygon is GoodGhosting {
                 155
             );
         } else {
-            wethGateway.depositETH{value: segmentPayment}(
+            // unwraps WMATIC back into MATIC
+            WMaticToken(address(matic)).withdraw(contractBalance);
+            // Deposits MATIC into the pool
+            wethGateway.depositETH{value: contractBalance}(
                 address(lendingPool),
                 address(this),
                 155

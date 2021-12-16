@@ -65,7 +65,6 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
     /// @dev Must override function from parent contract (GoodGhosting.sol) and revert to enforce whitelisting.
     function joinGame()
         external
-        payable
         override
         whenNotPaused
     {
@@ -78,7 +77,6 @@ contract GoodGhostingPolygonWhitelisted is GoodGhostingPolygon, MerkleDistributo
     /// @dev Cannot be called when the game is paused. Different function name to avoid confusion (instead of overloading "joinGame")
     function joinWhitelistedGame(uint256 index, bytes32[] calldata merkleProof)
         external
-        payable
         whenNotPaused
     {
       claim(index, msg.sender, true, merkleProof);
