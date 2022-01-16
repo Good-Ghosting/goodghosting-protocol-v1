@@ -50,12 +50,14 @@ module.exports = {
             host: "127.0.0.1",
             port: 8545,
             network_id: "*",
+            gas: 5000000
         },
 
         "local-polygon-vigil-fork": {
             host: "127.0.0.1",
             port: 8545,
             network_id: "*",
+            gas: 5000000
         },
         "local-polygon-vigil-fork-curve": {
             host: "127.0.0.1",
@@ -73,11 +75,13 @@ module.exports = {
             host: "127.0.0.1",
             port: 8545,
             network_id: "*",
+            gas: 5000000
         },
         "local-celo-fork": {
             host: "127.0.0.1",
             port: 8545,
             network_id: "*",
+            gas: 5000000
         },
         alfajores: {
             provider: kit.connection.web3.currentProvider, // CeloProvider
