@@ -9,7 +9,7 @@ const truffleAssert = require("truffle-assertions");
 
 contract("GoodGhosting", (accounts) => {
     // Only executes this test file IF NOT a local network fork
-    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork",  "local-polygon-vigil-fork-curve", "local-polygon-whitelisted-vigil-fork", "local-polygon-whitelisted-vigil-fork-curve"].includes(process.env.NETWORK)) return;
+    if (["local-mainnet-fork", "local-celo-fork", "local-polygon-vigil-fork", "local-polygon-whitelisted-vigil-fork"].includes(process.env.NETWORK)) return;
 
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     const admin = accounts[0];
@@ -450,7 +450,7 @@ contract("GoodGhosting", (accounts) => {
         });
 
         it("reverts if user does not approve the contract to spend dai", async () => {
-            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1  }), "You need to have allowance to do transfer DAI on the smart contract");
+            await truffleAssert.reverts(goodGhosting.joinGame({ from: player1 }), "You need to have allowance to do transfer DAI on the smart contract");
         });
 
         it("reverts if the user tries to join after the first segment", async () => {

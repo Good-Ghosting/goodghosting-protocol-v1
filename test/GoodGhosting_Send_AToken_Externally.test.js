@@ -222,7 +222,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                     process.env.NETWORK === "local-celo-fork" ||
                     process.env.NETWORK === "local-polygon-vigil-fork"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player, gas: 6000000 });
+                    const result = await goodGhosting.joinGame({ from: player });
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,
@@ -245,7 +245,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                             goodGhosting.joinWhitelistedGame(
                                 whitelistedPlayerConfig[i][player].index,
                                 whitelistedPlayerConfig[i][player].proof,
-                                { from: player, gas: 6000000 }
+                                { from: player }
                             ),
                             "MerkleDistributor: Invalid proof."
                         );
@@ -253,7 +253,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                         const result = await goodGhosting.joinWhitelistedGame(
                             whitelistedPlayerConfig[i][player].index,
                             whitelistedPlayerConfig[i][player].proof,
-                            { from: player, gas: 6000000 }
+                            { from: player }
                         );
                         // got logs not defined error when keep the event assertion check outside of the if-else
                         truffleAssert.eventEmitted(
@@ -301,7 +301,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
                     const depositResult = await goodGhosting.makeDeposit({
-                        from: player, gas: 6000000
+                        from: player,
                     });
                     truffleAssert.eventEmitted(
                         depositResult,

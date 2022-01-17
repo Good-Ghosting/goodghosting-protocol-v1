@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [14.x]
+        node-version: [12.x]
 
     steps:
       - uses: actions/checkout@v2
@@ -23,9 +23,9 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node-version }}
-      - run: yarn install
-      - run: yarn add global truffle
-      - run: yarn add global ganache-cli
+      - run: npm ci
+      - run: npm install -g truffle
+      - run: npm install -g ganache-cli
       - run: |
-          npx ganache-cli -f https://matic-mainnet.chainstacklabs.com -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0x2DdA8dc2f67f1eB94b250CaEFAc9De16f70c5A51 &
-          yarn test:fork:polygon:vigil
+          ganache-cli -f https://matic-mainnet.chainstacklabs.com -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0x2DdA8dc2f67f1eB94b250CaEFAc9De16f70c5A51 &
+          npm run test:fork:polygon:vigil
