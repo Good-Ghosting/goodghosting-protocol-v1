@@ -50,22 +50,38 @@ module.exports = {
             host: "127.0.0.1",
             port: 8545,
             network_id: "*",
+            gas: 5000000
         },
 
         "local-polygon-vigil-fork": {
             host: "127.0.0.1",
             port: 8545,
             network_id: "*",
+            gas: 5000000
+        },
+        "local-polygon-vigil-fork-curve": {
+            host: "127.0.0.1",
+            port: 8545,
+            network_id: "*",
+            gas: 5000000
+        },
+        "local-polygon-whitelisted-vigil-fork-curve": {
+            host: "127.0.0.1",
+            port: 8545,
+            network_id: "*",
+            gas: 5000000
         },
         "local-polygon-whitelisted-vigil-fork": {
             host: "127.0.0.1",
             port: 8545,
             network_id: "*",
+            gas: 5000000
         },
         "local-celo-fork": {
             host: "127.0.0.1",
             port: 8545,
             network_id: "*",
+            gas: 5000000
         },
         alfajores: {
             provider: kit.connection.web3.currentProvider, // CeloProvider
@@ -92,6 +108,38 @@ module.exports = {
             skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
         },
         polygon: {
+            provider: () => new HDWalletProvider(
+                process.env.POLYGON_MAINNET_MNEMONIC,
+                process.env.POLYGON_MAINNET_PROVIDER_URL,
+                0, //address_index
+                10, // num_addresses
+                true // shareNonce
+            ),
+            network_id: 137, // Polygon mainnet id
+            networkCheckTimeout: 60000,
+            //gas: 7017622, //
+            gasPrice: 30000000000,// 30 Gwei
+            confirmations: 2, // # of confs to wait between deployments. (default: 0)
+            timeoutBlocks: 50, // # of blocks before a deployment times out  (minimum/default: 50)
+            skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
+        },
+        "polygon-curve": {
+            provider: () => new HDWalletProvider(
+                process.env.POLYGON_MAINNET_MNEMONIC,
+                process.env.POLYGON_MAINNET_PROVIDER_URL,
+                0, //address_index
+                10, // num_addresses
+                true // shareNonce
+            ),
+            network_id: 137, // Polygon mainnet id
+            networkCheckTimeout: 60000,
+            //gas: 7017622, //
+            gasPrice: 30000000000,// 30 Gwei
+            confirmations: 2, // # of confs to wait between deployments. (default: 0)
+            timeoutBlocks: 50, // # of blocks before a deployment times out  (minimum/default: 50)
+            skipDryRun: false // Skip dry run before migrations? (default: false for public nets )
+        },
+        "polygon-curve-whitelisted": {
             provider: () => new HDWalletProvider(
                 process.env.POLYGON_MAINNET_MNEMONIC,
                 process.env.POLYGON_MAINNET_PROVIDER_URL,
@@ -165,7 +213,13 @@ module.exports = {
 
     compilers: {
         solc: {
-            version: "0.6.11"
+            version: "0.6.11",
+            settings: {
+                optimizer: {
+                    enabled: true,
+                    runs: 1500
+                }
+            }
             // A version or constraint - Ex. "^0.5.0"
             // Can also be set to "native" to use a native solc
             //docker: false, // Use a version obtained through docker
