@@ -3,10 +3,15 @@ const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonWhitelisted = artifacts.require(
     "GoodGhostingPolygonWhitelisted"
 );
+const GoodGhostingPolygonCurveWhitelisted = artifacts.require("GoodGhostingPolygonCurveWhitelisted");
+const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
+const aavepoolABI = require("../abi-external/curve-aave-pool-abi.json");
+const atricryptopoolABI = require("../abi-external/curve-atricrypto-pool-abi.json");
+
 const configs = require("../deploy.config");
 const whitelistedPlayerConfig = [
     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
@@ -26,6 +31,8 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             "local-celo-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
+            "local-polygon-vigil-fork-curve",
+            "local-polygon-whitelisted-vigil-fork-curve"
         ].includes(process.env.NETWORK)
     )
         return;
@@ -45,15 +52,27 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs = configs.providers.aave.polygon;
-    } else {
+    } else if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
+        GoodGhostingArtifact = GoodGhostingPolygonCurve;
+        providersConfigs = configs.providers.aave["polygon-curve"];
+    } else if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
         providersConfigs = configs.providers.aave.polygon;
+    } else {
+        GoodGhostingArtifact = GoodGhostingPolygonCurveWhitelisted;
+        providersConfigs = configs.providers.aave["polygon-curve"];
+        curve = new web3.eth.Contract(
+            daiABI,
+            providersConfigs.curve
+        );
     }
 
     const { segmentCount, segmentLength, segmentPayment: segmentPaymentInt } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
     let rewardToken;
+    let pool;
+    let gaugeToken;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const daiDecimals = web3.utils.toBN(1000000000000000000);
@@ -64,6 +83,12 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         it("initializes contract instances and transfers DAI to players", async () => {
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             rewardToken = new web3.eth.Contract(daiABI, providersConfigs.wmatic);
+            if (providersConfigs.poolType == 0) {
+                pool = new web3.eth.Contract(aavepoolABI, providersConfigs.pool);
+            } else {
+                pool = new web3.eth.Contract(atricryptopoolABI, providersConfigs.pool);
+            }
+            gaugeToken = new web3.eth.Contract(daiABI, providersConfigs.gauge);
 
             goodGhosting = await GoodGhostingArtifact.deployed();
             // Send 1 eth to token address to have gas to transfer DAI.
@@ -85,7 +110,9 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         });
 
         it("players approve DAI to contract and join the game", async () => {
-            for (let i = 0; i < players.length; i++) {
+            const userSlippageOptions = [3, 5, 1, 2.5, 1.5];
+
+            for (let i = 0; i < players.length - 1; i++) {
                 const player = players[i];
                 await token.methods
                     .approve(goodGhosting.address, segmentPayment.mul(new BN(segmentCount)).toString())
@@ -95,9 +122,27 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                 if (
                     process.env.NETWORK === "local-mainnet-fork" ||
                     process.env.NETWORK === "local-celo-fork" ||
-                    process.env.NETWORK === "local-polygon-vigil-fork"
+                    process.env.NETWORK === "local-polygon-vigil-fork" ||
+                    process.env.NETWORK === "local-polygon-vigil-fork-curve" ||
+                    process.env.NETWORK ===  "local-polygon-whitelisted-vigil-fork-curve"
                 ) {
-                    const result = await goodGhosting.joinGame({ from: player });
+                    let result, slippageFromContract;
+                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+                        const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)));
+                        if (providersConfigs.poolType == 0) {
+                            slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0], true).call();
+                        } else {
+                            slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(),0,0,0,0], true).call();
+                        }
+                        const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("10000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("10000")));
+                        if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+                            result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player, gas: 6000000 });
+                        } else {
+                            result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
+                        }
+                    } else {
+                        result = await goodGhosting.joinGame({ from: player, gas: 6000000 });
+                    }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
                         result,
@@ -120,7 +165,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                             goodGhosting.joinWhitelistedGame(
                                 whitelistedPlayerConfig[i][player].index,
                                 whitelistedPlayerConfig[i][player].proof,
-                                { from: player }
+                                { from: player, gas: 6000000 }
                             ),
                             "MerkleDistributor: Invalid proof."
                         );
@@ -128,7 +173,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                         const result = await goodGhosting.joinWhitelistedGame(
                             whitelistedPlayerConfig[i][player].index,
                             whitelistedPlayerConfig[i][player].proof,
-                            { from: player }
+                            { from: player, gas: 6000000 }
                         );
                             // got logs not defined error when keep the event assertion check outside of the if-else
                         truffleAssert.eventEmitted(
@@ -152,10 +197,25 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
         });
 
         it("redeems funds from external pool", async () => {
+            const userSlippage = 0.2;
+
             // none of the players made additional deposits, so it completes the game before redeeming from external pool
             await timeMachine.advanceTime(segmentLength * (segmentCount + 1));
             let eventAmount = new BN(0);
-            const result = await goodGhosting.redeemFromExternalPool({ from: admin });
+            let result;
+            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+
+                const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call();
+                let minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call();
+                const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)));
+
+                if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
+                    minAmount = userProvidedMinAmount;
+                }
+                result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), { from: admin });
+            } else {
+                result = await goodGhosting.redeemFromExternalPool({ from: admin });
+            }
             const contractsDaiBalance = new BN(await token.methods.balanceOf(goodGhosting.address).call({ from: admin }));
 
             console.log("contractsDaiBalance", contractsDaiBalance.toString());
@@ -186,7 +246,14 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
                 ) {
                     rewardBalanceBefore = new BN(await rewardToken.methods.balanceOf(player).call({ from: admin }));
                 }
-                const result = await goodGhosting.withdraw({ from: player });
+
+                let result;
+                if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+                    // redeem already called hence passing in 0
+                    result = await goodGhosting.withdraw(0, { from: player });
+                } else {
+                    result = await goodGhosting.withdraw({ from: player, gas: 6000000 });
+                }
 
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon ||
