@@ -3,16 +3,11 @@ const GoodGhostingPolygon = artifacts.require("GoodGhostingPolygon");
 const GoodGhostingPolygonWhitelisted = artifacts.require(
     "GoodGhostingPolygonWhitelisted"
 );
-const GoodGhostingPolygonCurve = artifacts.require("GoodGhostingPolygonCurve");
-const GoodGhostingPolygonCurveWhitelisted = artifacts.require("GoodGhostingPolygonCurveWhitelisted");
 
 const ForceSend = artifacts.require("ForceSend");
 const timeMachine = require("ganache-time-traveler");
 const truffleAssert = require("truffle-assertions");
 const daiABI = require("../abi-external/dai-abi.json");
-const aavepoolABI = require("../abi-external/curve-aave-pool-abi.json");
-const atricryptopoolABI = require("../abi-external/curve-atricrypto-pool-abi.json");
-const gaugeABI = require("../abi-external/gauge.json")
 const configs = require("../deploy.config");
 const whitelistedPlayerConfig = [
     { "0x49456a22bbED4Ae63d2Ec45085c139E6E1879A17": { index: 0, proof: ["0x8d49a056cfc62406d6824845a614366d64cc27684441621ef0e019def6e41398", "0x73ffb6e5b1b673c6c13ec44ce753aa553a9e4dea224b10da5068ade50ce74de3"] } },
@@ -30,9 +25,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             "local-mainnet-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
-            "local-celo-fork",
-            "local-polygon-vigil-fork-curve",
-            "local-polygon-whitelisted-vigil-fork-curve"
+            "local-celo-fork"
         ].includes(process.env.NETWORK)
     )
         return;
@@ -41,7 +34,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     const unlockedDaiAccount = process.env.DAI_ACCOUNT_HOLDER_FORKED_NETWORK;
     let providersConfigs;
     let GoodGhostingArtifact;
-    let curve;
     if (process.env.NETWORK === "local-mainnet-fork" || process.env.NETWORK === "local-celo-fork") {
         GoodGhostingArtifact = GoodGhosting;
         if (process.env.NETWORK === "local-mainnet-fork") {
@@ -53,37 +45,20 @@ contract("GoodGhostingGasEstimate", (accounts) => {
     } else if (process.env.NETWORK === "local-polygon-vigil-fork") {
         GoodGhostingArtifact = GoodGhostingPolygon;
         providersConfigs = configs.providers.aave.polygon;
-    } else if (process.env.NETWORK === "local-polygon-vigil-fork-curve") {
-        GoodGhostingArtifact = GoodGhostingPolygonCurve;
-        providersConfigs = configs.providers.aave["polygon-curve"];
-        curve = new web3.eth.Contract(
-            daiABI,
-            providersConfigs.curve
-        );
-    } else if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork") {
+    } else {
         GoodGhostingArtifact = GoodGhostingPolygonWhitelisted;
         providersConfigs = configs.providers.aave.polygon;
-    } else {
-        GoodGhostingArtifact = GoodGhostingPolygonCurveWhitelisted;
-        providersConfigs = configs.providers.aave["polygon-curve"];
-        curve = new web3.eth.Contract(
-            daiABI,
-            providersConfigs.curve
-        );
     }
     const {
         segmentCount,
         segmentLength,
         segmentPayment: segmentPaymentInt,
         customFee,
-        earlyWithdrawFee,
         maxPlayersCount,
     } = configs.deployConfigs;
     const BN = web3.utils.BN; // https://web3js.readthedocs.io/en/v1.2.7/web3-utils.html#bn
     let token;
     let rewardToken;
-    let pool;
-    let gaugeToken;
     let admin = accounts[0];
     const players = accounts.slice(1, 6); // 5 players
     const loser = players[0];
@@ -94,19 +69,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
     describe("simulates a full game with 5 players and 4 of them winning the game and with admin fee % as 0", async () => {
         it("initializes contract instances and transfers DAI to players", async () => {
-            if (providersConfigs.poolType == 0) {
-                pool = new web3.eth.Contract(aavepoolABI, providersConfigs.pool);
-            } else {
-                pool = new web3.eth.Contract(atricryptopoolABI, providersConfigs.pool);
-            }
             token = new web3.eth.Contract(daiABI, providersConfigs.dai.address);
             rewardToken = new web3.eth.Contract(
                 daiABI,
                 providersConfigs.wmatic
             );
             goodGhosting = await GoodGhostingArtifact.deployed();
-            gaugeToken = new web3.eth.Contract(gaugeABI, providersConfigs.gauge);
-
             // Send 1 eth to token address to have gas to transfer DAI.
             // Uses ForceSend contract, otherwise just sending a normal tx will revert.
             const forceSend = await ForceSend.new();
@@ -149,6 +117,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
         it("checks if the contract's variables were properly initialized", async () => {
             const inboundCurrencyResult = await goodGhosting.daiToken.call();
+            const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
             const lastSegmentResult = await goodGhosting.lastSegment.call();
             const segmentLengthResult = await goodGhosting.segmentLength.call();
             const segmentPaymentResult = await goodGhosting.segmentPayment.call();
@@ -159,16 +128,11 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 inboundCurrencyResult === token.options.address,
                 `Inbound currency doesn't match. expected ${token.options.address}; got ${inboundCurrencyResult}`
             );
-            if (process.env.NETWORK !== "local-polygon-vigil-fork-curve" && process.env.NETWORK !== "local-polygon-whitelisted-vigil-fork-curve") {
-                const lendingPoolAddressProviderResult = await goodGhosting.lendingPoolAddressProvider.call();
-
-                assert(
-                    lendingPoolAddressProviderResult ===
-                    providersConfigs.lendingPoolAddressProvider,
-                    `LendingPoolAddressesProvider doesn't match. expected ${providersConfigs.dataProvider}; got ${lendingPoolAddressProviderResult}`
-                );
-            }
-
+            assert(
+                lendingPoolAddressProviderResult ===
+                providersConfigs.lendingPoolAddressProvider,
+                `LendingPoolAddressesProvider doesn't match. expected ${providersConfigs.dataProvider}; got ${lendingPoolAddressProviderResult}`
+            );
             assert(
                 new BN(lastSegmentResult).eq(new BN(segmentCount)),
                 `LastSegment info doesn't match. expected ${segmentCount}; got ${lastSegmentResult}`
@@ -193,8 +157,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("players approve DAI to contract and join the game", async () => {
-            const userSlippageOptions = [1, 0.5, 0.5, 2, 1];
-            for (let i = 0; i < players.length - 1; i++) {
+            for (let i = 0; i < players.length; i++) {
                 const player = players[i];
                 await token.methods
                     .approve(
@@ -207,66 +170,12 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 if (
                     process.env.NETWORK === "local-mainnet-fork" ||
                     process.env.NETWORK === "local-celo-fork" ||
-                    process.env.NETWORK === "local-polygon-vigil-fork" ||
-                    process.env.NETWORK === "local-polygon-vigil-fork-curve" ||
-                    process.env.NETWORK ===  "local-polygon-whitelisted-vigil-fork-curve"
+                    process.env.NETWORK === "local-polygon-vigil-fork"
                 ) {
-                    let result, slippageFromContract;
-                    let minAmountWithFees = 0;
-
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                        const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[i])).div(new BN(100)));
-                        if (providersConfigs.poolType == 0) {
-                            slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(), 0, 0], true).call();
-
-                        } else {
-                            slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(), 0, 0, 0, 0], true).call();
-                        }
-
-                        minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString())
-                            ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("10000")))
-                            : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("10000")));
-                        if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                            result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player });
-                        } else {
-                            result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
-                        }
-                    } else {
-                        // gas param is hardcoded to avoid transaction reverts
-                        result = await goodGhosting.joinGame({ from: player  });
-                    }
-
+                    const result = await goodGhosting.joinGame({ from: player });
                     // player 1 early withdraws in segment 0 and joins again
                     if (i == 1) {
-                        const withdrawAmount = segmentPayment.sub(segmentPayment.mul(new BN(earlyWithdrawFee)).div(new BN(100)));
-                        let lpTokenAmount;
-                        if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                            if (providersConfigs.poolType == 0) {
-                                lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
-                            } else {
-                                lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0, 0, 0], true).call();
-                            }
-
-                            const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call();
-
-                            if (parseInt(gaugeTokenBalance.toString()) < parseInt(lpTokenAmount.toString())) {
-                                lpTokenAmount = gaugeTokenBalance;
-                            }
-
-                            let minAmount = await pool.methods.calc_withdraw_one_coin(lpTokenAmount.toString(), providersConfigs.tokenIndex).call();
-
-                            minAmount = new BN(minAmount).sub(new BN(minAmount).div(new BN("1000")));
-
-                            const userProvidedMinAmount = new BN(lpTokenAmount).sub(new BN(lpTokenAmount).mul(new BN("6")).div(new BN(1000)));
-
-                            if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
-                                minAmount = userProvidedMinAmount;
-                            }
-
-                            await goodGhosting.earlyWithdraw(minAmount.toString(), { from: player });
-                        } else {
-                            await goodGhosting.earlyWithdraw({ from: player });
-                        }
+                        await goodGhosting.earlyWithdraw({ from: player });
                         await token.methods
                             .approve(
                                 goodGhosting.address,
@@ -275,16 +184,7 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                                     .toString()
                             )
                             .send({ from: player });
-
-                            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                                if (process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                                result = await goodGhosting.joinWhitelistedGame(whitelistedPlayerConfig[i][player].index, whitelistedPlayerConfig[i][player].proof,minAmountWithFees.toString(), { from: player });
-                            } else {
-                                result = await goodGhosting.joinGame(minAmountWithFees.toString(), { from: player });
-                            }
-                        } else {
-                            await goodGhosting.joinGame({ from: player });
-                        }
+                        await goodGhosting.joinGame({ from: player });
                     }
                     // got logs not defined error when keep the event assertion check outside of the if-else
                     truffleAssert.eventEmitted(
@@ -357,9 +257,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("runs the game - 'player1' early withdraws and other players complete game successfully", async () => {
-            const userSlippageOptions = [3, 5, 1, 2.5, 1.5];
-            let depositResult, earlyWithdrawResult;
-
             // The payment for the first segment was done upon joining, so we start counting from segment 2 (index 1)
             for (
                 let segmentIndex = 1;
@@ -370,22 +267,9 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 // j must start at 1 - Player1 (index 0) early withdraws after everyone else deposits, so won't continue making deposits
                 for (let j = 1; j < players.length - 1; j++) {
                     const player = players[j];
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                        let slippageFromContract;
-                        const userProvidedMinAmount = segmentPayment.sub(segmentPayment.mul(new BN(userSlippageOptions[j])).div(new BN(100)));
-                        if (providersConfigs.poolType == 0) {
-                            slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(), 0, 0], true).call();
-
-                        } else {
-                            slippageFromContract = await pool.methods.calc_token_amount([segmentPayment.toString(), 0, 0, 0, 0], true).call();
-                        }
-
-                        const minAmountWithFees = parseInt(userProvidedMinAmount.toString()) > parseInt(slippageFromContract.toString()) ? new BN(slippageFromContract).sub(new BN(slippageFromContract).mul(new BN("10")).div(new BN("1000"))) : userProvidedMinAmount.sub(userProvidedMinAmount.mul(new BN("10")).div(new BN("1000")));
-                        depositResult = await goodGhosting.makeDeposit(minAmountWithFees.toString(), { from: player });
-                    } else {
-                        depositResult = await goodGhosting.makeDeposit({ from: player  });
-                    }
-
+                    const depositResult = await goodGhosting.makeDeposit({
+                        from: player,
+                    });
                     truffleAssert.eventEmitted(
                         depositResult,
                         "Deposit",
@@ -398,34 +282,9 @@ contract("GoodGhostingGasEstimate", (accounts) => {
 
                 // Player 1 (index 0 - loser), performs an early withdraw on first segment.
                 if (segmentIndex === 1) {
-                    const playerInfo = await goodGhosting.players(loser);
-
-                    // const playerInfo = await goodGhosting.methods.players(loser).call()
-                    const withdrawAmount = playerInfo.amountPaid.sub(playerInfo.amountPaid.mul(new BN(earlyWithdrawFee)).div(new BN(100)));
-                    if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                        let lpTokenAmount;
-                        if (providersConfigs.poolType == 0) {
-                            lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
-                        } else {
-                            lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0, 0, 0], true).call();
-                        }
-                        const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call();
-                        if (parseInt(gaugeTokenBalance.toString()) < parseInt(lpTokenAmount.toString())) {
-                            lpTokenAmount = gaugeTokenBalance;
-                        }
-                        let minAmount = await pool.methods.calc_withdraw_one_coin(lpTokenAmount.toString(), providersConfigs.tokenIndex).call();
-                        minAmount = new BN(minAmount).sub(new BN(minAmount).div(new BN("1000")));
-
-                        const userProvidedMinAmount = new BN(lpTokenAmount).sub(new BN(lpTokenAmount).mul(new BN("2")).div(new BN(1000)));
-                        if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
-                            minAmount = userProvidedMinAmount;
-                        }
-
-                        earlyWithdrawResult = await goodGhosting.earlyWithdraw(minAmount.toString(), { from: loser });                 
-                    } else {
-                        earlyWithdrawResult = await goodGhosting.earlyWithdraw({ from: loser  });
-                    }
-                    
+                    const earlyWithdrawResult = await goodGhosting.earlyWithdraw(
+                        { from: loser }
+                    );
                     truffleAssert.eventEmitted(
                         earlyWithdrawResult,
                         "EarlyWithdrawal",
@@ -436,79 +295,20 @@ contract("GoodGhostingGasEstimate", (accounts) => {
             }
             // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
             // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
-            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount();
-            const playerInfo = await goodGhosting.players(userWithdrawingAfterLastSegment);
-            const withdrawAmount = playerInfo.amountPaid.sub(playerInfo.amountPaid.mul(new BN(earlyWithdrawFee)).div(new BN(100)));
-            let lpTokenAmount;
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
+            const winnerCountBeforeEarlyWithdraw = await goodGhosting.winnerCount() 
+            await goodGhosting.earlyWithdraw({ from: userWithdrawingAfterLastSegment });
+            const winnerCountaAfterEarlyWithdraw = await goodGhosting.winnerCount()
 
-                if (providersConfigs.poolType == 0) {
-                    lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0], true).call();
-                } else {
-                    lpTokenAmount = await pool.methods.calc_token_amount([withdrawAmount.toString(), 0, 0, 0, 0], true).call();
-                }
-                const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call();
-                if (parseInt(gaugeTokenBalance.toString()) < parseInt(lpTokenAmount.toString())) {
-                    lpTokenAmount = gaugeTokenBalance;
-                }
-                let minAmount = await pool.methods.calc_withdraw_one_coin(lpTokenAmount.toString(), providersConfigs.tokenIndex).call();
-                minAmount = new BN(minAmount).sub(new BN(minAmount).div(new BN("1000")));
-
-                const userProvidedMinAmount = new BN(lpTokenAmount).sub(new BN(lpTokenAmount).mul(new BN("15")).div(new BN(1000)));
-                if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
-                    minAmount = userProvidedMinAmount;
-                }
-
-                await goodGhosting.earlyWithdraw(minAmount.toString(), { from: userWithdrawingAfterLastSegment });
-            } else {
-                await goodGhosting.earlyWithdraw({ from: userWithdrawingAfterLastSegment });
-            }
-            const winnerCountAfterEarlyWithdraw = await goodGhosting.winnerCount();
-
-            assert(winnerCountBeforeEarlyWithdraw.eq(new BN(3)));
-            assert(winnerCountAfterEarlyWithdraw.eq(new BN(2)));
+            assert(winnerCountBeforeEarlyWithdraw.eq(new BN(3)))
+            assert(winnerCountaAfterEarlyWithdraw.eq(new BN(2)))
             await timeMachine.advanceTime(segmentLength * 2);
         });
 
         it("redeems funds from external pool", async () => {
-            const userSlippage = 0.2;
-            let minAmount;
-            let curveBalanceBeforeRedeem, wmaticBalanceBeforeRedeem, curveBalanceAfterRedeem, wmaticBalanceAfterRedeem;
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                curveBalanceBeforeRedeem = await curve.methods.balanceOf(goodGhosting.address).call();
-                wmaticBalanceBeforeRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call();
-
-                const gaugeTokenBalance = await gaugeToken.methods.balanceOf(goodGhosting.address).call();
-                minAmount = await pool.methods.calc_withdraw_one_coin(gaugeTokenBalance.toString(), providersConfigs.tokenIndex).call();
-                const userProvidedMinAmount = new BN(gaugeTokenBalance).sub(new BN(gaugeTokenBalance).mul(new BN(userSlippage)).div(new BN(100)));
-
-                if (parseInt(userProvidedMinAmount.toString()) < parseInt(minAmount.toString())) {
-                    minAmount = userProvidedMinAmount;
-                }
-            }
-
             let eventAmount = new BN(0);
-            let result;
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                result = await goodGhosting.redeemFromExternalPool(minAmount.toString(), {
-                    from: admin,
-                });
-            } else {
-                result = await goodGhosting.redeemFromExternalPool({
-                    from: admin,
-                });
-            }
-
-            if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                curveBalanceAfterRedeem = await curve.methods.balanceOf(goodGhosting.address).call();
-                wmaticBalanceAfterRedeem = await rewardToken.methods.balanceOf(goodGhosting.address).call();
-
-                // curve rewards accrue slowly
-                assert(new BN(curveBalanceBeforeRedeem).lte(new BN(curveBalanceAfterRedeem)));
-                // no wmatic rewards in atricrypto pool
-                assert(new BN(wmaticBalanceBeforeRedeem).lte(new BN(wmaticBalanceAfterRedeem)));
-            }
-
+            const result = await goodGhosting.redeemFromExternalPool({
+                from: admin,
+            });
             const contractsDaiBalance = new BN(
                 await token.methods
                     .balanceOf(goodGhosting.address)
@@ -543,7 +343,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                     eventAmount = new BN(ev.totalAmount.toString());
 
                     return (
-                        new BN(ev.totalGameInterest).eq(new BN(ev.totalAmount).sub(new BN(ev.totalGamePrincipal))),
                         eventAmount.eq(contractsDaiBalance) &&
                         adminFee.lt(ev.totalGameInterest)
                     );
@@ -558,12 +357,9 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 const player = players[i];
                 let rewardBalanceBefore = new BN(0);
                 let rewardBalanceAfter = new BN(0);
-                let curveRewardBalanceBefore = new BN(0);
-                let curveRewardBalanceAfter = new BN(0);
-
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
-                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted || GoodGhostingArtifact === GoodGhostingPolygonCurve
+                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
                 ) {
                     rewardBalanceBefore = new BN(
                         await rewardToken.methods
@@ -571,38 +367,10 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                             .call({ from: admin })
                     );
                 }
-
-                if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
-                    curveRewardBalanceBefore = new BN(
-                        await curve.methods
-                            .balanceOf(player)
-                            .call({ from: admin })
-                    );
-                }
-
-                let result;
-                if (process.env.NETWORK === "local-polygon-vigil-fork-curve" || process.env.NETWORK === "local-polygon-whitelisted-vigil-fork-curve") {
-                    // redeem already called hence passing in 0
-                    result = await goodGhosting.withdraw(0, { from: player });
-                } else {
-                    result = await goodGhosting.withdraw({ from: player });
-                }
-
-                if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
-                    curveRewardBalanceAfter = new BN(
-                        await curve.methods
-                            .balanceOf(player)
-                            .call({ from: admin })
-                    );
-                    // curve rewards accrue slowly
-                    assert(
-                        curveRewardBalanceAfter.gte(curveRewardBalanceBefore),
-                        "expected curve balance after withdrawal to be greater than before withdrawal"
-                    );
-                }
+                const result = await goodGhosting.withdraw({ from: player });
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
-                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted || (GoodGhostingArtifact === GoodGhostingPolygonCurve && providersConfigs.poolType == 0)
+                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
                 ) {
                     rewardBalanceAfter = new BN(
                         await rewardToken.methods
@@ -651,27 +419,17 @@ contract("GoodGhostingGasEstimate", (accounts) => {
         });
 
         it("admin withdraws admin fee from contract", async () => {
-            if (customFee > 0) {
+          if (customFee > 0) {
                 const expectedAmount = new BN(
                     await goodGhosting.adminFeeAmount.call({ from: admin })
                 );
 
                 let rewardBalanceBefore = new BN(0);
                 let rewardBalanceAfter = new BN(0);
-                let curveRewardBalanceBefore = new BN(0);
-                let curveRewardBalanceAfter = new BN(0);
-
-                if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
-                    curveRewardBalanceBefore = new BN(
-                        await curve.methods
-                            .balanceOf(admin)
-                            .call({ from: admin })
-                    );
-                }
 
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
-                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted || GoodGhostingArtifact === GoodGhostingPolygonCurve
+                    || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted
                 ) {
                     rewardBalanceBefore = new BN(
                         await rewardToken.methods
@@ -683,18 +441,6 @@ contract("GoodGhostingGasEstimate", (accounts) => {
                 const result = await goodGhosting.adminFeeWithdraw({
                     from: admin,
                 });
-
-                if (GoodGhostingArtifact === GoodGhostingPolygonCurve) {
-                    curveRewardBalanceAfter = new BN(
-                        await curve.methods
-                            .balanceOf(admin)
-                            .call({ from: admin })
-                    );
-                    assert(
-                        curveRewardBalanceAfter.eq(curveRewardBalanceBefore),
-                        "expected curve balance after withdrawal to be greater than before withdrawal"
-                    );
-                }
 
                 if (
                     GoodGhostingArtifact === GoodGhostingPolygon
