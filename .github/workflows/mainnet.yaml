@@ -11,7 +11,7 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      DAI_ACCOUNT_HOLDER_FORKED_NETWORK: '0x169f33430ca0239719b4b1d6f532dd173c267328'
+      DAI_ACCOUNT_HOLDER_FORKED_NETWORK: '0xa37b3076c0d225bb5edea2275aacdb5475bcc189'
 
     strategy:
       matrix:
@@ -27,5 +27,5 @@ jobs:
       - run: yarn add global truffle
       - run: yarn add global ganache-cli
       - run: |
-          npx ganache-cli -f https://cloudflare-eth.com/ -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0x169f33430ca0239719b4b1d6f532dd173c267328 &
+          npx ganache-cli -f https://cloudflare-eth.com/ -m "clutchaptain shoe salt awake harvest setup primary inmate ugly among become" -i 999 --unlock 0xa37b3076c0d225bb5edea2275aacdb5475bcc189 &
           yarn test:fork:mainnet
