@@ -30,6 +30,14 @@ exports.providers = {
                 address: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
                 decimals: 18,
             },
+            ghst: {
+                address: "0x385eeac5cb85a38a9a07a70c73e0a3271cfb54a7",
+                decimals: 18,
+            },
+            "wmatic-token": {
+                address: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+                decimals: 18,
+            },
             incentiveToken: "0x0000000000000000000000000000000000000000",
         },
         "polygon-curve": {
@@ -96,6 +104,14 @@ exports.providers = {
                 address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
                 decimals: 18,
             },
+            celo: {
+                address: "0x471EcE3750Da237f93B8E339c536989b8978a438",
+                decimals: 18,
+            },
+            creal: {
+                address: "0xe8537a3d056DA446677B9E9d6c5dB704EaAb4787",
+                decimals: 18,
+            },
             incentiveToken: "0x0000000000000000000000000000000000000000",
             // incentiveToken: "0x471EcE3750Da237f93B8E339c536989b8978a438", // CELO
         },
@@ -113,3 +129,4 @@ exports.deployConfigs = {
     maxPlayersCount: "115792089237316195423570985008687907853269984665640564039457584007913129639935", // max quantity of players allowed.
     merkleroot: "0xd566243e283f1357e5e97dd0c9ab0d78177583074b440cb07815e05f615178bf" // merkle root for 1st 4 player addresses in the fork tests
 };
+
