@@ -28,6 +28,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
     uint256 public totalGameInterest;
     /// @notice total principal amount
     uint256 public totalGamePrincipal;
+    /// @notice original total principal amount to track -ve values in case of impermanent loss
+    int256 public originalTotalGamePrincipal;
     /// @notice share % from impermanent loss
     uint256 public impermanentLossShare;
     /// @notice performance fee amount allocated to the admin
@@ -590,6 +592,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
         // calculates gross interest
         uint256 grossInterest = 0;
+         originalTotalGamePrincipal = int(totalGamePrincipal);
         // Sanity check to avoid reverting due to overflow in the "subtraction" below.
         // This could only happen in case Aave changes the 1:1 ratio between
         // aToken vs. Token in the future (i.e., 1 aDAI is worth less than 1 DAI)
@@ -598,6 +601,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         } else {
             // handling impermanent loss case
             impermanentLossShare = (totalBalance.mul(uint(100))).div(totalGamePrincipal);
+            originalTotalGamePrincipal = int(totalGamePrincipal - totalBalance);
             totalGamePrincipal = totalBalance;
         }
         // calculates the performance/admin fee (takes a cut - the admin percentage fee - from the pool's interest).
