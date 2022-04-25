@@ -291,7 +291,7 @@ contract("GoodGhosting_No_Player_Wins", (accounts) => {
             if (GoodGhostingArtifact === GoodGhostingPolygon || GoodGhostingArtifact === GoodGhostingPolygonWhitelisted) {
                 rewardBalanceAfter = new BN(await rewardToken.methods.balanceOf(admin).call({ from: admin }));
                 assert(
-                    rewardBalanceAfter.gt(rewardBalanceBefore),
+                    rewardBalanceAfter.gte(rewardBalanceBefore),
                     "expect rewards balance after withdrawal to be greater than before withdrawal"
                 );
             } else {

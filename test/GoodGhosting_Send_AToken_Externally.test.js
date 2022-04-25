@@ -24,7 +24,6 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
     if (
         ![
             "local-mainnet-fork",
-            "local-celo-fork",
             "local-polygon-vigil-fork",
             "local-polygon-whitelisted-vigil-fork",
         ].includes(process.env.NETWORK)
@@ -419,7 +418,7 @@ contract("GoodGhosting_Send_AToken_Externally", (accounts) => {
                     );
 
                     assert(
-                        rewardBalanceAfter.gt(rewardBalanceBefore),
+                        rewardBalanceAfter.gte(rewardBalanceBefore),
                         "expected rewards balance after withdrawal to be greater than before withdrawal"
                     );
                 } else {

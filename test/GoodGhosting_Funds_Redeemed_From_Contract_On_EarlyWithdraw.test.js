@@ -427,7 +427,7 @@ contract("GoodGhosting_Funds_Redeemed_On_Early_Withdraw", (accounts) => {
                     );
 
                     assert(
-                        rewardBalanceAfter.gt(rewardBalanceBefore),
+                        rewardBalanceAfter.gte(rewardBalanceBefore),
                         "expected rewards balance after withdrawal to be greater than before withdrawal"
                     );
                 } else {
