@@ -1440,20 +1440,16 @@ function shouldBehaveLikeGoodGhostingPolygonCurve(accounts, poolType) {
       it('originalTotalGamePrincipal is calculated correctly in case of impermanentLoss', async () => {
         await joinGamePaySegmentsAndComplete(player1)
         // to trigger impermanent loss
-        const principalAmount = await goodGhosting.totalGamePrincipal()
         await goodGhosting.redeemFromExternalPool('900000000000000000', {
           from: player2,
         })
-        const contractDaiBalance = await token.balanceOf(goodGhosting.address)
-        const calculatedOriginalTotalGamePrincipal = new BN(
-          principalAmount,
-        ).sub(new BN(contractDaiBalance))
+        const principalAmount = await goodGhosting.totalGamePrincipal()
         const originalTotalGamePrincipal = await goodGhosting.originalTotalGamePrincipal()
 
         assert(
-          calculatedOriginalTotalGamePrincipal.eq(originalTotalGamePrincipal),
+          originalTotalGamePrincipal.gt(principalAmount),
         )
-      })
+      });
 
       it('we are able to redeem if there is impermanent loss', async () => {
         await joinGamePaySegmentsAndComplete(player1)
