@@ -118,7 +118,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         uint256 totalGameInterest,
         uint256 rewards,
         uint256 curveRewards,
-        uint256 totalIncentiveAmount
+        uint256 totalIncentiveAmount,
+        uint256 originalTotalGamePrincipal
     );
     event WinnersAnnouncement(address[] winners);
     event EarlyWithdrawal(
@@ -631,7 +632,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             totalGameInterest,
             rewardsAmount,
             curveRewardAmount,
-            totalIncentiveAmount
+            totalIncentiveAmount,
+            originalTotalGamePrincipal
         );
         emit WinnersAnnouncement(winners);
     }
