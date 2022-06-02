@@ -431,16 +431,15 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
 
         uint256 payout = player.amountPaid;
+        if (impermanentLossShare > 0) {
+            // new payput in case of impermanent loss
+             payout = player.amountPaid.mul(impermanentLossShare).div(uint256(100));
+        }
         uint256 playerIncentive = 0;
         uint256 playerReward = 0;
         uint256 playerCurveReward = 0;
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
-            if (impermanentLossShare > 0) {
-                // new payput in case of impermanent loss
-                payout = player.amountPaid.mul(impermanentLossShare).div(
-                    uint256(100)
-                );
-            } else {
+            if (impermanentLossShare == 0) {
                 // Player is a winner and gets a bonus!
                 payout = payout.add(totalGameInterest.div(winnerCount));
             }
