@@ -1446,10 +1446,8 @@ function shouldBehaveLikeGoodGhostingPolygonCurve(accounts, poolType) {
         const principalAmount = await goodGhosting.totalGamePrincipal()
         const originalTotalGamePrincipal = await goodGhosting.originalTotalGamePrincipal()
 
-        assert(
-          originalTotalGamePrincipal.gt(principalAmount),
-        )
-      });
+        assert(originalTotalGamePrincipal.gt(principalAmount))
+      })
 
       it('we are able to redeem if there is impermanent loss', async () => {
         await joinGamePaySegmentsAndComplete(player1)
@@ -1657,6 +1655,57 @@ function shouldBehaveLikeGoodGhostingPolygonCurve(accounts, poolType) {
 
         assert(player1Difference.toString() === (newPrincipal / 2).toString())
         assert(player2Difference.toString() === (newPrincipal / 2).toString())
+      })
+
+      it('ghosts are able to withdraw on impermanent loss', async () => {
+        await approveDaiToContract(player1)
+        await approveDaiToContract(player2)
+        await goodGhosting.joinGame(0, { from: player1 })
+        await goodGhosting.joinGame(0, { from: player2 })
+        for (let index = 1; index < segmentCount; index++) {
+          await timeMachine.advanceTime(weekInSecs)
+          await approveDaiToContract(player1)
+
+          await goodGhosting.makeDeposit(0, { from: player1 })
+        }
+        // above, it accounted for 1st deposit window, and then the loop runs till segmentCount - 1.
+        // now, we move 2 more segments (segmentCount-1 and segmentCount) to complete the game.
+        await timeMachine.advanceTime(weekInSecs)
+        await timeMachine.advanceTime(weekInSecs)
+        await goodGhosting.redeemFromExternalPool('900000000000000000', {
+          from: player1,
+        })
+
+        const impermanentLossShareFromContract = await goodGhosting.impermanentLossShare()
+
+        const player1BeforeWithdrawBalance = await token.balanceOf(player1)
+        const player1Info = await goodGhosting.players(player1)
+
+        const player2BeforeWithdrawBalance = await token.balanceOf(player2)
+        const player2Info = await goodGhosting.players(player2)
+
+        await goodGhosting.withdraw(0, { from: player1 })
+        await goodGhosting.withdraw(0, { from: player2 })
+
+        const player1AfterWithdrawBalance = await token.balanceOf(player1)
+        const player2AfterWithdrawBalance = await token.balanceOf(player2)
+
+        const player1Difference = player1AfterWithdrawBalance.sub(
+          player1BeforeWithdrawBalance,
+        )
+        const actualAmountReceivedByPlayer1 = player1Info.amountPaid
+          .mul(impermanentLossShareFromContract)
+          .div(new BN(100))
+
+        const player2Difference = player2AfterWithdrawBalance.sub(
+          player2BeforeWithdrawBalance,
+        )
+        const actualAmountReceivedByPlayer2 = player2Info.amountPaid
+          .mul(impermanentLossShareFromContract)
+          .div(new BN(100))
+
+        assert(player1Difference.eq(actualAmountReceivedByPlayer1))
+        assert(player2Difference.eq(actualAmountReceivedByPlayer2))
       })
 
       it("withdraws from external pool on first withdraw if funds weren't redeemed yet", async () => {
