@@ -220,7 +220,8 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             );
         } else {
             require(
-                _inboundTokenIndex >= 0 && _inboundTokenIndex < NUM_ATRI_CRYPTO_TOKENS,
+                _inboundTokenIndex >= 0 &&
+                    _inboundTokenIndex < NUM_ATRI_CRYPTO_TOKENS,
                 "invalid _inboundTokenIndex value for _poolType 1"
             );
         }
@@ -310,7 +311,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
     }
 
-
     /// @notice Allows a player to join the game
     /// @param _minAmount Minimum amount accepted for withdrawal, to consider potential slippage in the pool.
     function joinGame(uint256 _minAmount) external virtual whenNotPaused {
@@ -362,7 +362,10 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             if (poolType == AAVE_POOL) {
                 uint256[NUM_AAVE_TOKENS] memory amounts; // fixed-sized array is initialized w/ [0, 0, 0]
                 amounts[uint256(inboundTokenIndex)] = withdrawAmount;
-                uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
+                uint256 poolWithdrawAmount = pool.calc_token_amount(
+                    amounts,
+                    true
+                );
 
                 if (gaugeBalance < poolWithdrawAmount) {
                     poolWithdrawAmount = gaugeBalance;
@@ -380,7 +383,10 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             } else if (poolType == ATRI_CRYPTO_POOL) {
                 uint256[NUM_ATRI_CRYPTO_TOKENS] memory amounts; // fixed-sized array is initialized w/ [0, 0, 0, 0, 0]
                 amounts[uint256(inboundTokenIndex)] = withdrawAmount;
-                uint256 poolWithdrawAmount = pool.calc_token_amount(amounts, true);
+                uint256 poolWithdrawAmount = pool.calc_token_amount(
+                    amounts,
+                    true
+                );
 
                 if (gaugeBalance < poolWithdrawAmount) {
                     poolWithdrawAmount = gaugeBalance;
@@ -404,7 +410,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         if (daiToken.balanceOf(address(this)) < withdrawAmount) {
             withdrawAmount = daiToken.balanceOf(address(this));
         }
- 
+
         require(
             IERC20(daiToken).transfer(msg.sender, withdrawAmount),
             "Fail to transfer ERC20 tokens on early withdraw"
@@ -431,7 +437,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         if (player.mostRecentSegmentPaid == lastSegment.sub(1)) {
             if (impermanentLossShare > 0) {
                 // new payput in case of impermanent loss
-                payout = player.amountPaid.mul(impermanentLossShare).div(uint(100));
+                payout = player.amountPaid.mul(impermanentLossShare).div(
+                    uint256(100)
+                );
             } else {
                 // Player is a winner and gets a bonus!
                 payout = payout.add(totalGameInterest.div(winnerCount));
@@ -452,12 +460,24 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             playerIncentive
         );
 
+        if (payout > IERC20(daiToken).balanceOf(address(this))) {
+            payout = IERC20(daiToken).balanceOf(address(this));
+        }
+
         require(
             IERC20(daiToken).transfer(msg.sender, payout),
             "Fail to transfer ERC20 tokens on withdraw"
         );
 
         if (playerIncentive > 0) {
+            if (
+                playerIncentive >
+                IERC20(incentiveToken).balanceOf(address(this))
+            ) {
+                playerIncentive = IERC20(incentiveToken).balanceOf(
+                    address(this)
+                );
+            }
             require(
                 IERC20(incentiveToken).transfer(msg.sender, playerIncentive),
                 "Fail to transfer ERC20 incentive tokens on withdraw"
@@ -465,6 +485,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
 
         if (playerReward > 0) {
+            if (playerReward > IERC20(matic).balanceOf(address(this))) {
+                playerReward = IERC20(matic).balanceOf(address(this));
+            }
             require(
                 IERC20(matic).transfer(msg.sender, playerReward),
                 "Fail to transfer ERC20 rewards one on withdraw"
@@ -472,6 +495,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
         }
 
         if (playerCurveReward > 0) {
+            if (playerCurveReward > IERC20(curve).balanceOf(address(this))) {
+                playerCurveReward = IERC20(curve).balanceOf(address(this));
+            }
             require(
                 IERC20(curve).transfer(msg.sender, playerCurveReward),
                 "Fail to transfer ERC20 rewards two on withdraw"
@@ -566,10 +592,7 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 );
             } else if (poolType == ATRI_CRYPTO_POOL) {
                 require(
-                    lpToken.approve(
-                        address(pool),
-                        lpTokenBalance
-                    ),
+                    lpToken.approve(address(pool), lpTokenBalance),
                     "Fail to approve allowance to pool"
                 );
 
@@ -580,7 +603,6 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
                 );
             }
         }
-
 
         uint256 totalBalance = IERC20(daiToken).balanceOf(address(this));
         uint256 rewardsAmount = IERC20(matic).balanceOf(address(this));
@@ -601,7 +623,9 @@ contract GoodGhostingPolygonCurve is Ownable, Pausable {
             grossInterest = totalBalance.sub(totalGamePrincipal);
         } else {
             // handling impermanent loss case
-            impermanentLossShare = (totalBalance.mul(uint(100))).div(totalGamePrincipal);
+            impermanentLossShare = (totalBalance.mul(uint256(100))).div(
+                totalGamePrincipal
+            );
             totalGamePrincipal = totalBalance;
         }
         // calculates the performance/admin fee (takes a cut - the admin percentage fee - from the pool's interest).
