@@ -145,7 +145,7 @@ contract GoodGhosting is Ownable, Pausable {
         uint256 _maxPlayersCount,
         IERC20 _incentiveToken
     ) public {
-        require(_customFee <= 20, "_customFee must be less than or equal to 20%");
+        require(_customFee <= 50, "_customFee must be less than or equal to 50%");
         require(_earlyWithdrawalFee <= 10, "_earlyWithdrawalFee must be less than or equal to 10%");
         require(_earlyWithdrawalFee > 0,  "_earlyWithdrawalFee must be greater than zero");
         require(_maxPlayersCount > 0, "_maxPlayersCount must be greater than zero");
