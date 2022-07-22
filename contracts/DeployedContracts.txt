@@ -50,3 +50,5 @@ Address	Network	Name
 0xF95799b722EA41e13641AE2fCbd27B3d96Ac54fd	Celo	Ibiza
 0x8C76BC8b993b671A14Ef598705DdAee244c3A633	Celo	Hawaii
 0xe5e5a97986e98a1f4137f982cbc311e32b13d4f3	Celo	Miami
+0x6361d05e27a09630eae9e2515b8ee3705eb0f87e	Celo	Save2Save: impactMarket
+0xd7a7f93e2005fdb4ff8149dedae0e30a984c9a19	Celo	Save2Save: Plastiks
