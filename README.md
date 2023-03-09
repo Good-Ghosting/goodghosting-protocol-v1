@@ -1,4 +1,4 @@
-# GoodGhosting
+# HaloFi (prev. GoodGhosting) V1 Contracts
 
 The new addictive way to save. Our savings pools reward regular savers with higher interest rates. The more people drop out, the greater the returns for the winners!
 
